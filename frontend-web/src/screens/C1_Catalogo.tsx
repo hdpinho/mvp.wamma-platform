@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { mockVehiculos, SEDES } from '../mocks/vehiculos';
+import { SEDES } from '../mocks/vehiculos';
+import { useVehiculos } from '../state/vehiculosContexto';
 import { CARROCERIAS } from '../types/vehiculo';
 import type { Carroceria } from '../types/vehiculo';
 import { TarjetaVehiculo } from '../components/TarjetaVehiculo';
@@ -52,6 +53,7 @@ const GrupoFiltro: React.FC<{ titulo: string; children: React.ReactNode }> = ({
 export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const { vehiculos } = useVehiculos();
 
   // Filtros sembrados desde el Home (?q= y ?carroceria=)
   const [busqueda, setBusqueda] = useState(params.get('q') ?? '');
@@ -72,14 +74,14 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
   const marcasDisponibles = useMemo(
-    () => Array.from(new Set(mockVehiculos.map((v) => v.marca))).sort(),
-    [],
+    () => Array.from(new Set(vehiculos.map((v) => v.marca))).sort(),
+    [vehiculos],
   );
 
   const resultados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
 
-    const filtrados = mockVehiculos.filter((v) => {
+    const filtrados = vehiculos.filter((v) => {
       const nombre = `${v.marca} ${v.modelo} ${v.version}`.toLowerCase();
       if (texto && !nombre.includes(texto)) return false;
       if (marcas.length && !marcas.includes(v.marca)) return false;

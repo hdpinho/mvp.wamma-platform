@@ -1,26 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { mockVehiculos } from '../mocks/vehiculos';
 import { FotoVehiculo } from '../components/FotoVehiculo';
 import { BotonFavorito } from '../components/BotonFavorito';
 import { SelloCertificado } from '../components/SelloCertificado';
 import { SimuladorCuota } from '../components/SimuladorCuota';
-import type { DatosSimulacion } from '../components/SimuladorCuota';
-import { PARAMETROS_FINANCIAMIENTO, calcularCuota } from '../mocks/financiamiento';
-import { NotaSimulada } from '../components/NotaSimulada';
 import { Boton } from '../components/Boton';
 import { Estado } from '../components/Estado';
 import { TarjetaVehiculo } from '../components/TarjetaVehiculo';
 import { Seccion } from '../components/Seccion';
 import { Imperfecciones } from '../components/Imperfecciones';
 import { useFavoritos } from '../state/favoritosContexto';
+import { useVehiculos } from '../state/vehiculosContexto';
+import { ModalAgendarCita } from '../components/ModalAgendarCita';
 import { creditosFotos } from '../mocks/creditosFotos';
 
 interface C2FichaVehiculoProps {
   rateBCV: number;
 }
 
-type ModoPago = 'financiar' | 'suscripcion';
 
 /** Bloques de la inspección de 240 puntos (módulo 004). */
 const AREAS_INSPECCION = [
@@ -43,9 +41,12 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { tieneAlerta, alternarAlerta } = useFavoritos();
-  const [modo, setModo] = useState<ModoPago>('financiar');
+  const { vehiculos, obtenerImperfecciones } = useVehiculos();
 
-  const vehiculo = mockVehiculos.find((v) => v.id === id);
+  const [modalCitaAbierto, setModalCitaAbierto] = React.useState(false);
+  const [interesFinanciamiento, setInteresFinanciamiento] = React.useState(false);
+
+  const vehiculo = vehiculos.find((v) => v.id === id);
 
   if (!vehiculo) {
     return (
@@ -57,27 +58,15 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
     );
   }
 
+  const imperfecciones = obtenerImperfecciones(vehiculo.id);
   const credito = creditosFotos[vehiculo.id];
 
   /**
-   * Lleva a la solicitud de financiamiento (C5) arrastrando el vehículo y los
-   * números de la simulación. Sin esto, C5 caía siempre al primer vehículo.
+   * Abre el modal para agendar cita para este vehículo.
    */
-  const irAFinanciamiento = (datos?: DatosSimulacion) => {
-    const inicialPct = datos?.inicialPct ?? PARAMETROS_FINANCIAMIENTO.inicialPorcentaje;
-    const plazo = datos?.plazo ?? PARAMETROS_FINANCIAMIENTO.plazoPorDefecto;
-    const cuotaInicialUSD = datos?.cuotaInicialUSD ?? vehiculo.precioUSD * inicialPct;
-    const montoFinanciado = datos?.montoFinanciado ?? vehiculo.precioUSD - cuotaInicialUSD;
-
-    navigate('/financiamiento', {
-      state: {
-        vehiculoId: vehiculo.id,
-        montoFinanciado: Math.round(montoFinanciado),
-        plazo,
-        cuotaInicialUSD: Math.round(cuotaInicialUSD),
-        cuota: datos?.cuota ?? calcularCuota(montoFinanciado, plazo),
-      },
-    });
+  const abrirAgendarCita = (financiamiento = false) => {
+    setInteresFinanciamiento(financiamiento);
+    setModalCitaAbierto(true);
   };
 
   const similares = mockVehiculos
@@ -276,7 +265,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
           </div>
 
           {/* Hallazgos cosméticos declarados por la inspección (módulo 004) */}
-          <Imperfecciones vehiculo={vehiculo} />
+          <Imperfecciones vehiculo={vehiculo} listaImperfecciones={imperfecciones} />
         </div>
 
         {/* ── Columna derecha: precio y acción ───────────────── */}
@@ -310,87 +299,69 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
               </div>
             </div>
 
-            {/* Selector de modo de pago */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 'var(--space-xs)',
-                padding: '4px',
-                backgroundColor: 'var(--superficie)',
-                borderRadius: 'var(--radius-md)',
-                marginBottom: 'var(--space-lg)',
-              }}
-            >
-              {(
-                [
-                  ['financiar', 'Financiar'],
-                  ['suscripcion', 'Suscripción'],
-                ] as [ModoPago, string][]
-              ).map(([valor, etiqueta]) => (
-                <button
-                  key={valor}
-                  type="button"
-                  onClick={() => setModo(valor)}
-                  style={{
-                    padding: '10px',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    border: 'none',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: modo === valor ? 'var(--blanco)' : 'transparent',
-                    color: modo === valor ? 'var(--naranja-700)' : 'var(--texto-secundario)',
-                    boxShadow: modo === valor ? 'var(--shadow-sm)' : 'none',
-                  }}
-                >
-                  {etiqueta}
-                </button>
-              ))}
-            </div>
-
-            {modo === 'financiar' ? (
-              <Boton
-                variant="primary"
-                fullWidth
-                onClick={() => navigate(`/solicitud-credito?vehiculo=${vehiculo.id}`)}
+            {vehiculo.estadoDisponibilidad === 'cita_agendada' ? (
+              <div
+                style={{
+                  backgroundColor: 'var(--naranja-50)',
+                  border: '1px solid var(--naranja-200)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-md)',
+                  textAlign: 'center',
+                  marginBottom: 'var(--space-md)',
+                }}
               >
-                Solicitar financiamiento
-              </Boton>
-            ) : vehiculo.suscripcionMensualUSD ? (
-              <div>
                 <div
                   style={{
-                    backgroundColor: 'var(--naranja-50)',
-                    border: '1px solid var(--naranja-200)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: 'var(--space-lg)',
-                    textAlign: 'center',
-                    marginBottom: 'var(--space-md)',
+                    color: 'var(--naranja-700)',
+                    fontWeight: 700,
+                    fontSize: '14px',
+                    marginBottom: '4px',
                   }}
                 >
-                  <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--naranja-700)' }}>
-                    Suscripción mensual
-                  </div>
-                  <div style={{ fontSize: '28px', fontWeight: 700, lineHeight: 1.2 }}>
-                    {formatoUSD(vehiculo.suscripcionMensualUSD)}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--texto-secundario)' }}>
-                    con opción de compra al final
-                  </div>
+                  ⏱️ Cita en Curso / Reservado
                 </div>
-                <Boton variant="primary" fullWidth onClick={() => navigate('/suscripcion')}>
-                  Conocer la suscripción
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--texto-secundario)',
+                    lineHeight: 1.4,
+                    marginBottom: 'var(--space-sm)',
+                  }}
+                >
+                  Este vehículo ya tiene una cita agendada. El agendamiento está desactivado para otros usuarios.
+                </div>
+                <Boton variant="secondary" fullWidth disabled>
+                  Vehículo Reservado Temporalmente
                 </Boton>
               </div>
+            ) : vehiculo.estadoDisponibilidad === 'vendido' ? (
+              <div
+                style={{
+                  backgroundColor: 'var(--superficie)',
+                  border: '1px solid var(--borde)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-md)',
+                  textAlign: 'center',
+                  color: 'var(--texto-mudo)',
+                  fontWeight: 700,
+                  marginBottom: 'var(--space-md)',
+                }}
+              >
+                Vehículo Vendido
+              </div>
             ) : (
-              <p style={{ fontSize: '13px', color: 'var(--texto-secundario)' }}>
-                Este vehículo no está disponible bajo suscripción.
-              </p>
+              <div style={{ marginBottom: 'var(--space-md)' }}>
+                <Boton
+                  variant="primary"
+                  fullWidth
+                  onClick={() => abrirAgendarCita(false)}
+                >
+                  Agendar cita
+                </Boton>
+              </div>
             )}
 
-            <div style={{ marginTop: 'var(--space-md)' }}>
+            <div>
               <Boton
                 variant="secondary"
                 fullWidth
@@ -403,20 +374,11 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
             </div>
           </div>
 
-          {modo === 'financiar' && (
-            <SimuladorCuota
-              precioUSD={vehiculo.precioUSD}
-              rateBCV={rateBCV}
-              onSolicitar={irAFinanciamiento}
-            />
-          )}
-
-          {modo === 'suscripcion' && (
-            <NotaSimulada variante="bloque">
-              La suscripción OCN corresponde al módulo 10 (Fase 2). El monto mostrado es simulado y
-              las condiciones aún no están definidas.
-            </NotaSimulada>
-          )}
+          <SimuladorCuota
+            precioUSD={vehiculo.precioUSD}
+            rateBCV={rateBCV}
+            onSolicitar={() => abrirAgendarCita(true)}
+          />
         </aside>
       </div>
 
@@ -464,6 +426,15 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
           .ficha-lateral { position: static; }
         }
       `}</style>
+
+      {modalCitaAbierto && (
+        <ModalAgendarCita
+          vehiculo={vehiculo}
+          rateBCV={rateBCV}
+          interesFinanciamientoInicial={interesFinanciamiento}
+          onCerrar={() => setModalCitaAbierto(false)}
+        />
+      )}
     </div>
   );
 };

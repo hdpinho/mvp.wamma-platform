@@ -32,7 +32,7 @@ Eres un par de ingeniería senior full-stack experto en SDD. Construyes el MVP (
 - Web/panel: **React**. Móvil: **Flutter**. Backend: **Go** (monolito modular, paquetes por dominio).
 - BD: **PostgreSQL** (migraciones versionadas; esquema del ledger append-only). Caché/colas: **Redis**.
 - API versionada `/v1/...`. Operaciones de dinero idempotentes y conciliables.
-- Pruebas obligatorias para: cálculo de cuotas/amortización, asientos del ledger, decisiones de scoring/AML, reglas de corte GPS.
+- Pruebas obligatorias para: cálculo de cuotas/amortización, asientos del ledger, decisiones de scoring/AML.
 - Commits en español: `tipo(modulo): descripción`.
 - Documentación y comentarios de negocio en español; identificadores de código en inglés.
 

@@ -62,12 +62,40 @@ export interface VehiculoData {
   puestos: number;
   traccion: '4x2' | '4x4';
   certificado: boolean;
-  /** Cuota mensual de suscripción OCN (rent-to-own). Fase 2. */
-  suscripcionMensualUSD?: number;
   etiqueta?: EtiquetaVehiculo;
   /** Ruta de la fotografía en `public/vehiculos/`. Ver `mocks/creditosFotos.ts`. */
   foto?: string;
   /** Color de la carrocería; tiñe el marcador cuando no hay foto. */
   color: string;
   sede: string;
+  /** Estado de disponibilidad comercial para el MVP híbrido. */
+  estadoDisponibilidad?: 'disponible' | 'cita_agendada' | 'vendido';
+}
+
+/**
+ * Solicitud de cita agendada por un cliente desde la ficha pública del vehículo.
+ * Para el MVP híbrido de WAMMA: sustituye la solicitud de crédito directa y
+ * despacha notificación por correo a WAMMA para posterior contacto por WhatsApp.
+ */
+export interface CitaSolicitud {
+  id: string;
+  vehiculoId: string;
+  vehiculoResumen: {
+    marca: string;
+    modelo: string;
+    version: string;
+    anio: number;
+    precioUSD: number;
+    foto?: string;
+  };
+  nombreApellido: string;
+  cedula: string;
+  telefonoWhatsApp: string;
+  correo: string;
+  diaPreferencia: string;
+  franjaHoraria: 'Mañana' | 'Tarde';
+  metodoPago: 'Contado' | 'Financiamiento';
+  estado: 'pendiente' | 'confirmada' | 'descartada';
+  fechaCreacion: string;
+  notificadoA: string; // pjjulio@gmail.com
 }

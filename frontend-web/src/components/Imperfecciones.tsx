@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { DiagramaVehiculo } from './DiagramaVehiculo';
 import { NotaSimulada } from './NotaSimulada';
 import { imperfeccionesDe } from '../mocks/imperfecciones';
-import type { VehiculoData } from '../types/vehiculo';
+import { useVehiculos } from '../state/vehiculosContexto';
+import type { VehiculoData, Imperfeccion } from '../types/vehiculo';
 
 /**
  * Sección "Imperfecciones" de la ficha del vehículo.
@@ -15,6 +16,7 @@ import type { VehiculoData } from '../types/vehiculo';
 
 interface ImperfeccionesProps {
   vehiculo: VehiculoData;
+  listaImperfecciones?: Imperfeccion[];
 }
 
 type Zona = 'exterior' | 'interior';
@@ -24,8 +26,19 @@ const COLOR_SEVERIDAD = {
   moderada: { fondo: 'var(--peligro-fondo)', texto: 'var(--peligro-texto)' },
 } as const;
 
-export const Imperfecciones: React.FC<ImperfeccionesProps> = ({ vehiculo }) => {
-  const todas = useMemo(() => imperfeccionesDe(vehiculo.id), [vehiculo.id]);
+export const Imperfecciones: React.FC<ImperfeccionesProps> = ({ vehiculo, listaImperfecciones }) => {
+  let contextImperfecciones: Imperfeccion[] = [];
+  try {
+    const { obtenerImperfecciones } = useVehiculos();
+    contextImperfecciones = obtenerImperfecciones(vehiculo.id);
+  } catch {
+    contextImperfecciones = imperfeccionesDe(vehiculo.id);
+  }
+
+  const todas = useMemo(
+    () => listaImperfecciones ?? (contextImperfecciones.length > 0 ? contextImperfecciones : imperfeccionesDe(vehiculo.id)),
+    [listaImperfecciones, contextImperfecciones, vehiculo.id],
+  );
   const [zona, setZona] = useState<Zona>('exterior');
   const [indice, setIndice] = useState(0);
 

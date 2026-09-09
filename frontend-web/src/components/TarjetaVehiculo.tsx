@@ -61,7 +61,44 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
           <BotonFavorito vehiculoId={vehiculo.id} />
         </div>
 
-        {vehiculo.etiqueta && (
+        {vehiculo.estadoDisponibilidad === 'cita_agendada' ? (
+          <span
+            style={{
+              position: 'absolute',
+              top: '14px',
+              left: '12px',
+              backgroundColor: 'var(--naranja-600)',
+              color: 'var(--blanco)',
+              fontSize: '10px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              padding: '5px 10px',
+              borderRadius: 'var(--radius-pill)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            }}
+          >
+            ⏱️ Cita en curso
+          </span>
+        ) : vehiculo.estadoDisponibilidad === 'vendido' ? (
+          <span
+            style={{
+              position: 'absolute',
+              top: '14px',
+              left: '12px',
+              backgroundColor: 'var(--texto-secundario)',
+              color: 'var(--blanco)',
+              fontSize: '10px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              padding: '5px 10px',
+              borderRadius: 'var(--radius-pill)',
+            }}
+          >
+            Vendido
+          </span>
+        ) : vehiculo.etiqueta ? (
           <span
             style={{
               position: 'absolute',
@@ -79,7 +116,7 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
           >
             {vehiculo.etiqueta}
           </span>
-        )}
+        ) : null}
       </div>
 
       {/* Cuerpo */}

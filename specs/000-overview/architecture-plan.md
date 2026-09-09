@@ -25,14 +25,12 @@ Un solo sistema bien ordenado en módulos, fácil de construir rápido y de part
 backend/
 ├── internal/
 │   ├── platform/        # auth, RBAC, auditoría, cifrado, config (módulo 001)
-│   ├── identity/        # KYC, onboarding (módulo 002)
-│   ├── pricing/         # K-Price MVP (módulo 003)
-│   ├── inspection/      # inspección 240 puntos + validación legal (módulo 004)
-│   ├── catalog/         # catálogo, venta, garantía (módulo 005)
+│   ├── creditapp/       # solicitud digital de crédito WMA-F-FIN-001 (validación y cálculo)
+│   ├── inspection/      # inspección 240 puntos + certificación (módulo 004)
+│   ├── catalog/         # catálogo de vehículos publicados y reservas (módulo 005)
 │   ├── risk/            # scoring, AML, decisión de crédito (módulo 006)
 │   ├── ledger/          # partida doble inmutable (módulo 007)
 │   ├── payments/        # C2P / Pago Móvil, deuda, amortización (módulo 007)
-│   ├── telemetry/       # GPS, corte de ignición (módulo 008)
 │   └── treasury/        # inventario, conciliación, reportería (módulo 009)
 ├── api/v1/              # contratos HTTP versionados
 └── migrations/          # migraciones versionadas (ledger: append-only)
@@ -42,10 +40,10 @@ Reglas: los módulos se comunican por interfaces explícitas; `ledger` no expone
 
 ## 3. Las cinco capas
 
-1. **Presentación** — React (web/panel) + Flutter (móvil).
-2. **Negocio** — reglas en Go: cómo se cotiza, se aprueba un crédito, se calcula una cuota.
+1. **Presentación** — React (web) + Flutter (móvil).
+2. **Negocio** — reglas en Go: validaciones venezolanas, crédito y cuotas fijas.
 3. **Datos** — PostgreSQL + Redis + object storage nacional.
-4. **Integración** — puentes a bancos, buró, GPS y validación de identidad (sección 5).
+4. **Integración** — puentes a bancos y buró de crédito (sección 5).
 5. **Seguridad y cumplimiento** — cifrado, RBAC, auditoría, reportería Sudeban; atraviesa todas.
 
 ## 4. Infraestructura soberana + continuidad
@@ -60,7 +58,6 @@ Decisión (Constitución, Principio II): sede principal en **centro de datos nac
 | Respaldo (backup) | Copias periódicas cifradas, con pruebas de restauración |
 | Seguridad perimetral | Firewall + WAF |
 | Pasarela de integración bancaria | Canal seguro/certificado para C2P y Pago Móvil |
-| Pasarela de telemetría GPS | Recibe ubicación y envía orden de corte de ignición |
 | Conectividad redundante | Dos proveedores de internet simultáneos |
 
 **Aporte sobre la propuesta original de Sentient:** se añade explícitamente el **sitio DR** y la **réplica de BD**. Un solo punto de falla puede detener todos los cobros: la redundancia es innegociable.
@@ -71,10 +68,8 @@ Decisión (Constitución, Principio II): sede principal en **centro de datos nac
 |---|---|---|
 | **Access Datametrics (Credicard)** | Scoring crediticio (escala 100–800, 6 variables) | Evaluado VIABLE Y RECOMENDADO. Detalle de API a confirmar en `research-dependencies.md` |
 | **Bancos C2P / Pago Móvil** | Cobro de cuotas | Sujeto a convenios bancarios `[NEEDS CLARIFICATION]` |
-| **GPS / telemetría** | Ubicación + corte de ignición | Proveedor de dispositivo a confirmar `[NEEDS CLARIFICATION]` |
-| **Validación de identidad / OCR** | KYC: facial + prueba de vida, OCR cédula/RIF | Proveedor biométrico operable en Venezuela `[NEEDS CLARIFICATION]` |
 | **Listas OFAC / PEP** | AML/CFT | Fuente de listas a confirmar; control manual documentado como transitorio |
-| **Bases de robo / deudas vehiculares** | Validación legal del auto | Fuente oficial a confirmar `[NEEDS CLARIFICATION]` |
+| **Bases de antecedentes vehiculares** | Validación legal del auto publicado | Fuente oficial a confirmar `[NEEDS CLARIFICATION]` |
 
 Patrón: cada integración detrás de una interfaz propia (adaptador), para sustituir proveedor sin reescribir el dominio.
 
@@ -88,9 +83,9 @@ Patrón: cada integración detrás de una interfaz propia (adaptador), para sust
 
 ## 7. Plan de pruebas
 
-- Pruebas unitarias obligatorias para: cálculo de cuotas/amortización, asientos de partida doble, decisiones de scoring/AML, reglas de corte GPS.
+- Pruebas unitarias obligatorias para: cálculo de cuotas/amortización, asientos de partida doble, decisiones de scoring/AML.
 - Pruebas de integración para cada adaptador externo (con simuladores cuando el proveedor no esté disponible).
 - Pruebas de restauración de respaldo (continuidad).
 
 ---
-*WAMMA · Confidencial · Rev. 1 · No constituye asesoría legal ni financiera.*
+*WAMMA · Confidencial · Rev. 2 · No constituye asesoría legal ni financiera.*

@@ -2,12 +2,14 @@ import React from 'react';
 
 interface BotonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'text';
+  size?: 'small' | 'medium' | 'large';
   fullWidth?: boolean;
   loading?: boolean;
 }
 
 export const Boton: React.FC<BotonProps> = ({
   variant = 'primary',
+  size = 'medium',
   fullWidth = false,
   loading = false,
   children,
@@ -15,14 +17,18 @@ export const Boton: React.FC<BotonProps> = ({
   ...props
 }) => {
   const getStyle = (): React.CSSProperties => {
+    const padding =
+      size === 'small' ? '6px 12px' : size === 'large' ? '14px 28px' : '10px 20px';
+    const fontSize = size === 'small' ? '12px' : size === 'large' ? '15px' : '14px';
+
     const baseStyle: React.CSSProperties = {
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
       fontFamily: 'var(--font-sans)',
       fontWeight: 700,
-      fontSize: '14px',
-      padding: '12px 24px',
+      fontSize,
+      padding,
       borderRadius: 'var(--radius-md)',
       border: '1px solid transparent',
       cursor: props.disabled || loading ? 'not-allowed' : 'pointer',

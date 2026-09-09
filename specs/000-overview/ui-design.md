@@ -118,25 +118,19 @@ Todo monto se muestra con el componente `PrecioMoneda`:
 - **Secundario:** equivalencia en Bs. con nota "a tasa BCV del día".
 En la maqueta la tasa es un valor **simulado** fijo; la conversión real llega con la lógica (Principio V de la Constitución).
 
-## 7. Inventario de pantallas
+## 7. Inventario de pantallas (Venta de Vehículos Publicados)
 
-**Prioridad 1 — Cliente (lo que ve el "usuario final"):**
+**Cliente:**
 
-| # | Ruta | Pantalla | Módulo | Fase |
-|---|---|---|---|---|
-| C0 | `/` | Home: hero, accesos comprar/vender/cambiar, carrocerías, destacados, 3 pasos, simulador, bloque OCN | 005 | 1 |
-| C1 | `/catalogo` | Catálogo / vitrina con filtros y ordenamiento | 005 | 1 |
-| C2 | `/vehiculo/:id` | Ficha del vehículo + simulador de cuota + inspección 240 pts + **imperfecciones** | 005 · 004 | 1 |
-| C3 | `/vender` | Vende tu auto (K-Price) · modo permuta en `?modo=cambio` | 003 | 1 |
-| C4 | `/onboarding` | Onboarding / verificación KYC (registro, facial, OCR) | 002 | 1 |
-| C5 | `/financiamiento` | Solicitud de financiamiento + resultado | 006 | 1 |
-| C6 | `/panel` | Mi panel: deuda, próxima cuota, amortización, pagar (C2P/Pago Móvil) | 007 | 1 |
-| C7 | `/favoritos` | Guardados y alertas de precio | 12 | **2** |
-| C8 | `/suscripcion` | Suscripción / rent-to-own OCN | 10 | **2** |
+| # | Ruta | Pantalla | Módulo |
+|---|---|---|---|
+| C0 | `/` | Home: hero, vitrina destacados, 3 pilares, pasos, simulador | 005 |
+| C1 | `/catalogo` | Catálogo / vitrina con filtros y ordenamiento | 005 |
+| C2 | `/vehiculo/:id` | Ficha del vehículo + simulador de cuota + inspección 240 pts + imperfecciones | 005 · 004 |
+| C7 | `/favoritos` | Guardados y alertas de precio | 005 |
+| C9 | `/solicitud-credito` | Asistente de 8 pasos solicitud de crédito digital WMA-F-FIN-001 | solicitud-credito |
 
-> **Decisión del Product Owner (2026-08-20):** C7 y C8, más el modo permuta de C3 y el corazón de favoritos en las tarjetas, corresponden a la Fase 2 (módulos 10 y 12 de `product-overview.md`) y se adelantan **solo como maqueta visual** para completar el paralelo con el modelo de Kavak. No habilitan trabajo de implementación fuera del orden de olas de `tasks-build-order.md`: el backend de esos módulos sigue siendo Fase 2.
-
-**Prioridad 2 — Operación / interno:**
+**Operación / interno (Roadmap):**
 
 | # | Pantalla | Módulo |
 |---|---|---|
@@ -144,23 +138,18 @@ En la maqueta la tasa es un valor **simulado** fijo; la conversión real llega c
 | O2 | App de inspección de 240 puntos (inspector) | 004 |
 | O3 | Tablero de inventario por sede y estado | 009 |
 | O4 | Tablero de tesorería / conciliación | 009 |
-| O5 | Cobranza: mapa GPS + órdenes de corte | 008 |
 | O6 | Decisión de crédito / cumplimiento | 006 |
-
-> `[NEEDS CLARIFICATION: ¿la primera maqueta cubre solo Prioridad 1 (cliente) o también Prioridad 2 (interno)?]`
 
 ## 8. Flujo de navegación (cliente)
 
 ```
-                      ┌──► Catálogo (C1) ──► Ficha (C2) ──┬──► Financiar (C5) ──► [KYC] ──► Onboarding (C4)
-                      │         ▲                         │                │
-  Home (C0) ──────────┤         │                         │                └──► (aprobado) ──► Mi panel (C6) ──► Pagar
-                      │         └──── Guardados (C7) ◄─────┤
-                      │                                    └──► Suscripción (C8)
-                      ├──► Vende tu auto (C3)
-                      └──► Cambia tu auto (C3 · ?modo=cambio) ──► elige destino ──► diferencia ──► Financiar (C5)
+                      ┌──► Catálogo (C1) ──► Ficha (C2) ──► Solicitud de Crédito (C9)
+                      │         ▲                │
+  Home (C0) ──────────┤         └─ Guardados (C7)◄┘
+                      │
+                      └──► Solicitud de Crédito directa (C9)
 ```
-La maqueta enlaza pantallas con navegación real (router), pero **sin guards de negocio**: los saltos se simulan.
+La maqueta enlaza pantallas con navegación real (router), conectando la ficha del auto seleccionado con el formulario oficial WMA-F-FIN-001.
 
 **Filtros del catálogo (C1):** cuota mensual, precio máximo, marca, carrocería, transmisión, sede, año mínimo, kilometraje máximo y "solo certificados". **Ordenamiento:** relevancia, menor/mayor precio, menos kilómetros, más nuevos. Los filtros aplicados se muestran como `ChipFiltro` removibles.
 

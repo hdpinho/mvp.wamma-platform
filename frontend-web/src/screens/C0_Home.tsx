@@ -1,22 +1,21 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockVehiculos } from '../mocks/vehiculos';
+import { useVehiculos } from '../state/vehiculosContexto';
 import { CARROCERIAS } from '../types/vehiculo';
 import { TarjetaVehiculo } from '../components/TarjetaVehiculo';
 import { Seccion } from '../components/Seccion';
 import { SimuladorCuota } from '../components/SimuladorCuota';
-import { NotaSimulada } from '../components/NotaSimulada';
 import { Boton } from '../components/Boton';
 
 interface C0HomeProps {
   rateBCV: number;
 }
 
-/** Los tres caminos de entrada del modelo: comprar, vender y permutar. */
+/** Los tres pilares para la compra de vehículos publicados. */
 const ACCESOS = [
   {
-    titulo: 'Compra un auto',
-    detalle: 'Vehículos certificados con inspección de 240 puntos.',
+    titulo: 'Explora la vitrina',
+    detalle: 'Inventario real certificado listo para entrega inmediata.',
     a: '/catalogo',
     icono: (
       <>
@@ -26,49 +25,48 @@ const ACCESOS = [
     ),
   },
   {
-    titulo: 'Vende tu auto',
-    detalle: 'Cotización instantánea con nuestro motor K-Price.',
-    a: '/vender',
+    titulo: 'Certificación 240 puntos',
+    detalle: 'Inspección exhaustiva mecánica, legal y estética garantizada.',
+    a: '/catalogo',
     icono: (
       <>
-        <line x1="12" y1="19" x2="12" y2="5" />
-        <polyline points="5 12 12 5 19 12" />
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <polyline points="9 12 11 14 15 10" />
       </>
     ),
   },
   {
-    titulo: 'Cambia tu auto',
-    detalle: 'Entrega el tuyo como parte de pago del próximo.',
-    a: '/vender?modo=cambio',
+    titulo: 'Financiamiento directo',
+    detalle: 'Simula cuotas en USD/Bs y solicita crédito en minutos.',
+    a: '/solicitud-credito',
     icono: (
       <>
-        <polyline points="17 1 21 5 17 9" />
-        <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-        <polyline points="7 23 3 19 7 15" />
-        <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+        <line x1="2" y1="10" x2="22" y2="10" />
       </>
     ),
   },
 ];
 
-/** Pasos del recorrido de compra. Reflejan el flujo de los módulos 002, 006 y 005. */
+/** Pasos del recorrido de compra de vehículos publicados. */
 const PASOS = [
   {
     titulo: 'Encuentra tu auto',
     detalle: 'Explora la vitrina y filtra por precio, cuota mensual, marca o sede.',
   },
   {
-    titulo: 'Verifica tu identidad',
-    detalle: 'Validamos tu cédula y RIF para habilitar la compra y el financiamiento.',
+    titulo: 'Agenda tu cita',
+    detalle: 'Selecciona tu auto, reserva tu visita y recibe confirmación rápida por WhatsApp.',
   },
   {
-    titulo: 'Elige cómo pagar',
-    detalle: 'De contado, financiado a cuotas o bajo suscripción con opción de compra.',
+    titulo: 'Recibe tu auto garantizado',
+    detalle: 'Paga de contado o financiado y retira tu vehículo con garantía WAMMA.',
   },
 ];
 
 export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
   const navigate = useNavigate();
+  const { vehiculos } = useVehiculos();
   const [busqueda, setBusqueda] = useState('');
 
   /** Respeta la preferencia del sistema de reducir animaciones. */
@@ -79,7 +77,7 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
     [],
   );
 
-  const destacados = mockVehiculos.filter((v) => v.certificado).slice(0, 4);
+  const destacados = vehiculos.filter((v) => v.certificado).slice(0, 4);
 
   const buscar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,7 +156,7 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
               textShadow: '0 1px 8px rgba(0,0,0,0.4)',
             }}
           >
-            Compra, vende y financia vehículos usados certificados en Venezuela. Todo bajo un mismo
+            Compra y financia vehículos usados certificados en Venezuela. Todo bajo un mismo
             techo.
           </p>
 
@@ -328,9 +326,9 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
           }}
         >
           {CARROCERIAS.filter((tipo) =>
-            mockVehiculos.some((v) => v.carroceria === tipo),
+            vehiculos.some((v) => v.carroceria === tipo),
           ).map((tipo) => {
-            const cantidad = mockVehiculos.filter((v) => v.carroceria === tipo).length;
+            const cantidad = vehiculos.filter((v) => v.carroceria === tipo).length;
             return (
               <button
                 key={tipo}
@@ -477,7 +475,7 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
               {[
                 'Precios en USD con equivalencia a tasa BCV en cada operación.',
                 'Cuotas fijas con tabla de amortización visible desde el primer día.',
-                'Seguimiento de tu crédito y tus pagos en Mi Panel.',
+                'Aprobación ágil y directa sobre el inventario en vitrina.',
               ].map((item) => (
                 <li key={item} style={{ display: 'flex', gap: 'var(--space-sm)' }}>
                   <svg
@@ -501,60 +499,6 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
         </div>
       </Seccion>
 
-      {/* ── Suscripción OCN (Fase 2) ─────────────────────────── */}
-      <Seccion
-        titulo="¿Prefieres suscribirte en vez de comprar?"
-        bajada="Paga una cuota mensual, usa el vehículo y decide más adelante si te quedas con él."
-        enlace={{ texto: 'Conocer la suscripción', a: '/suscripcion' }}
-      >
-        <div
-          style={{
-            position: 'relative',
-            overflow: 'hidden',
-            backgroundColor: 'var(--negro)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--space-xxl) var(--space-xl)',
-            color: 'var(--blanco)',
-          }}
-        >
-          <div style={{ position: 'relative', maxWidth: '620px' }}>
-            <span
-              style={{
-                display: 'inline-block',
-                fontSize: '10px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                backgroundColor: 'var(--naranja-500)',
-                color: 'var(--blanco)',
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-pill)',
-                marginBottom: 'var(--space-md)',
-              }}
-            >
-              Suscripción OCN
-            </span>
-            <h3 style={{ color: 'var(--blanco)', fontSize: '24px', marginBottom: 'var(--space-sm)' }}>
-              El carro que necesitas, sin comprarlo de una vez
-            </h3>
-            <p style={{ fontSize: '15px', opacity: 0.85, marginBottom: 'var(--space-lg)' }}>
-              Una cuota mensual que incluye el uso del vehículo, con opción de compra al final del
-              período. Es el modelo propio de WAMMA, no existe en el resto del mercado.
-            </p>
-            <Boton variant="primary" onClick={() => navigate('/suscripcion')}>
-              Ver planes de suscripción
-            </Boton>
-          </div>
-        </div>
-
-        <div style={{ marginTop: 'var(--space-lg)' }}>
-          <NotaSimulada variante="bloque">
-            La suscripción / rent-to-own (OCN) corresponde al módulo 10, planificado para la Fase 2.
-            Se muestra aquí como maqueta visual por decisión del Product Owner. Las condiciones y
-            montos no están definidos.
-          </NotaSimulada>
-        </div>
-      </Seccion>
     </div>
   );
 };
