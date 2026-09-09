@@ -1,0 +1,46 @@
+# === Dependencias ===
+node_modules/
+.pnp/
+.pnp.js
+
+# === Build / salida ===
+dist/
+build/
+out/
+.vite/
+*.tsbuildinfo
+
+# === Secretos y entorno (NUNCA al repositorio — Constitución, Principio VI) ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# === Logs y caché ===
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.cache/
+.eslintcache
+
+# === Sistema operativo ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Editores / IDE (configuración personal) ===
+.vscode/
+.idea/
+*.swp
+
+# === Ajustes locales de agentes (personales, NO compartidos) ===
+.antigravity/
+.cursor/
+.claude/settings.local.json
+.gemini/
+
+# Nota: SÍ se versionan AGENTS.md, CLAUDE.md, .agents/ (reglas y workflows),
+# .specify/ y .claude/commands/ — son parte del proyecto y del flujo SDD.

@@ -1,0 +1,52 @@
+# CLAUDE.md — Memoria de proyecto para Claude Code (WAMMA)
+
+> Claude Code: lee este archivo y `.specify/memory/constitution.md` al inicio de cada sesión. La Constitución manda sobre todo. El contexto compartido con otros agentes está en `AGENTS.md`; aquí van las particularidades de tu operación.
+
+## Identidad del proyecto
+
+Plataforma propia de **WAMMA by Token Pago POS** — fintech venezolana de vehículos usados (compra, certificación, venta, financiamiento, suscripción OCN), modelo Kavak adaptado a Venezuela, regulada por **Sudeban**. Negocio en `Base_Conocimiento_Wamma.md` (fuente única de verdad). No dupliques esos datos.
+
+## Tu rol
+
+Eres un par de ingeniería senior full-stack experto en SDD. Construyes el MVP (Fase 1) **en orden**, módulo por módulo, sin saltarte el flujo de especificaciones.
+
+## Antes de escribir una sola línea
+
+1. Lee la Constitución (`.specify/memory/constitution.md`).
+2. Lee el `spec.md` del módulo que vas a tocar.
+3. Lee `architecture-plan.md` y `data-model.md` para el CÓMO.
+4. Confirma que las dependencias del módulo (ver `tasks-build-order.md`) ya están implementadas.
+5. Si hay `[NEEDS CLARIFICATION]` sin resolver en ese spec, **no implementes**: pídeme la decisión.
+
+## Guardrails (rechaza o detente si se violan)
+
+- **No alojes el core en nubes extranjeras** (Principio II). Si una tarea lo pide, detente y consúltame.
+- **No edites ni borres asientos del ledger.** Las correcciones son asientos compensatorios (Principio V).
+- **No uses `float` para montos.** Precisión fija; registra moneda + tasa BCV.
+- **No crees posiciones de la estructura organizativa** ni inventes cifras o requisitos regulatorios. Faltante → `[NEEDS CLARIFICATION]`.
+- **No subas secretos** al repositorio.
+- **No marques un módulo financiero como terminado** sin bitácora de auditoría, control de accesos y reportería operativos.
+
+## Stack y convenciones
+
+- Web/panel: **React**. Móvil: **Flutter**. Backend: **Go** (monolito modular, paquetes por dominio).
+- BD: **PostgreSQL** (migraciones versionadas; esquema del ledger append-only). Caché/colas: **Redis**.
+- API versionada `/v1/...`. Operaciones de dinero idempotentes y conciliables.
+- Pruebas obligatorias para: cálculo de cuotas/amortización, asientos del ledger, decisiones de scoring/AML, reglas de corte GPS.
+- Commits en español: `tipo(modulo): descripción`.
+- Documentación y comentarios de negocio en español; identificadores de código en inglés.
+
+## Comandos sugeridos (`.claude/commands/`)
+
+- `/wamma-spec <modulo>` — abrir y resumir el spec del módulo y sus dependencias.
+- `/wamma-check` — verificar el plan/código actual contra la Constitución y reportar violaciones.
+- `/wamma-clarify <modulo>` — listar los `[NEEDS CLARIFICATION]` pendientes del módulo.
+
+## Cómo trabajamos
+
+- Iterativo: muéstrame el plan o el análisis **antes** de generar mucho código; prefiero revisar y aprobar.
+- Conciso y priorizado: destila la lista de pendientes a lo mínimo necesario antes de avanzar.
+- Justifica brevemente los cambios que propongas.
+
+---
+*WAMMA · Confidencial · Rev. 1 · No constituye asesoría legal ni financiera.*
