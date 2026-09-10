@@ -351,7 +351,7 @@ El PDF debe replicar contenido y estructura de secciones del **WMA-F-FIN-001**, 
 | **D11** | Motor antivirus para archivos cargados | Bloquea RF-SC.22 |
 | **D13** | **Lista oficial de bancos venezolanos** con sus 4 dígitos iniciales y el algoritmo de dígito verificador de cuenta | Bloquea la validación de cuenta bancaria. **No la voy a inventar** |
 | **D14** | **Fuente de estados y municipios** de Venezuela | Bloquea RF-SC.11 (listas dependientes). Los 23 estados + Distrito Capital son públicos; el listado de municipios necesita fuente autoritativa |
-| **D15** | Formato y campos del `lead_id` que llega desde WhatsApp | Bloquea la trazabilidad del canal de origen |
+| **D15** | Formato y campos del `lead_id` que llega desde WhatsApp | Bloquea la trazabilidad del canal de origen. **Ya tiene dueño:** el módulo **010** (`../010-crm-comercial/`) define el `lead_id` como `oportunidad.id`. Se cierra al completar su tarea **V3**; hasta entonces sigue siendo insumo ausente |
 
 ## 14. Métricas de éxito
 
