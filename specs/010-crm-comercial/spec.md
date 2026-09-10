@@ -13,14 +13,13 @@
 
 ## 0. Premisa bajo la que se redacta
 
-Este spec se escribe después de una decisión del Product Owner que cambia el encuadre del proyecto: **la plataforma no operará como fintech supervisada en esta etapa y no hay restricción de residencia de datos.** En consecuencia:
+Este módulo se redacta bajo el encuadre que la **Constitución v2.0.0** ya recoge formalmente: la plataforma **no opera como fintech supervisada** en esta etapa y **no existe restricción de residencia de datos** (ver su Registro de enmiendas).
 
-- El **Principio I** (cumplimiento Sudeban) y el **Principio II** (soberanía de datos) de la Constitución **no rigen este módulo**. No hay reportería regulatoria ni expediente Sudeban entre sus entregables, y la infraestructura de despliegue queda abierta.
-- Siguen rigiendo plenamente el **Principio V** (integridad financiera: sin `float` para montos, moneda + tasa BCV), el **Principio VI** (seguridad transversal, mínimo privilegio, secretos fuera del repositorio) y el **Principio VII** (SDD: nada se implementa con `[NEEDS CLARIFICATION]` abierto).
+- El **Principio I**, reformulado como *protección del dato personal y trazabilidad*, **rige de lleno** aquí: este es precisamente el módulo que custodia los datos de contacto de personas que todavía no son clientes.
+- El **Principio II**, reformulado como *portabilidad de la infraestructura*, no impone residencia, pero sí exige que el módulo no se ate a servicios propietarios de un proveedor.
+- Rigen plenamente el **Principio V** (montos sin `float`, moneda + tasa BCV), el **VI** (seguridad transversal, mínimo privilegio, secretos fuera del repositorio) y el **VII** (SDD: nada se implementa con `[NEEDS CLARIFICATION]` abierto).
 
-**La Constitución no ha sido enmendada formalmente.** Mientras no lo sea, existe una discrepancia declarada entre su texto y esta premisa. Se registra aquí para que ningún agente ni desarrollador la resuelva por su cuenta en una dirección u otra. Ver `[NEEDS CLARIFICATION: C7]`.
-
-Dejar de estar supervisado quita al regulador, **no la responsabilidad sobre datos personales**. Este módulo custodia nombre, cédula, teléfono y correo de personas que no son clientes todavía, y por eso conserva las exigencias de cifrado, mínimo privilegio y trazabilidad que la Constitución impone por seguridad, no por cumplimiento.
+Dejar de estar supervisado quita al regulador, **no la responsabilidad sobre el dato de un tercero**. Este módulo custodia nombre, cédula, teléfono y correo de gente que solo quiso ver un carro, y por eso conserva las exigencias de cifrado, mínimo privilegio y trazabilidad que la Constitución impone por seguridad, no por cumplimiento.
 
 ---
 
@@ -207,11 +206,11 @@ Ninguna tarea de implementación arranca con estas abiertas si la afecta (Princi
 - `[NEEDS CLARIFICATION: C4]` **Identidad del asesor mientras el módulo 001 no exista.** Sin `usuario` no hay autor real de una interacción ni dueño real de una oportunidad. Bloquea el módulo en producción; no bloquea la maqueta con datos simulados.
 - `[NEEDS CLARIFICATION: C5]` **Umbral de "estancada"** (N días sin actividad) por etapa. Afecta a RF-010.16.
 - `[NEEDS CLARIFICATION: C6]` **¿Se notifica al cliente** algún cambio de etapa, o el embudo es puramente interno? Afecta al alcance de la integración de correo.
-- `[NEEDS CLARIFICATION: C7]` **Enmienda de la Constitución** que recoja la premisa de §0. Mientras no exista, el texto vigente y este spec discrepan. **No lo resuelve el agente.**
+- ~~`C7` **Enmienda de la Constitución** que recoja la premisa de §0.~~ **CERRADO** — Constitución **v2.0.0** (septiembre 2026). El texto vigente y este spec ya no discrepan.
 
 ## 14. Trazabilidad
 
-**Constitución:** Principios V (montos), VI (seguridad, mínimo privilegio), VII (SDD). Principios I y II no aplican por la premisa de §0, pendiente de enmienda formal (C7).
+**Constitución v2.0.0:** Principio I (protección del dato personal, mínimo privilegio, conservación declarada), II (portabilidad de la infraestructura), V (montos con precisión fija), VI (seguridad transversal), VII (SDD).
 **Overview:** módulo 010 en `../000-overview/product-overview.md` §3; ola 2 en `../000-overview/tasks-build-order.md` §2; entidades en `../000-overview/data-model.md` §4.
 **Dependencias:** 001 (identidad, auditoría, cifrado), 005 (vehículo publicado).
 **Resuelve:** insumo **D15** (`lead_id`) de `../solicitud-credito/spec.md` §13.

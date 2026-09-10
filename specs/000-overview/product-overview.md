@@ -1,7 +1,7 @@
 # 000 · Visión de producto — Plataforma WAMMA
 
 **Proyecto:** WAMMA by Token Pago POS · Plataforma propia
-**Clasificación:** Confidencial · **Rev.:** 3 · **Fecha:** Septiembre 2026
+**Clasificación:** Confidencial · **Rev.:** 4 · **Fecha:** Septiembre 2026
 
 > Documento de orientación. Datos maestros en `Base_Conocimiento_Wamma.md`. Principios vinculantes en `.specify/memory/constitution.md`.
 
@@ -43,7 +43,7 @@ Meta: ejecutar el ciclo de **venta y financiamiento de vehículos publicados** �
 
 - **Presentación:** web (React) y app móvil (Flutter).
 - **Negocio:** reglas de venta, crédito y cuotas (backend Go, monolito modular).
-- **Datos:** PostgreSQL (incluido el ledger), Redis (caché/colas), object storage nacional (fotos/documentos).
+- **Datos:** PostgreSQL (incluido el ledger), Redis (caché/colas), object storage (fotos/documentos).
 - **Integración:** bancos (C2P/Pago Móvil), buró de crédito.
 - **Seguridad y cumplimiento:** transversal a todas las capas.
 
@@ -52,10 +52,10 @@ Meta: ejecutar el ciclo de **venta y financiamiento de vehículos publicados** �
 | Riesgo | Mitigación |
 |---|---|
 | Documentación vehicular irregular | Validación de inspección y antecedentes legales antes de publicar (módulo 004) |
-| Inestabilidad de servicios/conectividad | Infra nacional + DR + réplica de BD + doble proveedor de internet |
-| Dependencia de nubes extranjeras (sanciones) | Alojamiento soberano nacional para el core |
+| Inestabilidad de servicios/conectividad | Respaldo con pruebas de restauración + réplica de BD + arquitectura portable |
+| Interrupción del proveedor de alojamiento (sanciones o decisión unilateral) | Riesgo **asumido y evaluado**, ya no prohibido: contenedores e infraestructura como código para poder migrar sin reescribir (Constitución v2.0.0, Principio II) |
 | Talento escaso en Go | Equipo senior reducido para el núcleo crítico; agentes de IA para trabajo rutinario |
 | Realidad cambiaria | Precios USD con equivalencia BCV; el ledger registra ambas referencias |
 
 ---
-*WAMMA · Confidencial · Rev. 3 · No constituye asesoría legal ni financiera.*
+*WAMMA · Confidencial · Rev. 4 · No constituye asesoría legal ni financiera.*

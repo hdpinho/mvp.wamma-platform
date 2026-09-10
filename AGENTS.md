@@ -6,12 +6,14 @@
 
 ## Qué es este proyecto
 
-Plataforma propia de **WAMMA by Token Pago POS**: fintech venezolana de compra, certificación, venta, financiamiento y suscripción (OCN) de vehículos usados. Modelo de referencia: **Kavak**, adaptado a Venezuela y regulado por **Sudeban**. Fuente única de verdad del negocio: `Base_Conocimiento_Wamma.md`.
+Plataforma propia de **WAMMA by Token Pago POS**: venta, certificación y financiamiento de vehículos usados en Venezuela. Modelo de referencia: **Kavak**, adaptado al mercado venezolano.
+
+**No opera bajo supervisión de Sudeban en esta etapa** (Constitución v2.0.0, Registro de enmiendas). La captación de inventario de terceros (K-Price), la telemetría GPS y la suscripción OCN quedan **fuera de este MVP**. Fuente única de verdad del negocio: `Base_Conocimiento_Wamma.md`.
 
 ## Reglas no negociables (resumen de la Constitución)
 
-1. **Cumplimiento Sudeban desde el día 1.** El módulo 001 (cumplimiento y seguridad) es prerrequisito de todo.
-2. **Soberanía de datos:** el *core* vive en infraestructura nacional venezolana. Prohibido alojarlo en hyperscalers extranjeros.
+1. **Protección del dato personal.** El módulo 001 (seguridad y control de accesos) es prerrequisito de todo módulo que toque dinero, crédito o datos personales. Mínimo privilegio y separación de funciones en el RBAC.
+2. **Portabilidad de la infraestructura:** contenedores e infraestructura como código, sin atarse a un proveedor. La residencia de datos en Venezuela **ya no es exigencia** (enmienda v2.0.0).
 3. **El código es de WAMMA:** repos en organización WAMMA; nada en cuentas de terceros.
 4. **MVP primero:** se construye antes lo que permite operar y cobrar. La velocidad nunca pisa cumplimiento, seguridad ni integridad financiera.
 5. **Ledger sagrado:** partida doble, inmutable, multi-moneda USD/BCV, sin `float` para montos.
@@ -22,7 +24,7 @@ Plataforma propia de **WAMMA by Token Pago POS**: fintech venezolana de compra, 
 
 `constitution → /specify → /clarify → /plan → /tasks → /analyze → /implement`
 
-- Specs por módulo en `specs/00X-*/spec.md`.
+- Specs por módulo en `specs/0XX-*/spec.md`.
 - Plan técnico transversal en `specs/000-overview/architecture-plan.md`.
 - Modelo de datos en `specs/000-overview/data-model.md`.
 - Orden de construcción y dependencias en `specs/000-overview/tasks-build-order.md`.
@@ -30,8 +32,8 @@ Plataforma propia de **WAMMA by Token Pago POS**: fintech venezolana de compra, 
 ## Stack (definido; ver architecture-plan.md)
 
 - **Web / panel:** React · **Móvil:** Flutter · **Backend:** Go (monolito modular)
-- **Datos:** PostgreSQL · **Caché/colas:** Redis · **Archivos:** object storage nacional
-- **Infra:** centro de datos nacional Tier III + sitio de respaldo (DR) + réplica de BD
+- **Datos:** PostgreSQL · **Caché/colas:** Redis · **Archivos:** object storage
+- **Infra:** proveedor a elegir por criterio de ingeniería y negocio. Exigidos: respaldo con **pruebas de restauración**, réplica de BD y capacidad de reconstruir el entorno desde cero
 
 ## Cómo debe comportarse el agente
 
@@ -52,4 +54,4 @@ Plataforma propia de **WAMMA by Token Pago POS**: fintech venezolana de compra, 
 - Commits: convención `tipo(modulo): descripción` (ej. `feat(007-ledger): asiento de partida doble`).
 
 ---
-*WAMMA · Confidencial · Rev. 1 · No constituye asesoría legal ni financiera.*
+*WAMMA · Confidencial · Rev. 2 · No constituye asesoría legal ni financiera.*

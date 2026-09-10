@@ -297,7 +297,7 @@ Mismo criterio que `../solicitud-credito/plan.md` §12: lo que falta va **detrá
 | **C4** identidad del asesor | `asesor_id` nulo hasta que exista el 001 (S3) |
 | **C5** umbral de estancada | Fila en `parametros_financieros` (o su equivalente de CRM), no constante en código |
 | **C6** notificación al cliente | El módulo no notifica. Si se decide que sí, se apoya en el motor de notificaciones del 009 |
-| **C7** enmienda constitucional | No lo resuelve el agente. Es decisión del Product Owner |
+| ~~**C7**~~ enmienda constitucional | **Cerrada** en la Constitución v2.0.0 |
 
 ---
 

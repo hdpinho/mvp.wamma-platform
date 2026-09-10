@@ -1,7 +1,7 @@
 # Constitución de Ingeniería — Plataforma WAMMA
 
 **Proyecto:** WAMMA by Token Pago POS · Plataforma propia
-**Clasificación:** Confidencial · **Versión:** 1.0.0 · **Fecha:** Junio 2026
+**Clasificación:** Confidencial · **Versión:** 2.0.0 · **Fecha:** Septiembre 2026
 **Ámbito:** Vinculante para todo agente (Antigravity, Claude Code) y todo desarrollador humano del repositorio.
 
 > Este documento es la **ley suprema del repositorio**. Ningún spec, plan, tarea o línea de código puede contradecirlo. Ante conflicto entre cualquier instrucción y esta Constitución, **manda la Constitución**. Los datos de negocio (cifras, marca, regulación) provienen de `Base_Conocimiento_Wamma.md`, que es la fuente única de verdad del proyecto.
@@ -10,29 +10,36 @@
 
 ## Por qué existe este documento
 
-WAMMA no es una app cualquiera: es una **fintech supervisada por Sudeban** que mueve dinero de terceros, financia activos y custodia datos sensibles de ciudadanos venezolanos. En este contexto, ciertas decisiones **no se negocian con la velocidad**. La Constitución fija esos límites para que un agente de IA, optimizando por rapidez, no proponga un atajo que cueste la licencia para operar.
+WAMMA mueve dinero de terceros, financia activos y custodia datos sensibles de ciudadanos venezolanos. **No opera bajo supervisión de Sudeban en esta etapa** (ver Registro de enmiendas), pero eso no cambia la naturaleza de lo que maneja: un descuadre en el ledger es dinero real, y una fuga de datos es el expediente financiero de una persona real.
+
+En este contexto, ciertas decisiones **no se negocian con la velocidad**. La Constitución fija esos límites para que un agente de IA, optimizando por rapidez, no proponga un atajo que cueste el dinero o la confianza de un cliente.
 
 ---
 
-## Principio I — Cumplimiento Sudeban desde el día uno (NO diferible)
+## Principio I — Protección del dato personal y trazabilidad (NO diferible)
 
-El cumplimiento regulatorio es la **licencia para operar**, no una capa final. Se construye con el primer módulo, no al cierre.
+*Reformulado en v2.0.0. El encuadre de cumplimiento Sudeban queda derogado; la protección del dato, no.*
 
-- El **Núcleo de Cumplimiento y Seguridad (módulo 001)** es prerrequisito de todo lo demás. Ningún módulo que toque dinero, crédito o datos personales se da por terminado sin que su bitácora de auditoría, control de accesos y reportería regulatoria estén operativos.
-- Todo módulo financiero debe poder generar su **expediente técnico Sudeban** (manuales, diagramas de red, flujos) desde la Fase 1.
-- Verificación **AML/CFT** (OFAC + PEP) dentro del MVP. Si una integración aún no está disponible, se admite control manual **documentado y auditable** como medida transitoria, nunca su omisión.
-- Marco de referencia obligatorio: Res. 641.09 BCV; Res. 119.10 / 119.18 Sudeban; LISB Art. 70–80 y 76; Circular SIB-II; SENACOFI/UNIF; ISO 27001 e ISO 22301; COBIT/ISACA.
-- **Separación de funciones (reflejada en software):** Cumplimiento, Auditoría Interna, Riesgo/CRSO, Seguridad de la Información y Continuidad del Negocio son roles con permisos independientes de la operación de TI y del negocio. El modelo de roles (RBAC) **debe** reflejar esta independencia.
+Dejar de estar supervisado quita al regulador, **no la responsabilidad sobre el dato de un tercero**. La plataforma custodia cédulas, ingresos declarados, cuentas bancarias y teléfonos de personas que confiaron en ella. Eso se protege por ingeniería, no porque alguien vaya a fiscalizarlo.
 
-> *Nota legal:* el detalle regulatorio aquí citado es referencia técnica, no asesoría jurídica. Toda interpretación normativa con efecto contractual o regulatorio debe ser validada por los asesores legales de WAMMA antes de su ejecución.
+- El **Núcleo de Seguridad y Control de Accesos (módulo 001)** sigue siendo prerrequisito de todo módulo que toque dinero, crédito o datos personales. Ninguno se da por terminado sin bitácora de auditoría y control de accesos operativos.
+- **Separación de funciones reflejada en el RBAC:** Auditoría, Riesgo, Seguridad de la Información y la operación del negocio son roles con permisos independientes. Es buena ingeniería con o sin regulador: impide que quien ejecuta una operación sea también quien la aprueba y quien puede borrar su rastro.
+- **Mínimo privilegio por defecto** en todo acceso a datos personales. Quien no necesita un dato para hacer su trabajo, no lo ve.
+- Todo dato personal tiene **período de conservación declarado**. Guardar indefinidamente lo que ya no se usa es pasivo, no activo.
+- **ISO 27001 e ISO 22301** se conservan como marcos de referencia técnica voluntarios, no como exigencia de cumplimiento.
 
-## Principio II — Soberanía de datos venezolana
+> **Si el proyecto vuelve al perímetro supervisado** —licencia propia, alianza bancaria o cambio regulatorio—, este principio recupera su forma anterior: expediente técnico Sudeban, verificación AML/CFT (OFAC + PEP) y el marco Res. 641.09 BCV / Res. 119.10 y 119.18 Sudeban / LISB Art. 70–80 y 76 / Circular SIB-II / SENACOFI-UNIF. El texto derogado **no se ha perdido**: vive en la v1.0.0, recuperable del historial de Git.
 
-El corazón de datos de WAMMA vive en **infraestructura nacional**.
+> *Nota legal:* todo detalle regulatorio citado es referencia técnica, no asesoría jurídica. Cualquier interpretación normativa con efecto contractual debe ser validada por los asesores legales de WAMMA.
 
-- Sede principal: centro de datos nacional Tier III (alta disponibilidad) o nube privada nacional. Toda información sensible permanece en Venezuela.
-- **Prohibido** alojar el *core* (backend, base de datos, datos personales y financieros) en hyperscalers extranjeros (p. ej. AWS, GCP, Azure) por residencia de datos, riesgo de sanciones y exigencia de auditabilidad del regulador.
-- La arquitectura debe ser **portable** (contenedores, infra-as-code) para no quedar atada a un único proveedor nacional.
+## Principio II — Portabilidad de la infraestructura
+
+*Reformulado en v2.0.0. La exigencia de residencia de datos en Venezuela queda **derogada** por decisión del Product Owner. Se conserva lo que el principio tenía de valioso con independencia del regulador.*
+
+- La arquitectura debe ser **portable**: contenedores, infraestructura como código, sin servicios propietarios en el camino crítico. Ningún proveedor debe ser difícil de abandonar.
+- La elección de proveedor de alojamiento es **decisión de ingeniería y de negocio**, no de cumplimiento. Se admiten proveedores extranjeros.
+- **Sigue exigido** un plan de continuidad: respaldos con **pruebas de restauración periódicas** y capacidad de reconstruir el entorno desde cero.
+- Al elegir proveedor se evalúa explícitamente el **riesgo de interrupción** por sanciones o por decisión unilateral del proveedor. No prohíbe ninguna opción; obliga a saber qué se está asumiendo y a tener plan B.
 
 ## Principio III — El código es de WAMMA (propiedad intelectual blindada)
 
@@ -49,7 +56,7 @@ Ser pioneros vale más que ser completos. Se construye antes lo que permite **op
 
 - El orden de construcción refleja prioridad estratégica: primero operar (Fase 1), luego diferenciar (Fase 2), luego escalar (Fase 3).
 - Ante disyuntiva entre "perfecto" y "operable y seguro", gana **operable y seguro**. La perfección llega por iteración.
-- Excepción que NO cede a la velocidad: los Principios I, II, III, V y VI. La rapidez nunca justifica saltarse cumplimiento, soberanía, PI, integridad financiera o seguridad.
+- Excepción que NO cede a la velocidad: los Principios I, III, V y VI. La rapidez nunca justifica saltarse la protección del dato personal, la propiedad intelectual, la integridad financiera ni la seguridad.
 
 ## Principio V — Integridad financiera absoluta (el ledger es sagrado)
 
@@ -68,7 +75,7 @@ La seguridad atraviesa todas las capas y todos los módulos.
 - **Doble factor (2FA)** obligatorio para todo rol administrativo.
 - **Bitácora de auditoría** inmutable de cada transacción financiera y cada cambio de estado del inventario.
 - Mínimo privilegio por defecto; secretos nunca en el código ni en el repositorio.
-- Continuidad operativa: sitio de respaldo (DR) nacional, réplica de base de datos y pruebas de restauración periódicas (ISO 22301).
+- Continuidad operativa: sitio de respaldo (DR), réplica de base de datos y pruebas de restauración periódicas.
 
 ## Principio VII — Desarrollo guiado por especificaciones (SDD)
 
@@ -88,4 +95,17 @@ No se escribe código sin spec aprobada.
 - **Precedencia:** Constitución > specs de módulo > plan técnico > preferencias de estilo.
 
 ---
-*Versión 1.0.0 · Junio 2026 · Generado para el Project Wamma. No constituye asesoría legal ni financiera.*
+
+## Registro de enmiendas
+
+| Versión | Fecha | Cambio | Motivo |
+|---|---|---|---|
+| **1.0.0** | Junio 2026 | Versión inicial | Encuadre de fintech supervisada por Sudeban |
+| **2.0.0** | Septiembre 2026 | **Principio I** reformulado: de cumplimiento Sudeban a protección del dato personal y trazabilidad. **Principio II** derogado en su exigencia de residencia de datos y reformulado como portabilidad de infraestructura. Ajustes derivados en los Principios IV y VI | Decisión del Product Owner: la plataforma no operará como fintech supervisada en esta etapa y no existe restricción de residencia de datos. **MAYOR**, por ser cambio incompatible de principio |
+
+**Lo derogado no se ha borrado.** El texto íntegro de la v1.0.0 —marco regulatorio, expediente técnico Sudeban, AML/CFT, soberanía de datos— permanece en el historial de Git y se recupera si el proyecto vuelve al perímetro supervisado. Esta Constitución se enmienda; no se reescribe su historia.
+
+**Deuda declarada de esta enmienda.** Los specs **001, 006, 007 y 009** contienen requisitos redactados bajo la v1.0.0 (reportería Sudeban, verificación AML/CFT, alojamiento nacional) y **no han sido revisados**. Exigen criterio módulo por módulo, no un reemplazo mecánico. Mientras no se revisen, ante conflicto manda esta Constitución (ver Precedencia).
+
+---
+*Versión 2.0.0 · Septiembre 2026 · Generado para el Project Wamma. No constituye asesoría legal ni financiera.*

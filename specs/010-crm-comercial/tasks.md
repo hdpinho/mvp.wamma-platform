@@ -20,7 +20,7 @@
 | **C4** identidad del asesor (módulo 001) | Olas 3, 4 y 5 completas | **Bloqueante duro** — el 001 no existe |
 | **C5** umbral de "estancada" | F3, B5 | Ausente — mitigado con parámetro configurable |
 | **C6** ¿se notifica al cliente? | Nada del MVP | Ausente |
-| **C7** enmienda de la Constitución | Nada técnico; afecta la coherencia documental | Pendiente del Product Owner |
+| ~~**C7**~~ enmienda de la Constitución | — | **Cerrado** — Constitución v2.0.0 |
 | **Módulo 001** (`internal/platform`) | Olas 3, 4 y 5 | **No construido** |
 
 **Las olas 1 y 2 se pueden ejecutar hoy**, íntegras: son núcleo puro y maqueta, sin I/O ni identidad. Lo que **no** se puede es dar el módulo por terminado.

@@ -4,7 +4,9 @@
 
 ## Identidad del proyecto
 
-Plataforma propia de **WAMMA by Token Pago POS** — fintech venezolana de vehículos usados (compra, certificación, venta, financiamiento, suscripción OCN), modelo Kavak adaptado a Venezuela, regulada por **Sudeban**. Negocio en `Base_Conocimiento_Wamma.md` (fuente única de verdad). No dupliques esos datos.
+Plataforma propia de **WAMMA by Token Pago POS** — venta, certificación y financiamiento de vehículos usados en Venezuela, modelo Kavak adaptado al mercado local. Negocio en `Base_Conocimiento_Wamma.md` (fuente única de verdad). No dupliques esos datos.
+
+**No opera bajo supervisión de Sudeban en esta etapa** (Constitución v2.0.0). Fuera del MVP: captación de terceros (K-Price), telemetría GPS y suscripción OCN.
 
 ## Tu rol
 
@@ -20,12 +22,13 @@ Eres un par de ingeniería senior full-stack experto en SDD. Construyes el MVP (
 
 ## Guardrails (rechaza o detente si se violan)
 
-- **No alojes el core en nubes extranjeras** (Principio II). Si una tarea lo pide, detente y consúltame.
 - **No edites ni borres asientos del ledger.** Las correcciones son asientos compensatorios (Principio V).
 - **No uses `float` para montos.** Precisión fija; registra moneda + tasa BCV.
+- **No ates el despliegue a un proveedor.** La residencia de datos ya no se exige (Principio II enmendado), pero la arquitectura debe seguir siendo portable.
+- **No expongas datos personales más allá de lo necesario.** Mínimo privilegio por defecto; la capa comercial no ve el expediente financiero (Principio I).
 - **No crees posiciones de la estructura organizativa** ni inventes cifras o requisitos regulatorios. Faltante → `[NEEDS CLARIFICATION]`.
 - **No subas secretos** al repositorio.
-- **No marques un módulo financiero como terminado** sin bitácora de auditoría, control de accesos y reportería operativos.
+- **No marques un módulo financiero como terminado** sin bitácora de auditoría y control de accesos operativos.
 
 ## Stack y convenciones
 
