@@ -4,6 +4,7 @@ import './App.css';
 import { BarraNavegacion } from './components/BarraNavegacion';
 import { ProveedorFavoritos } from './state/favoritos';
 import { ProveedorVehiculos } from './state/vehiculosContexto';
+import { ProveedorCRM } from './state/crm';
 import { C0_Home } from './screens/C0_Home';
 import { C1_Catalogo } from './screens/C1_Catalogo';
 import { C2_FichaVehiculo } from './screens/C2_FichaVehiculo';
@@ -60,8 +61,10 @@ function App() {
 
   return (
     <BrowserRouter>
+      {/* El CRM va dentro del inventario: necesita bloquear y liberar vehículos. */}
       <ProveedorVehiculos>
-        <ProveedorFavoritos>
+        <ProveedorCRM>
+          <ProveedorFavoritos>
           <AppRutas rateBCV={rateBCV} />
 
           {/* Demo Control Panel (Floats on bottom right) */}
@@ -111,7 +114,8 @@ function App() {
               </>
             )}
           </div>
-        </ProveedorFavoritos>
+          </ProveedorFavoritos>
+        </ProveedorCRM>
       </ProveedorVehiculos>
     </BrowserRouter>
   );

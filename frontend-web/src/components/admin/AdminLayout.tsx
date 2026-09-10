@@ -1,11 +1,11 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo';
-import { useVehiculos, CORREO_NOTIFICACIONES_WAMMA } from '../../state/vehiculosContexto';
+import { useCRM, CORREO_NOTIFICACIONES_WAMMA } from '../../state/crmContexto';
 
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
-  const { citas } = useVehiculos();
+  const { citas } = useCRM();
 
   const citasPendientes = citas.filter((c) => c.estado === 'pendiente').length;
 

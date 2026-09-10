@@ -3,7 +3,7 @@
 **Proyecto:** WAMMA · Plataforma propia · **Fase 1 (MVP)**
 **Clasificación:** Confidencial · **Rev.:** 1 · **Septiembre 2026**
 **Referencias:** `./spec.md` (QUÉ) · `./plan.md` (CÓMO)
-**Estado:** Draft para validación del Product Owner
+**Estado:** **Aprobado** por el Product Owner (septiembre 2026) — ola 2 en ejecución
 
 > Tareas ejecutables, ordenadas por dependencia. Cada una declara qué la desbloquea y cómo se verifica.
 > Ninguna tarea arranca si una pregunta abierta de `spec.md` §13 la afecta directamente (Constitución, Principio VII).
@@ -14,16 +14,16 @@
 
 | Bloqueante | Bloquea | Estado |
 |---|---|---|
-| **C1** ¿cédula obligatoria para agendar? | F2, N2 (solo la rama por teléfono) | Pendiente de decisión de producto |
+| ~~**C1**~~ ¿cédula obligatoria para agendar? | F2 | **Cerrado** — captura en dos pasos (`spec.md` §8.5) |
 | **C2** período de conservación de datos | Nada del MVP; tarea futura | Ausente |
 | **C3** reparto de oportunidades sin dueño | B4 (solo el reparto automático) | Ausente — mitigado con `asesor_id` nulo |
 | **C4** identidad del asesor (módulo 001) | Olas 3, 4 y 5 completas | **Bloqueante duro** — el 001 no existe |
-| **C5** umbral de "estancada" | F3, B5 | Ausente — mitigado con parámetro configurable |
+| ~~**C5**~~ umbral de "estancada" | F3, B5 | **Cerrado** — umbral por etapa 2/3/7/7/14 (`spec.md` §8.6) |
 | **C6** ¿se notifica al cliente? | Nada del MVP | Ausente |
 | ~~**C7**~~ enmienda de la Constitución | — | **Cerrado** — Constitución v2.0.0 |
 | **Módulo 001** (`internal/platform`) | Olas 3, 4 y 5 | **No construido** |
 
-**Las olas 1 y 2 se pueden ejecutar hoy**, íntegras: son núcleo puro y maqueta, sin I/O ni identidad. Lo que **no** se puede es dar el módulo por terminado.
+**Las olas 1 y 2 se pueden ejecutar hoy**, íntegras: son núcleo puro y maqueta, sin I/O ni identidad. Con C1 y C5 cerrados, **ninguna tarea de la ola 2 queda bloqueada**. Lo que **no** se puede es dar el módulo por terminado.
 
 ---
 

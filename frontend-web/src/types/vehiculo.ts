@@ -73,29 +73,7 @@ export interface VehiculoData {
 }
 
 /**
- * Solicitud de cita agendada por un cliente desde la ficha pública del vehículo.
- * Para el MVP híbrido de WAMMA: sustituye la solicitud de crédito directa y
- * despacha notificación por correo a WAMMA para posterior contacto por WhatsApp.
+ * La cita y todo el seguimiento comercial se movieron a `types/crm.ts`
+ * (módulo 010): una cita es un evento dentro de una oportunidad, no un
+ * atributo del inventario. Ver `specs/010-crm-comercial/plan.md` §7.2.
  */
-export interface CitaSolicitud {
-  id: string;
-  vehiculoId: string;
-  vehiculoResumen: {
-    marca: string;
-    modelo: string;
-    version: string;
-    anio: number;
-    precioUSD: number;
-    foto?: string;
-  };
-  nombreApellido: string;
-  cedula: string;
-  telefonoWhatsApp: string;
-  correo: string;
-  diaPreferencia: string;
-  franjaHoraria: 'Mañana' | 'Tarde';
-  metodoPago: 'Contado' | 'Financiamiento';
-  estado: 'pendiente' | 'confirmada' | 'descartada';
-  fechaCreacion: string;
-  notificadoA: string; // pjjulio@gmail.com
-}

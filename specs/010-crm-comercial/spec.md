@@ -5,7 +5,7 @@
 **Función:** Convertir el interés capturado en la vitrina en venta gestionada
 **Depende de:** 001 (identidad del asesor, auditoría, cifrado); 005 (vehículo publicado)
 **Alimenta a:** `specs/solicitud-credito/` (resuelve el `lead_id`, insumo D15)
-**Estado:** Draft para validación del Product Owner
+**Estado:** **Aprobado** por el Product Owner (septiembre 2026). C1 y C5 resueltos; quedan abiertas C2, C3, C4 y C6, que no bloquean las olas 1 y 2
 
 > Spec del QUÉ y el POR QUÉ. El CÓMO va en `./plan.md`. Principios en `../../.specify/memory/constitution.md`.
 
@@ -155,7 +155,35 @@ La capa comercial ve **nombre, teléfono, correo, cédula, vehículo de interés
 
 `vehiculo.estado_disponibilidad` (disponible / cita agendada / vendido) describe **el auto**. `oportunidad.etapa` describe **la negociación**. Son ejes distintos y se relacionan solo por las reglas de RF-010.12 y por el bloqueo del vehículo al crear la oportunidad. Colapsarlos en un solo campo parece una simplificación y es un error: un mismo auto puede tener una oportunidad perdida y otra en negociación.
 
-### 8.5 El embudo no es fuente de verdad del inventario
+### 8.5 Captura en dos pasos (decisión C1)
+
+La cédula **no se pide para agendar**. El formulario público exige **nombre y WhatsApp**; el correo es opcional. La cédula se solicita en el **segundo paso**, cuando el asesor confirma la cita y el cliente ya está comprometido.
+
+**Por qué:** pedir cédula para *mirar* un carro es fricción alta en la captación, y hasta ahora nadie ha medido cuántos prospectos se pierden en ese campo. Al mover el dato al momento de la confirmación se captura más arriba del embudo sin renunciar a la deduplicación fuerte: simplemente llega más tarde.
+
+**Consecuencia sobre la deduplicación (RF-010.2):** entre la captura y la confirmación, la persona se resuelve por **teléfono normalizado**. Al llegar la cédula, se consolida:
+
+- Si la cédula **no existe** en otra persona, se adjunta a la actual.
+- Si la cédula **ya existe** en otra persona, hay dos registros que son la misma gente y se **fusionan**, quedando la fusión auditada con el criterio que la produjo.
+- Una persona sin cédula **no bloquea** el embudo: avanza hasta `cita_confirmada`, que es donde el dato se exige.
+
+### 8.6 Umbrales de estancamiento (decisión C5)
+
+Una oportunidad está **estancada** cuando lleva sin interacción ni cambio de etapa más de:
+
+| Etapa | Umbral |
+|---|---|
+| `nuevo` | 2 días |
+| `contactado` | 3 días |
+| `cita_confirmada` | 7 días |
+| `visito` | 7 días |
+| `negociacion` | 14 días |
+
+El umbral es **por etapa** y no único, porque un prospecto sin llamar dos días es urgente mientras una negociación de diez días es sana. Un umbral único marcaría en rojo lo normal y en verde lo que se está perdiendo.
+
+Los cinco valores son **parámetros configurables**, no constantes de código: se ajustarán cuando haya datos reales de duración por etapa.
+
+### 8.7 El embudo no es fuente de verdad del inventario
 
 Igual que el módulo 009, este módulo **refleja** el estado del vehículo (005) y **referencia** el expediente de crédito. La fuente de verdad de cada dato sigue siendo su módulo dueño.
 
@@ -200,11 +228,11 @@ El salto a la WhatsApp Business API queda fuera de alcance: cuesta por conversac
 
 Ninguna tarea de implementación arranca con estas abiertas si la afecta (Principio VII).
 
-- `[NEEDS CLARIFICATION: C1]` **¿La cédula es obligatoria para agendar una cita?** Hoy lo es, y es lo que permite deduplicar. Pero pedir cédula para *mirar* un auto es fricción alta en la captación. Alternativa: nombre + teléfono obligatorios, cédula opcional, deduplicando por teléfono hasta que aparezca la cédula. **Decisión de producto, con efecto directo en RF-010.2.**
+- ~~`C1` **¿La cédula es obligatoria para agendar una cita?**~~ **CERRADO** (septiembre 2026): **captura en dos pasos**. Nombre y WhatsApp para agendar; cédula al confirmar la cita. Ver §8.5.
 - `[NEEDS CLARIFICATION: C2]` **Período de conservación** de datos de prospectos que nunca compran. Afecta al requisito de retención de §7.
 - `[NEEDS CLARIFICATION: C3]` **Reparto de oportunidades sin dueño:** ¿manual por el coordinador, o automático por turno? Afecta a RF-010.7.
 - `[NEEDS CLARIFICATION: C4]` **Identidad del asesor mientras el módulo 001 no exista.** Sin `usuario` no hay autor real de una interacción ni dueño real de una oportunidad. Bloquea el módulo en producción; no bloquea la maqueta con datos simulados.
-- `[NEEDS CLARIFICATION: C5]` **Umbral de "estancada"** (N días sin actividad) por etapa. Afecta a RF-010.16.
+- ~~`C5` **Umbral de "estancada"**~~ **CERRADO** (septiembre 2026): umbral **por etapa** — 2 / 3 / 7 / 7 / 14 días. Ver §8.6.
 - `[NEEDS CLARIFICATION: C6]` **¿Se notifica al cliente** algún cambio de etapa, o el embudo es puramente interno? Afecta al alcance de la integración de correo.
 - ~~`C7` **Enmienda de la Constitución** que recoja la premisa de §0.~~ **CERRADO** — Constitución **v2.0.0** (septiembre 2026). El texto vigente y este spec ya no discrepan.
 

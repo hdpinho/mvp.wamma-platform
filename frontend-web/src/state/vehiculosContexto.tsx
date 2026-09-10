@@ -1,42 +1,35 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { VehiculoData, Imperfeccion, CitaSolicitud } from '../types/vehiculo';
+import type { VehiculoData, Imperfeccion } from '../types/vehiculo';
 import { mockVehiculos } from '../mocks/vehiculos';
 import { imperfeccionesPorVehiculo as mockImperfecciones } from '../mocks/imperfecciones';
 
+/**
+ * Contexto del inventario: vehículos publicados y sus imperfecciones.
+ *
+ * Las citas y todo el seguimiento comercial viven en `crmContexto`
+ * (tarea F1 de `specs/010-crm-comercial/tasks.md`). Este contexto llevaba
+ * tres responsabilidades y añadirle personas y oportunidades lo habría
+ * convertido en el cajón de sastre del proyecto (`plan.md` §7.1).
+ */
+
 const STORAGE_KEY_VEHICULOS = 'wamma_inventario_vehiculos_v1';
 const STORAGE_KEY_IMPERFECCIONES = 'wamma_imperfecciones_v1';
-const STORAGE_KEY_CITAS = 'wamma_citas_v1';
 
-export const CORREO_NOTIFICACIONES_WAMMA = 'pjjulio@gmail.com';
+export type EstadoDisponibilidad = 'disponible' | 'cita_agendada' | 'vendido';
 
 interface VehiculosContextType {
   vehiculos: VehiculoData[];
-  citas: CitaSolicitud[];
-  notificacionReciente: CitaSolicitud | null;
-  limpiarNotificacion: () => void;
   obtenerVehiculo: (id: string) => VehiculoData | undefined;
   obtenerImperfecciones: (vehiculoId: string) => Imperfeccion[];
-  agendarCita: (
-    datos: Omit<CitaSolicitud, 'id' | 'fechaCreacion' | 'estado' | 'notificadoA'>,
-  ) => CitaSolicitud;
-  cambiarEstadoVehiculo: (
-    vehiculoId: string,
-    nuevoEstado: 'disponible' | 'cita_agendada' | 'vendido',
-  ) => void;
+  cambiarEstadoVehiculo: (vehiculoId: string, nuevoEstado: EstadoDisponibilidad) => void;
   guardarVehiculo: (vehiculo: VehiculoData, imperfecciones?: Imperfeccion[]) => void;
   eliminarVehiculo: (vehiculoId: string) => void;
-  actualizarCita: (
-    citaId: string,
-    nuevoEstado: 'pendiente' | 'confirmada' | 'descartada',
-  ) => void;
-  descartarCitaYLiberarVehiculo: (citaId: string) => void;
   restablecerDatosDemo: () => void;
 }
 
 const VehiculosContext = createContext<VehiculosContextType | undefined>(undefined);
 
 export const ProveedorVehiculos: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Inicialización desde localStorage o mocks
   const [vehiculos, setVehiculos] = useState<VehiculoData[]>(() => {
     try {
       const guardados = localStorage.getItem(STORAGE_KEY_VEHICULOS);
@@ -64,21 +57,6 @@ export const ProveedorVehiculos: React.FC<{ children: React.ReactNode }> = ({ ch
     return mockImperfecciones;
   });
 
-  const [citas, setCitas] = useState<CitaSolicitud[]>(() => {
-    try {
-      const guardadas = localStorage.getItem(STORAGE_KEY_CITAS);
-      if (guardadas) {
-        return JSON.parse(guardadas);
-      }
-    } catch {
-      // Fallback
-    }
-    return [];
-  });
-
-  const [notificacionReciente, setNotificacionReciente] = useState<CitaSolicitud | null>(null);
-
-  // Sincronización persistente en localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_VEHICULOS, JSON.stringify(vehiculos));
@@ -95,14 +73,6 @@ export const ProveedorVehiculos: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [imperfecciones]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_CITAS, JSON.stringify(citas));
-    } catch (e) {
-      console.warn('No se pudo guardar citas en localStorage', e);
-    }
-  }, [citas]);
-
   const obtenerVehiculo = (id: string) => {
     return vehiculos.find((v) => v.id === id);
   };
@@ -111,48 +81,14 @@ export const ProveedorVehiculos: React.FC<{ children: React.ReactNode }> = ({ ch
     return imperfecciones[vehiculoId] || [];
   };
 
-  const limpiarNotificacion = () => setNotificacionReciente(null);
-
   /**
-   * Registra una cita, actualiza el estado del auto a 'cita_agendada'
-   * deshabilitando el botón para otros usuarios y despacha la notificación a WAMMA.
+   * Estado de disponibilidad del auto. Es un eje distinto de la etapa de la
+   * oportunidad y no deben fusionarse (`spec.md` §8.4): un mismo auto puede
+   * tener una oportunidad perdida y otra en negociación.
    */
-  const agendarCita = (
-    datos: Omit<CitaSolicitud, 'id' | 'fechaCreacion' | 'estado' | 'notificadoA'>,
-  ): CitaSolicitud => {
-    const nuevaCita: CitaSolicitud = {
-      ...datos,
-      id: `cita-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
-      fechaCreacion: new Date().toISOString(),
-      estado: 'pendiente',
-      notificadoA: CORREO_NOTIFICACIONES_WAMMA,
-    };
-
-    setCitas((prev) => [nuevaCita, ...prev]);
-
-    // Marcar vehículo con cita_agendada para bloquear agendamiento a otros
+  const cambiarEstadoVehiculo = (vehiculoId: string, nuevoEstado: EstadoDisponibilidad) => {
     setVehiculos((prev) =>
-      prev.map((v) =>
-        v.id === datos.vehiculoId
-          ? { ...v, estadoDisponibilidad: 'cita_agendada' as const }
-          : v,
-      ),
-    );
-
-    // Activar notificación para feedback visual y simulación de correo
-    setNotificacionReciente(nuevaCita);
-
-    return nuevaCita;
-  };
-
-  const cambiarEstadoVehiculo = (
-    vehiculoId: string,
-    nuevoEstado: 'disponible' | 'cita_agendada' | 'vendido',
-  ) => {
-    setVehiculos((prev) =>
-      prev.map((v) =>
-        v.id === vehiculoId ? { ...v, estadoDisponibilidad: nuevoEstado } : v,
-      ),
+      prev.map((v) => (v.id === vehiculoId ? { ...v, estadoDisponibilidad: nuevoEstado } : v)),
     );
   };
 
@@ -182,31 +118,9 @@ export const ProveedorVehiculos: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
-  const actualizarCita = (
-    citaId: string,
-    nuevoEstado: 'pendiente' | 'confirmada' | 'descartada',
-  ) => {
-    setCitas((prev) =>
-      prev.map((c) => (c.id === citaId ? { ...c, estado: nuevoEstado } : c)),
-    );
-  };
-
-  /**
-   * Si la cita no se concreta, el backoffice puede descartarla
-   * y rehabilitar el vehículo para que vuelva a estar 'disponible'.
-   */
-  const descartarCitaYLiberarVehiculo = (citaId: string) => {
-    const cita = citas.find((c) => c.id === citaId);
-    if (!cita) return;
-
-    actualizarCita(citaId, 'descartada');
-    cambiarEstadoVehiculo(cita.vehiculoId, 'disponible');
-  };
-
   const restablecerDatosDemo = () => {
     localStorage.removeItem(STORAGE_KEY_VEHICULOS);
     localStorage.removeItem(STORAGE_KEY_IMPERFECCIONES);
-    localStorage.removeItem(STORAGE_KEY_CITAS);
     setVehiculos(
       mockVehiculos.map((v) => ({
         ...v,
@@ -214,25 +128,17 @@ export const ProveedorVehiculos: React.FC<{ children: React.ReactNode }> = ({ ch
       })),
     );
     setImperfecciones(mockImperfecciones);
-    setCitas([]);
-    setNotificacionReciente(null);
   };
 
   return (
     <VehiculosContext.Provider
       value={{
         vehiculos,
-        citas,
-        notificacionReciente,
-        limpiarNotificacion,
         obtenerVehiculo,
         obtenerImperfecciones,
-        agendarCita,
         cambiarEstadoVehiculo,
         guardarVehiculo,
         eliminarVehiculo,
-        actualizarCita,
-        descartarCitaYLiberarVehiculo,
         restablecerDatosDemo,
       }}
     >

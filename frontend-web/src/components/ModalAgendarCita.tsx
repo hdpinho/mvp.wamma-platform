@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import type { VehiculoData } from '../types/vehiculo';
-import { useVehiculos, CORREO_NOTIFICACIONES_WAMMA } from '../state/vehiculosContexto';
+import { useCRM, CORREO_NOTIFICACIONES_WAMMA } from '../state/crmContexto';
 import { Boton } from './Boton';
-import { validarCedula, validarMovil, validarCorreo } from '../validacion/venezuela';
+import { validarMovil, validarCorreo } from '../validacion/venezuela';
 
 interface ModalAgendarCitaProps {
   vehiculo: VehiculoData;
@@ -19,10 +19,9 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
   onCerrar,
   onExito,
 }) => {
-  const { agendarCita } = useVehiculos();
+  const { agendarCita } = useCRM();
 
   const [nombreApellido, setNombreApellido] = useState('');
-  const [cedula, setCedula] = useState('');
   const [telefonoWhatsApp, setTelefonoWhatsApp] = useState('');
   const [correo, setCorreo] = useState('');
 
@@ -48,19 +47,17 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
       nuevosErrores.nombreApellido = 'Por favor ingresa tu nombre y apellido completos.';
     }
 
-    const errorCedula = validarCedula(cedula);
-    if (errorCedula) {
-      nuevosErrores.cedula = errorCedula;
-    }
-
     const errorTel = validarMovil(telefonoWhatsApp);
     if (errorTel) {
       nuevosErrores.telefonoWhatsApp = errorTel;
     }
 
-    const errorCor = validarCorreo(correo);
-    if (errorCor) {
-      nuevosErrores.correo = errorCor;
+    // El correo es opcional en este paso: el canal real de contacto es WhatsApp.
+    if (correo.trim()) {
+      const errorCor = validarCorreo(correo);
+      if (errorCor) {
+        nuevosErrores.correo = errorCor;
+      }
     }
 
     if (!diaPreferencia) {
@@ -79,23 +76,16 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
 
     // Simular un breve tiempo de red
     setTimeout(() => {
+      // La cédula NO se pide aquí: llega al confirmar la cita (spec 010 §8.5).
+      // La persona se resuelve por teléfono normalizado hasta entonces.
       agendarCita({
-        vehiculoId: vehiculo.id,
-        vehiculoResumen: {
-          marca: vehiculo.marca,
-          modelo: vehiculo.modelo,
-          version: vehiculo.version,
-          anio: vehiculo.anio,
-          precioUSD: vehiculo.precioUSD,
-          foto: vehiculo.foto,
-        },
         nombreApellido: nombreApellido.trim(),
-        cedula: cedula.trim().toUpperCase(),
         telefonoWhatsApp: telefonoWhatsApp.trim(),
-        correo: correo.trim(),
+        correo: correo.trim() || undefined,
         diaPreferencia,
         franjaHoraria,
-        metodoPago,
+        modalidadPago: metodoPago,
+        vehiculo,
       });
 
       setEnviando(false);
@@ -164,20 +154,11 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
               )}
             </div>
 
+            {/*
+              La cédula se pide al confirmar la cita, no aquí (spec 010 §8.5):
+              exigirla para *mirar* un carro es fricción alta en la captación.
+            */}
             <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="cedula">Cédula de Identidad *</label>
-                <input
-                  id="cedula"
-                  type="text"
-                  placeholder="V-12345678"
-                  value={cedula}
-                  onChange={(e) => setCedula(e.target.value)}
-                  className={errores.cedula ? 'input-error' : ''}
-                />
-                {errores.cedula && <span className="error-texto">{errores.cedula}</span>}
-              </div>
-
               <div className="form-group">
                 <label htmlFor="telefonoWhatsApp">Teléfono WhatsApp *</label>
                 <input
@@ -192,19 +173,19 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
                   <span className="error-texto">{errores.telefonoWhatsApp}</span>
                 )}
               </div>
-            </div>
 
-            <div className="form-group">
-              <label htmlFor="correo">Correo Electrónico *</label>
-              <input
-                id="correo"
-                type="email"
-                placeholder="carlos@ejemplo.com"
-                value={correo}
-                onChange={(e) => setCorreo(e.target.value)}
-                className={errores.correo ? 'input-error' : ''}
-              />
-              {errores.correo && <span className="error-texto">{errores.correo}</span>}
+              <div className="form-group">
+                <label htmlFor="correo">Correo Electrónico (opcional)</label>
+                <input
+                  id="correo"
+                  type="email"
+                  placeholder="carlos@ejemplo.com"
+                  value={correo}
+                  onChange={(e) => setCorreo(e.target.value)}
+                  className={errores.correo ? 'input-error' : ''}
+                />
+                {errores.correo && <span className="error-texto">{errores.correo}</span>}
+              </div>
             </div>
 
             <div className="form-row">

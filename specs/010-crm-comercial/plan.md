@@ -3,7 +3,7 @@
 **Proyecto:** WAMMA · Plataforma propia · **Fase 1 (MVP)**
 **Clasificación:** Confidencial · **Rev.:** 1 · **Septiembre 2026**
 **Spec de referencia:** `./spec.md`
-**Estado:** Draft para validación del Product Owner
+**Estado:** **Aprobado** por el Product Owner (septiembre 2026)
 
 > El QUÉ está en `spec.md`. Aquí va el **CÓMO**: encaje arquitectónico, modelo físico, máquina de estados, contratos y estrategia de pruebas. `../000-overview/architecture-plan.md` manda sobre las decisiones transversales.
 
@@ -183,6 +183,18 @@ Si no devuelve fila, se relee por `cedula_bidx`. El índice único parcial es lo
 
 Se registra **qué criterio** resolvió la deduplicación (cédula o teléfono). Una fusión por teléfono puede ser errónea —un teléfono familiar compartido— y hay que poder auditarla y deshacerla.
 
+### 5.1 Consolidación al llegar la cédula (decisión C1)
+
+Con la captura en dos pasos, la persona nace resuelta **por teléfono** y la cédula llega después, al confirmar la cita. Ese momento tiene tres desenlaces:
+
+| Situación | Acción |
+|---|---|
+| La cédula no existe en ninguna otra persona | Se adjunta a la persona actual |
+| La cédula ya existe en **otra** persona | **Fusión**: las dos son la misma gente. Sobrevive la más antigua; las oportunidades e interacciones de la otra se reasignan y la fusión queda auditada |
+| La cédula ya está en **esta** persona | Nada que hacer |
+
+La fusión es la operación delicada del módulo: mueve historial entre registros. Va en **una transacción**, deja traza del origen y del destino, y es la razón por la que §5 exige guardar el criterio de deduplicación — sin él no se puede revisar una fusión dudosa.
+
 ---
 
 ## 6. Contratos de API
@@ -291,11 +303,11 @@ Mismo criterio que `../solicitud-credito/plan.md` §12: lo que falta va **detrá
 
 | Pregunta abierta | Aislamiento mientras no se resuelva |
 |---|---|
-| **C1** cédula obligatoria | `dedup/` ya contempla la vía por teléfono. La decisión cambia una validación del formulario, no el modelo |
+| ~~**C1**~~ cédula obligatoria | **Cerrada**: captura en dos pasos (`spec.md` §8.5). Exige la consolidación de cédula descrita en §5 |
 | **C2** retención | Nada se borra. Cuando haya política, se implementa como tarea programada |
 | **C3** reparto de oportunidades | `asesor_id` nulo = sin asignar. El reparto automático sería una capa encima |
 | **C4** identidad del asesor | `asesor_id` nulo hasta que exista el 001 (S3) |
-| **C5** umbral de estancada | Fila en `parametros_financieros` (o su equivalente de CRM), no constante en código |
+| ~~**C5**~~ umbral de estancada | **Cerrada**: umbral por etapa 2/3/7/7/14 días, en tabla de parámetros y no en código |
 | **C6** notificación al cliente | El módulo no notifica. Si se decide que sí, se apoya en el motor de notificaciones del 009 |
 | ~~**C7**~~ enmienda constitucional | **Cerrada** en la Constitución v2.0.0 |
 
