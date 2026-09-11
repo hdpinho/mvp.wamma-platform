@@ -71,7 +71,7 @@ JSON de reglas consumido por Go y por el frontend, para que cliente y servidor n
 ### N3 — Motor de cálculo financiero ✅ HECHO · 100 % de cobertura
 `calc/` con **`math/big` (sin dependencias externas)**: totales, capacidad de pago, ratio cuota/ingreso, cuota por sistema francés y tabla de amortización. Portado desde `mocks/financiamiento.ts` como fuente única.
 **Depende de:** O1.
-**Verifica:** **100 % de ramas**. Casos límite: ingresos cero, capacidad negativa, plazo mínimo, redondeo de última cuota. *Lint* que rechaza `float` en el paquete.
+**Verifica:** **100 % de ramas**. Casos límite: ingresos cero, redondeo de la capacidad (30 % del ingreso, decisión del PO de septiembre 2026), plazo mínimo, redondeo de última cuota. *Lint* que rechaza `float` en el paquete.
 
 ### N4 — Máquina de estados
 Tabla de transiciones de `plan.md` §5, con validación de origen **y** de actor.

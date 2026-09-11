@@ -190,13 +190,15 @@ Se descartó `shopspring/decimal`: con racional exacto, `(1+i)^n` no arrastra tr
 ```
 total_ingresos      = sueldo + otros_ingresos
 total_egresos       = alquiler + alimentacion_servicios + deudas
-capacidad_pago      = total_ingresos − total_egresos
+capacidad_pago      = total_ingresos × porcentaje_capacidad   (30 %, parámetro)
 ratio_cuota_ingreso = cuota_estimada / total_ingresos     (interno)
 ```
 
 La **cuota** reusa el sistema francés ya implementado en la maqueta (`mocks/financiamiento.ts`), portado a Go como fuente única. Tasa, plazos y frecuencias se leen de `parametros_financieros`; si falta el parámetro, el simulador **se deshabilita con un mensaje**, no adopta un valor por defecto.
 
-Casos límite con prueba obligatoria: ingresos cero (división por cero en el ratio), capacidad negativa, plazo mínimo, redondeo de la última cuota.
+Casos límite con prueba obligatoria: ingresos cero (división por cero en el ratio), redondeo de la capacidad a céntimos, porcentaje de capacidad fuera de [0, 1], plazo mínimo, redondeo de la última cuota.
+
+**Capacidad de pago (septiembre 2026).** Pasó de `ingresos − egresos` al **30 % del ingreso mensual**, por decisión del Product Owner. `CalcularBalance` aplica el porcentaje vigente y `CalcularBalanceCon` recibe el porcentaje leído de `parametros_financieros`. Con la regla nueva la capacidad ya no puede ser negativa, así que ese caso límite dejó de existir.
 
 ---
 

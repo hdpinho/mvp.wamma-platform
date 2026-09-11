@@ -375,9 +375,10 @@ func TestCalcularBalance(t *testing.T) {
 	}
 }
 
-// TestCalcularBalance_CapacidadNegativa comprueba que un balance deficitario se
-// calcula y no se rechaza: la decisión es del analista, no del formulario.
-func TestCalcularBalance_CapacidadNegativa(t *testing.T) {
+// TestCalcularBalance_EgresosNoRestan comprueba la regla vigente: la capacidad
+// es el 30 % del ingreso aunque los egresos lo superen. Antes, esta misma
+// entrada daba una capacidad negativa.
+func TestCalcularBalance_EgresosNoRestan(t *testing.T) {
 	bal, err := CalcularBalance(USD,
 		Ingresos{SueldoMensual: De(300, 0, USD), OtrosIngresos: Cero(USD)},
 		Egresos{
@@ -388,8 +389,8 @@ func TestCalcularBalance_CapacidadNegativa(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error inesperado: %v", err)
 	}
-	if !bal.CapacidadPago.EsNegativo() {
-		t.Fatalf("la capacidad debería ser negativa; got %s", bal.CapacidadPago)
+	if bal.CapacidadPago.Centimos() != 9000 {
+		t.Fatalf("capacidad = %s; se esperaba 90.00: el 30 %% de 300, sin restar egresos", bal.CapacidadPago)
 	}
 }
 
@@ -412,8 +413,8 @@ func TestCalcularBalance_MonedaDistinta(t *testing.T) {
 		}
 	})
 
-	t.Run("en la resta final", func(t *testing.T) {
-		// Ingresos y egresos cuadran cada uno en su divisa, pero entre sí no.
+	t.Run("todo en la misma divisa", func(t *testing.T) {
+		// Con todo en VES, el cálculo no debe fallar.
 		_, err := CalcularBalance(VES,
 			Ingresos{SueldoMensual: Cero(VES), OtrosIngresos: Cero(VES)},
 			Egresos{AlquilerHipoteca: Cero(VES), AlimentacionServicios: Cero(VES), PagosDeudas: Cero(VES)})

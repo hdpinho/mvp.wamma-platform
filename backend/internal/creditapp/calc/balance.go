@@ -1,6 +1,9 @@
 package calc
 
-import "math/big"
+import (
+	"errors"
+	"math/big"
+)
 
 // Ingresos son las entradas mensuales declaradas por el solicitante.
 type Ingresos struct {
@@ -27,15 +30,38 @@ type Balance struct {
 	CapacidadPago Dinero
 }
 
-// CalcularBalance suma ingresos y egresos y obtiene la capacidad de pago.
+// ErrPorcentajeInvalido indica un porcentaje de capacidad fuera de [0, 1].
+var ErrPorcentajeInvalido = errors.New("el porcentaje de capacidad debe estar entre 0 y 1")
+
+// PorcentajeCapacidadVigente es la proporción del ingreso mensual total que se
+// considera capacidad de pago: 30 %, por decisión del Product Owner (septiembre
+// 2026). Antes la capacidad era ingresos − egresos.
+//
+// Devuelve un racional nuevo en cada llamada para que ningún llamador pueda
+// alterar el valor compartido. En producción el porcentaje se lee de
+// parametros_financieros y se pasa a CalcularBalanceCon (plan §7).
+func PorcentajeCapacidadVigente() *big.Rat { return big.NewRat(3, 10) }
+
+// CalcularBalance calcula el balance con el porcentaje de capacidad vigente.
+func CalcularBalance(m Moneda, ing Ingresos, egr Egresos) (Balance, error) {
+	return CalcularBalanceCon(m, ing, egr, PorcentajeCapacidadVigente())
+}
+
+// CalcularBalanceCon suma ingresos y egresos y obtiene la capacidad de pago
+// con el porcentaje indicado.
 //
 //	total_ingresos = sueldo + otros_ingresos
 //	total_egresos  = alquiler + alimentación y servicios + deudas
-//	capacidad_pago = total_ingresos − total_egresos
+//	capacidad_pago = total_ingresos × porcentaje_capacidad
 //
-// Una capacidad negativa es un resultado válido: se calcula, se guarda y la
-// decide el analista. La pantalla pública nunca rechaza por este motivo.
-func CalcularBalance(m Moneda, ing Ingresos, egr Egresos) (Balance, error) {
+// Los egresos se siguen totalizando porque el analista los necesita, pero no
+// reducen la capacidad. La capacidad se redondea a céntimos una sola vez, al
+// final, igual que el resto del paquete.
+func CalcularBalanceCon(m Moneda, ing Ingresos, egr Egresos, porcentajeCapacidad *big.Rat) (Balance, error) {
+	if porcentajeCapacidad == nil || porcentajeCapacidad.Sign() < 0 || porcentajeCapacidad.Cmp(big.NewRat(1, 1)) > 0 {
+		return Balance{}, ErrPorcentajeInvalido
+	}
+
 	totalIngresos, err := SumarTodos(m, ing.SueldoMensual, ing.OtrosIngresos)
 	if err != nil {
 		return Balance{}, err
@@ -46,12 +72,12 @@ func CalcularBalance(m Moneda, ing Ingresos, egr Egresos) (Balance, error) {
 		return Balance{}, err
 	}
 
-	// Ambos totales se construyeron con la divisa m, así que la resta no puede
-	// fallar por discrepancia de moneda.
+	capacidad := desdeRat(new(big.Rat).Mul(totalIngresos.Rat(), porcentajeCapacidad), m)
+
 	return Balance{
 		TotalIngresos: totalIngresos,
 		TotalEgresos:  totalEgresos,
-		CapacidadPago: totalIngresos.restarIgualMoneda(totalEgresos),
+		CapacidadPago: capacidad,
 	}, nil
 }
 
