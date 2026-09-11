@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Set-Location \"C:\\\\Users\\\\hdpinho\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-hdpinho-mvp-wamma-platform\\\\78eb88f8-5167-412a-a911-033d270a1d79\\\\scratchpad\\\\driver\"; $env:BASE='https://wamma-mvp.vercel.app'; node recorrido-venta.js 2>$null | Select-String -Pattern 'FALLO|enlace personal|comprobaciones OK|pageerror|console.error')"
+    ]
+  }
+}

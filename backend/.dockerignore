@@ -1,0 +1,8 @@
+target/
+.git/
+.gitignore
+_legacy-go/
+*.md
+*.log
+.DS_Store
+Thumbs.db

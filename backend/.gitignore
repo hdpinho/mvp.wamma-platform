@@ -1,0 +1,39 @@
+# Backend WAMMA — Java / Spring Boot
+
+## Build
+target/
+*.class
+*.jar
+*.war
+
+## Maven
+.mvn/wrapper/maven-wrapper.jar
+mvnw
+mvnw.cmd
+
+## IDE
+.idea/
+*.iml
+*.iws
+.project
+.classpath
+.settings/
+.factorypath
+*.swp
+*~
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Entorno
+.env
+.env.local
+*.env
+
+## Logs
+*.log
+logs/
+
+## Legacy Go (archivado, no se compila)
+# _legacy-go/ se conserva solo como referencia

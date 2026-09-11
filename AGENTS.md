@@ -31,8 +31,9 @@ Plataforma propia de **WAMMA by Token Pago POS**: venta, certificación y financ
 
 ## Stack (definido; ver architecture-plan.md)
 
-- **Web / panel:** React · **Móvil:** Flutter · **Backend:** Go (monolito modular)
-- **Datos:** PostgreSQL · **Caché/colas:** Redis · **Archivos:** object storage
+- **Web / panel:** React · **Móvil:** Flutter · **Backend:** Spring Boot (Java 21, monolito modular)
+- **Datos:** Supabase Cloud (PostgreSQL administrado) · **Caché/colas:** Redis · **Archivos:** object storage
+- **Migraciones:** Flyway · **Build:** Maven
 - **Infra:** proveedor a elegir por criterio de ingeniería y negocio. Exigidos: respaldo con **pruebas de restauración**, réplica de BD y capacidad de reconstruir el entorno desde cero
 
 ## Cómo debe comportarse el agente
@@ -47,10 +48,10 @@ Plataforma propia de **WAMMA by Token Pago POS**: venta, certificación y financ
 
 ## Convenciones de código (resumen)
 
-- Backend Go: paquetes por dominio (modular), errores explícitos, sin pánico en flujo normal.
-- Montos: tipo de precisión fija; toda operación monetaria registra moneda y tasa BCV aplicada.
+- Backend Java/Spring Boot: paquetes por dominio (modular), excepciones explícitas en capa de servicio, sin lógica de negocio en controladores.
+- Montos: `BigDecimal` con escala fija; `long` en céntimos para operaciones simples. Nunca `float`/`double`. Toda operación monetaria registra moneda y tasa BCV aplicada.
 - API: versionada (`/v1/...`), contratos documentados.
-- Migraciones de BD: versionadas e idempotentes; cambios al esquema del ledger son append-only.
+- Migraciones de BD: Flyway, versionadas e idempotentes; cambios al esquema del ledger son append-only.
 - Commits: convención `tipo(modulo): descripción` (ej. `feat(007-ledger): asiento de partida doble`).
 
 ---

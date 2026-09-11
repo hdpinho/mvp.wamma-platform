@@ -42,8 +42,8 @@ Meta: ejecutar el ciclo de **venta y financiamiento de vehículos publicados** �
 ## 4. Arquitectura en capas (resumen; detalle en `architecture-plan.md`)
 
 - **Presentación:** web (React) y app móvil (Flutter).
-- **Negocio:** reglas de venta, crédito y cuotas (backend Go, monolito modular).
-- **Datos:** PostgreSQL (incluido el ledger), Redis (caché/colas), object storage (fotos/documentos).
+- **Negocio:** reglas de venta, crédito y cuotas (backend Spring Boot / Java 21, monolito modular).
+- **Datos:** Supabase Cloud (PostgreSQL administrado, incluido el ledger), Redis (caché/colas), object storage (fotos/documentos).
 - **Integración:** bancos (C2P/Pago Móvil), buró de crédito.
 - **Seguridad y cumplimiento:** transversal a todas las capas.
 
@@ -54,7 +54,6 @@ Meta: ejecutar el ciclo de **venta y financiamiento de vehículos publicados** �
 | Documentación vehicular irregular | Validación de inspección y antecedentes legales antes de publicar (módulo 004) |
 | Inestabilidad de servicios/conectividad | Respaldo con pruebas de restauración + réplica de BD + arquitectura portable |
 | Interrupción del proveedor de alojamiento (sanciones o decisión unilateral) | Riesgo **asumido y evaluado**, ya no prohibido: contenedores e infraestructura como código para poder migrar sin reescribir (Constitución v2.0.0, Principio II) |
-| Talento escaso en Go | Equipo senior reducido para el núcleo crítico; agentes de IA para trabajo rutinario |
 | Realidad cambiaria | Precios USD con equivalencia BCV; el ledger registra ambas referencias |
 
 ---

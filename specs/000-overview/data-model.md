@@ -2,11 +2,11 @@
 
 **Clasificación:** Confidencial · **Rev.:** 3 · **Septiembre 2026**
 
-> Modelo conceptual. Las decisiones de implementación (índices, tipos exactos) las toma el agente al planificar cada módulo, respetando las reglas de la Constitución (Principio V). Toda marca `[NEEDS CLARIFICATION]` debe resolverse antes de migrar.
+> Modelo conceptual. Las decisiones de implementación (índices, tipos exactos) las toma el agente al planificar cada módulo, respetando las reglas de la Constitución (Principio V). Las tablas residen en **Supabase** (PostgreSQL administrado). Las migraciones se gestionan con **Flyway** desde Spring Boot. Toda marca `[NEEDS CLARIFICATION]` debe resolverse antes de migrar.
 
 ## 1. Convenciones obligatorias
 
-- **Montos:** nunca `float`. Usar decimal de precisión fija o entero de menor unidad. Toda fila monetaria guarda `monto`, `moneda` (`USD`/`VES`) y `tasa_bcv` aplicada + `fecha_tasa`.
+- **Montos:** nunca `float`/`double`. Usar Java `BigDecimal` con escala fija o `long` en céntimos. Toda fila monetaria guarda `monto`, `moneda` (`USD`/`VES`) y `tasa_bcv` aplicada + `fecha_tasa`.
 - **Identificadores:** UUID.
 - **Auditoría:** toda tabla sensible lleva `creado_en`, `creado_por`, y los cambios se registran en `auditoria_evento` (inmutable).
 - **Ledger:** append-only. Prohibido `UPDATE`/`DELETE` sobre asientos; las correcciones son asientos compensatorios.

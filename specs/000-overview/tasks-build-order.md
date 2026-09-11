@@ -37,7 +37,7 @@
 | **3 — Evaluación y Dinero** | 006, 007 | Scoring/riesgo (006) y contabilidad inmutable en ledger + pagos C2P (007). |
 | **Transversal** | 009 | Tablero y tesorería para administración de inventario y liquidaciones. |
 
-> **Qué se puede construir antes del 001.** El grafo describe dependencias de *módulo terminado*, no de *cada tarea*. Varios módulos tienen un núcleo puro —sin I/O, sin identidad, sin persistencia— que no depende del 001 y se puede escribir hoy: `solicitud-credito` ya tiene el suyo construido (`calc` y `validation`, 100 % de cobertura) y el 010 declara sus olas 1 y 2 en la misma condición. Lo que el 001 bloquea es **dar un módulo por terminado**, no empezarlo por donde no toca persistencia.
+> **Qué se puede construir antes del 001.** El grafo describe dependencias de *módulo terminado*, no de *cada tarea*. Varios módulos tienen un núcleo puro —sin I/O, sin identidad, sin persistencia— que no depende del 001 y se puede escribir hoy: `solicitud-credito` tuvo un núcleo puro en Go (`calc` y `validation`, 100 % de cobertura), archivado en `backend/_legacy-go/` como referencia para la reescritura en Java. El 010 declara sus olas 1 y 2 en la misma condición. Lo que el 001 bloquea es **dar un módulo por terminado**, no empezarlo por donde no toca persistencia.
 
 ## 3. Criterio de "terminado" por módulo (Definition of Done)
 

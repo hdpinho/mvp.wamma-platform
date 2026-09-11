@@ -1,107 +1,134 @@
 # Backend WAMMA
 
-**Clasificación:** Confidencial · **Rev.:** 1 · **Agosto 2026**
+**Clasificación:** Confidencial · **Rev.:** 2 · **Septiembre 2026**
 
-Monolito modular en Go, conforme a `../specs/000-overview/architecture-plan.md`.
+Monolito modular en Spring Boot (Java 21), conforme a `../specs/000-overview/architecture-plan.md`.
 
 ## Estado actual
 
-Solo está construido el **núcleo puro** del módulo de solicitud de crédito
-(`specs/solicitud-credito/`): las piezas sin I/O ni dependencias externas.
+**Solo esqueleto.** El proyecto Spring Boot tiene la estructura base lista
+(entry point, configuración, dependencias Maven, migración Flyway placeholder),
+pero **no contiene código de negocio todavía**. El frontend sigue operando
+con maquetas y datos simulados.
 
-| Paquete | Contenido | Cobertura |
-|---|---|---|
-| `internal/creditapp/validation` | Validadores venezolanos: cédula, RIF, teléfonos, correo, fecha de nacimiento, cuenta bancaria | **100 %** |
-| `internal/creditapp/calc` | Importes exactos, balance mensual, cuota por sistema francés y tabla de amortización | **100 %** |
+El código Go que existía previamente (`creditapp/calc`, `creditapp/validation`,
+`platform/sensible`) está archivado en `_legacy-go/` como referencia para
+la reescritura en Java cuando se implemente cada módulo.
 
-**Todavía no existe** nada de persistencia, API, OTP, recaudos ni PDF. Ver
-"Qué falta" más abajo.
+## Stack
+
+| Pieza | Tecnología |
+|---|---|
+| Framework | Spring Boot 3.3 |
+| JDK | 21 (LTS) |
+| Build | Maven |
+| Base de datos | Supabase Cloud (PostgreSQL administrado) |
+| Migraciones | Flyway |
+| Caché/colas | Redis |
+| Seguridad | Spring Security (se configura en módulo 001) |
 
 ## Requisitos
 
-- Go 1.26 o superior.
-- **Sin dependencias externas.** `go.mod` no declara ninguna y es deliberado
-  (ver "Decisiones" ).
+- **JDK 21** o superior.
+- **Maven 3.9+** (o usar el wrapper `mvnw` cuando se agregue).
+- PostgreSQL accesible (Supabase Cloud o local para desarrollo).
+- Redis (opcional en esta etapa; requerido al implementar caché/colas).
 
 ## Comandos
 
 ```sh
-go test ./...                 # pruebas
-go test ./... -cover          # pruebas con cobertura
-go vet ./...                  # análisis estático
-gofmt -l ./internal/          # formato: no debe listar nada
+mvn compile                    # compilar
+mvn test                       # pruebas
+mvn spring-boot:run            # arrancar localmente
+mvn verify                     # compilar + pruebas + verificación
 ```
 
-## Decisiones
+## Configuración
 
-### Aritmética exacta sin librerías de terceros
+Variables de entorno para conexión a Supabase y Redis:
 
-El Principio V de la Constitución prohíbe el punto flotante para dinero. En vez
-de traer `shopspring/decimal`, el paquete `calc` usa:
+```sh
+SUPABASE_DB_URL=jdbc:postgresql://<host>:<port>/<db>
+SUPABASE_DB_USER=postgres
+SUPABASE_DB_PASSWORD=<secreto>
+REDIS_HOST=localhost
+REDIS_PORT=6379
+```
 
-- **Enteros de unidad menor** (céntimos) para los importes: sumar y restar es
-  exacto por construcción.
-- **`math/big.Rat`** para el cálculo intermedio de la cuota.
+**Nunca** colocar secretos en `application.yml` ni en el repositorio
+(Constitución, Principio VI).
 
-`big.Rat` es aritmética racional exacta, así que `(1+i)^n` se calcula sin
-pérdida cuando la tasa es racional —que siempre lo es—. Con decimal, cada
-potencia arrastra un truncamiento que se acumula a lo largo del plazo. Solo se
-redondea al convertir el resultado final a importe.
+## Decisiones de arquitectura
 
-La última cuota de la tabla de amortización **absorbe el residuo de redondeo**,
-de modo que el saldo final sea exactamente cero. Sin ese ajuste el crédito
-quedaría con céntimos vivos, que en un ledger de partida doble es un descuadre.
+### Supabase como PostgreSQL administrado
 
-### El tipo `Dinero` impide mezclar divisas
+Se usa Supabase **exclusivamente** como base de datos PostgreSQL administrada.
+No se emplean Auth, Storage ni Row Level Security nativos de Supabase.
+Toda la lógica de autenticación, autorización y almacenamiento de archivos
+la maneja Spring Boot. Esto garantiza portabilidad: migrar a self-hosted
+o a cualquier PostgreSQL es solo cambiar la cadena de conexión.
 
-`Sumar` y `Restar` fallan si las monedas difieren. En un sistema multi-moneda
-como este, sumar USD con VES sin convertir es un error que no da síntomas hasta
-que alguien cuadra las cuentas.
+### Aritmética financiera con BigDecimal
 
-### Ante un insumo ausente, se falla de forma visible
+El Principio V de la Constitución prohíbe el punto flotante para dinero.
+La estrategia en Java:
 
-La validación de cuenta bancaria devuelve `ErrInsumoNoDisponible` mientras no
-haya catálogo de bancos ni algoritmo de dígito verificador cargados. **No se
-inventa una lista de bancos**: un catálogo plausible pero falso produce errores
-silenciosos que llegan a producción.
+- **`BigDecimal` con escala fija** para montos (2 decimales) y tasas
+  intermedias (escala mayor).
+- **`MathContext.DECIMAL128`** para cálculos intermedios como `(1+i)^n`
+  en la amortización por sistema francés.
+- **`long` en céntimos** como alternativa para operaciones que no requieren
+  decimales (comparaciones, sumas simples).
+- La última cuota de la tabla de amortización **absorbe el residuo de
+  redondeo** para que el saldo final sea exactamente cero.
 
-Lo mismo aplica a la edad máxima al vencimiento: es un puntero sin valor por
-defecto. Mientras sea `nil`, la regla no se aplica y así queda declarado.
+### Migraciones Flyway append-only para el ledger
 
-### Código muerto eliminado, no cubierto con pruebas
+Las tablas del ledger (módulo 007) son **inmutables por diseño**. Las
+migraciones de Flyway para estas tablas solo pueden ser `CREATE` o `ALTER
+TABLE ... ADD COLUMN`. Prohibido `ALTER TABLE ... DROP`, `DELETE` o `UPDATE`
+sobre asientos contables.
 
-Al perseguir el 100 % de cobertura aparecieron varias ramas de error
-inalcanzables, porque el llamador ya garantizaba la condición. Se eliminaron en
-lugar de escribir pruebas para estados imposibles. Están señaladas con un
-comentario donde el invariante lo justifica.
+## Estructura de paquetes (planificada)
 
-## Variables de entorno
-
-Ninguna todavía: los paquetes construidos son puros. Se documentarán al añadir
-persistencia y adaptadores.
+```
+src/main/java/com/wamma/
+├── WammaApplication.java
+├── platform/        # módulo 001 — auth, RBAC, auditoría, cifrado
+├── creditapp/       # solicitud de crédito WMA-F-FIN-001
+├── inspection/      # módulo 004 — inspección 240 puntos
+├── catalog/         # módulo 005 — catálogo y reservas
+├── risk/            # módulo 006 — scoring, AML
+├── ledger/          # módulo 007 — partida doble inmutable
+├── payments/        # módulo 007 — C2P, deuda, amortización
+├── treasury/        # módulo 009 — inventario, conciliación
+└── crm/             # módulo 010 — seguimiento comercial
+```
 
 ## Qué falta
 
-Por orden de `../specs/solicitud-credito/tasks.md`:
+Todo el código de negocio. El orden de implementación sigue
+`../specs/000-overview/tasks-build-order.md`:
 
-- **Ola 1** — migraciones, inmutabilidad a nivel de motor, catálogos.
-- **Ola 3** — repositorios, API `/v1`, OTP, recaudos, evidencia, PDF.
-- **Ola 4 y 5** — frontend y verificación transversal.
+- **Ola 0** — módulo 001 (RBAC, auditoría, cifrado).
+- **Ola 1** — módulo 004 (inspección 240 puntos).
+- **Ola 2** — módulos 005, 010, solicitud de crédito.
+- **Ola 3** — módulos 006, 007 (scoring, ledger, pagos).
+- **Transversal** — módulo 009 (tablero y tesorería).
 
-### Bloqueante de arquitectura
+## Código Go archivado
 
-`creditapp` necesita `internal/platform` (cifrado de campo, auditoría, RBAC)
-para todo lo que toque persistencia. Ese paquete es el **módulo 001**, que según
-`../specs/000-overview/tasks-build-order.md` es la Ola 0 de todo el proyecto y
-aún no se ha construido. Avanzar a la Ola 3 de este módulo implica empezar el
-001 primero.
+El directorio `_legacy-go/` contiene el código Go original:
 
-### Insumos externos pendientes
+| Paquete | Contenido | Cobertura original |
+|---|---|---|
+| `internal/creditapp/validation` | Validadores venezolanos: cédula, RIF, teléfonos, correo, fecha de nacimiento, cuenta bancaria | 100 % |
+| `internal/creditapp/calc` | Importes exactos, balance mensual, cuota por sistema francés y tabla de amortización | 100 % |
+| `internal/platform/sensible` | Limpieza en memoria de secretos y datos sensibles | — |
 
-D10 (OTP), D11 (antivirus), D12 (formato WMA-F-FIN-001), D13 (bancos),
-D14 (ubicaciones), L6 y L7 (textos legales), P7–P11 (parámetros financieros).
-Detalle en `../specs/solicitud-credito/spec.md` §13.
+Este código se usa como **referencia** al reescribir en Java. Se eliminará
+del repositorio cuando la reescritura esté completa y verificada.
 
 ---
 
-*WAMMA · Confidencial · Rev. 1 · No constituye asesoría legal ni financiera.*
+*WAMMA · Confidencial · Rev. 2 · No constituye asesoría legal ni financiera.*

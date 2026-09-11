@@ -1,0 +1,23 @@
+# Render Blueprint para WAMMA Platform
+# Más información: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: wamma-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: SUPABASE_DB_URL
+        sync: false # Configurar en Dashboard de Render (cadena jdbc:postgresql://...)
+      - key: SUPABASE_DB_USER
+        sync: false # Configurar en Dashboard de Render (ej. postgres)
+      - key: SUPABASE_DB_PASSWORD
+        sync: false # Configurar en Dashboard de Render
+      - key: FLYWAY_ENABLED
+        value: "true"
+      - key: REDIS_HOST
+        value: "localhost"
+      - key: REDIS_PORT
+        value: "6379"
