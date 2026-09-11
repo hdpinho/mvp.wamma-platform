@@ -43,20 +43,31 @@ mvn spring-boot:run            # arrancar localmente
 mvn verify                     # compilar + pruebas + verificación
 ```
 
-## Configuración
+## Configuración y Perfiles
 
-Variables de entorno para conexión a Supabase y Redis:
+Spring Boot cuenta con dos perfiles de ejecución configurados en `application.yml`:
+
+* **`standalone` (por defecto):** Desactiva las dependencias duras de base de datos y Redis para permitir arranque rápido (~3 segundos), validación de health check y desarrollo desacoplado.
+* **`supabase`:** Se activa con `SPRING_PROFILES_ACTIVE=supabase` y utiliza las variables de entorno de conexión para conectarse a Supabase y ejecutar migraciones con Flyway:
 
 ```sh
-SUPABASE_DB_URL=jdbc:postgresql://<host>:<port>/<db>
+SPRING_PROFILES_ACTIVE=supabase
+SUPABASE_DB_URL=jdbc:postgresql://<host>:<port>/<db>?sslmode=require
 SUPABASE_DB_USER=postgres
 SUPABASE_DB_PASSWORD=<secreto>
 REDIS_HOST=localhost
 REDIS_PORT=6379
 ```
 
-**Nunca** colocar secretos en `application.yml` ni en el repositorio
-(Constitución, Principio VI).
+**Nunca** colocar secretos en `application.yml` ni en el repositorio (Constitución, Principio VI).
+
+## Despliegue en Render (Docker)
+
+El backend se encuentra empaquetado para Render mediante un contenedor Docker multi-stage:
+* **`Dockerfile`**: Fase 1 (Maven 3.9 + Temurin JDK 21 Alpine) para compilar; Fase 2 (Temurin JRE 21 Alpine) para ejecutar bajo usuario no-root `wamma`.
+* **Blueprint**: Declarado en `../render.yaml` con health check en `/api/health`.
+* **Puerto**: Enlace automático a `${PORT}` inyectado por el entorno de Render.
+
 
 ## Decisiones de arquitectura
 

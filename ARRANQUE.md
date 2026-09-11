@@ -28,35 +28,47 @@ git commit -m "chore: estructura SDD inicial de WAMMA"
 
 ## Paso 2 · Generar la maqueta
 
-La carpeta `frontend-web/` **aún no existe**: la genera el agente a partir de los specs.
+## Paso 2 · Levantar el frontend localmente
 
-- **Antigravity:** *Open Workspace* → selecciona la carpeta → escribe `/maqueta-cliente`.
-- **Claude Code:** abre la terminal en la raíz (`cd ...\wamma-platform`), ejecuta `claude` y pega el prompt de arranque (o pídele que siga `.agents/workflows/maqueta-cliente.md`).
+La maqueta cliente reside en `frontend-web/`:
 
-El agente debe **mostrarte primero el plan**, implementar en orden (tokens → componentes → mocks → pantallas → rutas) y luego **navegar la maqueta y capturar pantallas** para tu revisión.
-
-## Paso 3 · Levantar el frontend
-
-Una vez generado `frontend-web/`:
-
-```
+```bash
 cd frontend-web
 npm install
 npm run dev
 ```
 
-Abre la URL que muestre la terminal (típicamente `http://localhost:5173` si el agente usa Vite). Confirma el comando exacto en los *scripts* de `frontend-web/package.json`.
+Abre en tu navegador la URL que muestre la terminal (típicamente `http://localhost:5173`).
 
-## Paso 4 · Levantar el backend (cuando se active)
+## Paso 3 · Levantar el backend localmente (Spring Boot)
 
-El backend Spring Boot está en `backend/`. Para arrancarlo:
+El backend modular reside en `backend/`:
 
-```
+```bash
 cd backend
 mvn spring-boot:run
 ```
 
-Requiere las variables de entorno de conexión a Supabase y Redis configuradas (ver `backend/README.md`). En esta etapa de maquetas **no es necesario** arrancar el backend.
+* Por defecto arranca con el perfil **`standalone`** (sin requerir base de datos activa) y expone `/api/health` en el puerto configurado.
+* Para conectar con Supabase en desarrollo local, define las variables de entorno `SUPABASE_DB_URL`, `SUPABASE_DB_USER`, `SUPABASE_DB_PASSWORD` y activa el perfil `SPRING_PROFILES_ACTIVE=supabase`.
+
+---
+
+## Despliegue en la Nube y CI/CD
+
+El proyecto cuenta con integración y despliegue continuo automatizado conectado a GitHub:
+
+* **Repositorio Central:** [https://github.com/hdpinho/mvp.wamma-platform](https://github.com/hdpinho/mvp.wamma-platform) (rama `main`).
+* **Frontend en Vercel:**
+  * URL Pública: [https://wamma-mvp.vercel.app](https://wamma-mvp.vercel.app)
+  * Directorio raíz: `frontend-web`
+  * Despliegue: Automático en cada `git push origin main` mediante integración Git de Vercel.
+* **Backend en Render:**
+  * Servicio: `wamma-backend` (Web Service con contenedor Docker multi-stage Java 21)
+  * Manifiesto: [`render.yaml`](./render.yaml)
+  * Health check: `/api/health`
+  * Despliegue: Automático en cada `git push origin main`.
+
 
 ## Estructura esperada de `frontend-web/`
 
