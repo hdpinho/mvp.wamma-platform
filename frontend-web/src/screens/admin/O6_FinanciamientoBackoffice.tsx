@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useVehiculos } from '../../state/vehiculosContexto';
 import { Boton } from '../../components/Boton';
-import { calcularCuota, generarAmortizacion } from '../../mocks/financiamiento';
+import { PARAMETROS_FINANCIAMIENTO, calcularCuota, generarAmortizacion } from '../../mocks/financiamiento';
 
 interface O6FinanciamientoBackofficeProps {
   rateBCV: number;
@@ -19,7 +19,10 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
   const [nombreCliente, setNombreCliente] = useState<string>('');
   const [telefonoCliente, setTelefonoCliente] = useState<string>('');
 
-  const [porcentajeInicial, setPorcentajeInicial] = useState<number>(35);
+  // La inicial arranca en el mínimo vigente (20 %, decisión del PO).
+  const [porcentajeInicial, setPorcentajeInicial] = useState<number>(
+    Math.round(PARAMETROS_FINANCIAMIENTO.inicialPorcentaje * 100),
+  );
   const [plazoMeses, setPlazoMeses] = useState<number>(18);
   const [tasaMensualPct, setTasaMensualPct] = useState<number>(4.0);
 
@@ -53,7 +56,9 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
   const totalPagado = montoFinanciado + totalIntereses;
 
   // Ratios de capacidad
-  const capacidadPagoDisponible = Math.max(0, ingresoMensualUSD - gastosMensualesUSD);
+  // Decisión del PO: la capacidad es el 30 % del ingreso mensual; los gastos se
+  // registran como referencia, pero no restan. Misma regla que el núcleo Go.
+  const capacidadPagoDisponible = ingresoMensualUSD * PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago;
   const ratioCuotaIngreso =
     ingresoMensualUSD > 0 ? (cuotaMensualUSD / ingresoMensualUSD) * 100 : 0;
 
@@ -261,8 +266,10 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
 
             <div style={{ marginTop: '12px', padding: '12px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--superficie)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span>Capacidad neta de pago:</span>
-                <strong>${capacidadPagoDisponible.toLocaleString()} USD</strong>
+                <span>
+                  Capacidad de pago ({Math.round(PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago * 100)} % del ingreso):
+                </span>
+                <strong>${Math.round(capacidadPagoDisponible).toLocaleString()} USD</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginTop: '6px' }}>
                 <span>Ratio Cuota / Ingreso:</span>
@@ -283,6 +290,9 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
                       ? '(Aceptable)'
                       : '(Riesgo Elevado)'}
                 </strong>
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--texto-mudo)', marginTop: '6px', lineHeight: 1.4 }}>
+                Los gastos fijos se registran como referencia para el análisis; no reducen la capacidad de pago.
               </div>
             </div>
           </div>

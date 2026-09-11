@@ -10,6 +10,7 @@ import { C1_Catalogo } from './screens/C1_Catalogo';
 import { C2_FichaVehiculo } from './screens/C2_FichaVehiculo';
 import { C7_Favoritos } from './screens/C7_Favoritos';
 import { C9_SolicitudCredito } from './screens/C9_SolicitudCredito';
+import { C10_Financiamiento } from './screens/C10_Financiamiento';
 
 // Admin / Backoffice
 import { AdminLayout } from './components/admin/AdminLayout';
@@ -17,6 +18,9 @@ import { O3_GestionInventario } from './screens/admin/O3_GestionInventario';
 import { O3_FormularioVehiculo } from './screens/admin/O3_FormularioVehiculo';
 import { O3_GestionCitas } from './screens/admin/O3_GestionCitas';
 import { O6_FinanciamientoBackoffice } from './screens/admin/O6_FinanciamientoBackoffice';
+import { O7_EmbudoComercial } from './screens/admin/O7_EmbudoComercial';
+import { O7_Personas } from './screens/admin/O7_Personas';
+import { O7_FichaPersona } from './screens/admin/O7_FichaPersona';
 
 function AppRutas({ rateBCV }: { rateBCV: number }) {
   const location = useLocation();
@@ -35,6 +39,7 @@ function AppRutas({ rateBCV }: { rateBCV: number }) {
           <Route path="/catalogo" element={<C1_Catalogo rateBCV={rateBCV} />} />
           <Route path="/favoritos" element={<C7_Favoritos rateBCV={rateBCV} />} />
           <Route path="/solicitud-credito" element={<C9_SolicitudCredito rateBCV={rateBCV} />} />
+          <Route path="/financiamiento" element={<C10_Financiamiento rateBCV={rateBCV} />} />
           <Route path="/vehiculo/:id" element={<C2_FichaVehiculo rateBCV={rateBCV} />} />
 
           {/* Rutas Backoffice WAMMA */}
@@ -44,6 +49,9 @@ function AppRutas({ rateBCV }: { rateBCV: number }) {
             <Route path="vehiculo/nuevo" element={<O3_FormularioVehiculo />} />
             <Route path="vehiculo/editar/:id" element={<O3_FormularioVehiculo />} />
             <Route path="citas" element={<O3_GestionCitas />} />
+            <Route path="embudo" element={<O7_EmbudoComercial />} />
+            <Route path="personas" element={<O7_Personas />} />
+            <Route path="personas/:id" element={<O7_FichaPersona />} />
             <Route path="financiamiento" element={<O6_FinanciamientoBackoffice rateBCV={rateBCV} />} />
           </Route>
         </Routes>
@@ -107,7 +115,7 @@ function App() {
                       style={{ width: '100%', accentColor: 'var(--naranja-500)', cursor: 'pointer' }}
                     />
                     <div style={{ fontSize: '11px', color: 'var(--texto-mudo)', lineHeight: 1.3 }}>
-                      Ajusta la tasa para ver reflejada la conversión oficial en vitrina, cuotas y cotizador.
+                      Ajusta la tasa para ver reflejada la conversión oficial en el catálogo, las cuotas y el cotizador.
                     </div>
                   </div>
                 </div>

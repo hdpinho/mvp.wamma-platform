@@ -39,6 +39,16 @@ Busqué el formato en papel y no existe en el árbol. El §10 del encargo exige 
 
 **No puedo garantizar fidelidad contra un documento que no he visto.** Este spec se apoya en la descripción del encargo, que puede estar incompleta. Se requiere el archivo original. Ver `[NEEDS CLARIFICATION: D12]`.
 
+### 0.5 Acceso por enlace personal (decisión del Product Owner, septiembre 2026)
+
+La solicitud **deja de estar abierta al público**. Se habilita después de la visita, cuando el asesor pulsa «Vender Vehículo» con pago financiado en el módulo 010: eso emite un **enlace personal** para esa persona y ese vehículo (`../010-crm-comercial/spec.md` §8.8). Sin un enlace válido, la ruta explica cómo funciona el proceso en lugar de mostrar el formulario.
+
+Esto reemplaza la lectura de §0.2 sobre una pantalla pública de autoservicio: sigue siendo autoservicio —el cliente la llena desde su teléfono—, pero ya no es anónima ni está al alcance de cualquiera.
+
+En la maqueta el enlace se valida solo por su forma, porque no hay servidor. En producción el token lo emite y lo valida el servidor: aleatorio, de un solo uso y con vencimiento.
+
+La **inicial mínima es el 20 %** del precio del vehículo, y el formulario la trae precargada en ese mínimo.
+
 ### 0.5 Nomenclatura de la carpeta
 
 El repositorio numera los módulos (`001-` … `009-`). El encargo pide `specs/solicitud-credito/`. Uso la ruta indicada, pero si se adopta la numeración este documento pasaría a `specs/010-solicitud-credito/` y los identificadores `RF-SC.x` / `CA-SC.x` se renumerarían a `RF-010.x` / `CA-010.x`.
@@ -201,9 +211,11 @@ Desde la pantalla pública **solo** son alcanzables `borrador → enviada`, `→
 ```
 total_ingresos      = sueldo_mensual + otros_ingresos
 total_egresos       = alquiler_hipoteca + alimentacion_servicios + pagos_deudas
-capacidad_pago      = total_ingresos − total_egresos
+capacidad_pago      = total_ingresos × 30 %            (parámetro; ver abajo)
 ratio_cuota_ingreso = cuota_estimada / total_ingresos
 ```
+
+- **Capacidad de pago** (decisión del Product Owner, septiembre 2026): es el **30 % del ingreso mensual total**, parámetro de `parametros_financieros`. Los egresos se siguen declarando y mostrando al analista, pero **no restan**. Antes la regla era `total_ingresos − total_egresos`.
 
 - `ratio_cuota_ingreso` **se calcula y se almacena, pero no se muestra al solicitante**: es insumo del analista.
 - Tampoco se muestra `capacidad_pago` como señal de aprobación, ni ninguna otra pista de probabilidad de decisión.

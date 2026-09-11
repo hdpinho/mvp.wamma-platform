@@ -2,16 +2,17 @@
  * Parámetros de financiamiento — DATOS SIMULADOS.
  *
  * Reusa las cifras que ya trae `mocks/credito.ts` (4% mensual / 48% anual / 12 meses)
- * para que la vitrina, la ficha y Mi Panel muestren lo mismo.
+ * para que el catálogo, la ficha y el cotizador muestren lo mismo.
  *
- * `[NEEDS CLARIFICATION]` Estas cifras NO están confirmadas como las condiciones
- * reales de WAMMA. Provienen de la generación inicial de la maqueta. Antes de
- * cualquier uso comercial deben validarse contra el módulo 006 (motor de riesgo)
- * y el 007 (pagos y ledger).
+ * `[NEEDS CLARIFICATION]` La tasa y los plazos NO están confirmados como las
+ * condiciones reales de WAMMA: provienen de la generación inicial de la maqueta.
+ * Antes de cualquier uso comercial deben validarse contra el módulo 006 (motor
+ * de riesgo) y el 007 (pagos y ledger). La inicial mínima y la regla de
+ * capacidad de pago sí son decisión del Product Owner (septiembre 2026).
  *
  * Principio V de la Constitución: en producción los montos NO se calculan con
  * coma flotante. Aquí se usa `number` únicamente porque es una maqueta visual
- * sin lógica de negocio; el backend en Go usará precisión fija.
+ * sin lógica de negocio; el backend en Go usa precisión fija.
  */
 
 export const PARAMETROS_FINANCIAMIENTO = {
@@ -19,9 +20,15 @@ export const PARAMETROS_FINANCIAMIENTO = {
   tasaAnual: 0.48,
   plazosMeses: [6, 12, 18, 24],
   plazoPorDefecto: 12,
-  /** Porcentaje de inicial exigido sobre el precio del vehículo. */
-  inicialPorcentaje: 0.3,
-  inicialesDisponibles: [0.3, 0.4, 0.5, 0.6],
+  /** Inicial mínima y por defecto sobre el precio del vehículo. */
+  inicialPorcentaje: 0.2,
+  inicialesDisponibles: [0.2, 0.3, 0.4, 0.5, 0.6],
+  /**
+   * Capacidad de pago = este porcentaje del ingreso mensual total. Los egresos
+   * se siguen declarando, pero no restan. Mismo valor que usa el núcleo Go
+   * (`internal/creditapp/calc`).
+   */
+  porcentajeCapacidadPago: 0.3,
 } as const;
 
 /** Nota legal que acompaña toda cuota mostrada en la interfaz. */

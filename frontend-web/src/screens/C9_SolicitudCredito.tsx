@@ -4,7 +4,8 @@ import { Boton } from '../components/Boton';
 import { Campo } from '../components/Campo';
 import { NotaSimulada } from '../components/NotaSimulada';
 import { FotoVehiculo } from '../components/FotoVehiculo';
-import { mockVehiculos } from '../mocks/vehiculos';
+import { useVehiculos } from '../state/vehiculosContexto';
+import { esTokenFinanciamientoValido } from '../types/crm';
 import { PARAMETROS_FINANCIAMIENTO, calcularCuota } from '../mocks/financiamiento';
 import {
   BANCOS,
@@ -315,12 +316,25 @@ const FilaTotal: React.FC<{ etiqueta: string; valor: number; destacado?: boolean
 export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  // Del inventario vivo y no de los mocks: así también aparecen los vehículos
+  // cargados desde el backoffice.
+  const { vehiculos } = useVehiculos();
+
+  // Acceso por enlace personal (spec 010 §8.8): la solicitud ya no está abierta
+  // al público. En la maqueta el token solo se valida por su forma.
+  const accesoHabilitado = esTokenFinanciamientoValido(params.get('enlace'));
 
   const [paso, setPaso] = useState(0);
-  const [datos, setDatos] = useState<Datos>(() => ({
-    ...datosIniciales,
-    vehiculoId: params.get('vehiculo') ?? '',
-  }));
+  const [datos, setDatos] = useState<Datos>(() => {
+    const vehiculoId = params.get('vehiculo') ?? '';
+    const precio = vehiculos.find((v) => v.id === vehiculoId)?.precioUSD;
+    return {
+      ...datosIniciales,
+      vehiculoId,
+      // La inicial arranca en el mínimo vigente; el cliente puede aportar más.
+      inicialAportado: precio ? String(Math.ceil(precio * PARAMETROS_FINANCIAMIENTO.inicialPorcentaje)) : '',
+    };
+  });
   const [errores, setErrores] = useState<Errores>({});
   const [archivos, setArchivos] = useState<Record<string, string[]>>({});
 
@@ -340,7 +354,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
     });
   };
 
-  const vehiculo = mockVehiculos.find((v) => v.id === datos.vehiculoId);
+  const vehiculo = vehiculos.find((v) => v.id === datos.vehiculoId);
   const municipiosDisponibles = MUNICIPIOS[datos.estado] ?? [];
 
   // ── Cálculos en vivo ──────────────────────────────────────────────
@@ -361,7 +375,10 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
       cuota,
       totalIngresos,
       totalEgresos,
-      capacidadPago: totalIngresos - totalEgresos,
+      // Decisión del PO: 30 % del ingreso mensual; los egresos se declaran para
+      // el analista, pero no restan. Misma regla que el núcleo Go.
+      capacidadPago: totalIngresos * PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago,
+      inicialMinima: precio * PARAMETROS_FINANCIAMIENTO.inicialPorcentaje,
     };
   }, [vehiculo, datos]);
 
@@ -379,6 +396,10 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
       }
       if (financiero.inicial > financiero.precio) {
         e.inicialAportado = 'La inicial no puede superar el precio del vehículo';
+      } else if (financiero.precio > 0 && financiero.inicial < financiero.inicialMinima) {
+        e.inicialAportado = `La inicial mínima es el ${Math.round(
+          PARAMETROS_FINANCIAMIENTO.inicialPorcentaje * 100,
+        )} % del precio: ${formatoUSD(financiero.inicialMinima)}`;
       }
     }
 
@@ -533,6 +554,56 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
   const recaudosCargados = RECAUDOS.filter((r) => (archivos[r.id] ?? []).length > 0).length;
 
   // ── Confirmación ──────────────────────────────────────────────────
+  // ── Acceso por enlace personal ────────────────────────────────────
+  // La solicitud ya no está abierta al público (spec 010 §8.8): se llega con el
+  // enlace que emite el asesor al vender con financiamiento. Va después de todos
+  // los hooks para no romper su orden entre renders.
+  if (!accesoHabilitado || !vehiculo) {
+    return (
+      <div style={{ maxWidth: '640px', margin: '0 auto' }}>
+        <div
+          style={{
+            backgroundColor: 'var(--blanco)',
+            border: '1px solid var(--borde-claro)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-xxl)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: '40px', marginBottom: 'var(--space-md)' }} aria-hidden="true">
+            🔒
+          </div>
+          <h1 style={{ fontSize: '22px', marginBottom: 'var(--space-sm)' }}>
+            {accesoHabilitado
+              ? 'El vehículo de este enlace ya no está disponible'
+              : 'La solicitud de financiamiento se habilita después de tu visita'}
+          </h1>
+          <p
+            style={{
+              fontSize: '14px',
+              color: 'var(--texto-secundario)',
+              lineHeight: 1.5,
+              margin: '0 auto var(--space-xl)',
+              maxWidth: '46ch',
+            }}
+          >
+            {accesoHabilitado
+              ? 'Escríbele a tu asesor para que revise el enlace o te envíe uno nuevo.'
+              : 'Primero conoces el vehículo en la sede. Si decides comprarlo financiado, tu asesor te envía un enlace personal para completar esta solicitud desde tu teléfono.'}
+          </p>
+          <div style={{ display: 'flex', gap: 'var(--space-md)', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Boton variant="primary" onClick={() => navigate('/catalogo')}>
+              Ver el catálogo
+            </Boton>
+            <Boton variant="secondary" onClick={() => navigate('/financiamiento')}>
+              Cómo funciona
+            </Boton>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (numeroSolicitud) {
     return (
       <div style={{ maxWidth: '620px', margin: '0 auto' }}>
@@ -602,10 +673,11 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
 
           <div style={{ display: 'flex', gap: 'var(--space-md)', justifyContent: 'center', flexWrap: 'wrap' }}>
             <Boton variant="secondary" onClick={() => navigate('/catalogo')}>
-              Volver a la vitrina
+              Volver al catálogo
             </Boton>
-            <Boton variant="primary" onClick={() => navigate('/panel')}>
-              Ir a Mi Panel
+            {/* Antes llevaba a /panel, una ruta que ya no existe. */}
+            <Boton variant="primary" onClick={() => navigate('/')}>
+              Ir al inicio
             </Boton>
           </div>
         </div>
@@ -678,7 +750,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
                 onChange={(e) => set('vehiculoId', e.target.value)}
                 options={[
                   { value: '', label: 'Aún no he elegido vehículo' },
-                  ...mockVehiculos.map((v) => ({
+                  ...vehiculos.map((v) => ({
                     value: v.id,
                     label: `${v.marca} ${v.modelo} ${v.anio} — ${formatoUSD(v.precioUSD)}`,
                   })),
@@ -960,7 +1032,9 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
               <FilaTotal etiqueta="Total ingresos" valor={financiero.totalIngresos} />
               <FilaTotal etiqueta="Total egresos" valor={financiero.totalEgresos} />
               <FilaTotal
-                etiqueta="Disponible mensual"
+                etiqueta={`Capacidad de pago (${Math.round(
+                  PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago * 100,
+                )} % del ingreso)`}
                 valor={financiero.capacidadPago}
                 destacado
                 negativo={financiero.capacidadPago < 0}
@@ -979,7 +1053,8 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
                   marginBottom: 'var(--space-lg)',
                 }}
               >
-                La cuota estimada de {formatoUSD(financiero.cuota)} supera tu disponible mensual.
+                La cuota estimada de {formatoUSD(financiero.cuota)} supera tu capacidad de pago: el{' '}
+                {Math.round(PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago * 100)} % de tu ingreso mensual.
                 Puedes continuar: un analista revisará tu caso y podrá proponerte otro plazo o
                 una inicial mayor.
               </div>
@@ -987,7 +1062,9 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
 
             <NotaSimulada>
               Los totales se calculan solos y no se pueden editar. En el formato en papel eran
-              casillas a rellenar a mano, de donde venían las inconsistencias.
+              casillas a rellenar a mano, de donde venían las inconsistencias. La capacidad de pago
+              es el 30 % del ingreso mensual: los egresos se registran para el analista, pero no la
+              reducen.
             </NotaSimulada>
           </>
         )}

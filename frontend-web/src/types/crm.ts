@@ -96,14 +96,46 @@ export interface Persona {
   nombreApellido: string;
   /** Llega en el segundo paso, al confirmar la cita (`spec.md` §8.5). */
   cedula?: string;
+  /**
+   * Teléfono principal: el último que dio el cliente. Es el que usa WhatsApp,
+   * porque si agendó con un número nuevo, por ahí quiere que lo contacten.
+   */
   telefonoWhatsApp: string;
+  /** Otros teléfonos conocidos. Cuentan para deduplicar igual que el principal. */
+  telefonosAdicionales?: string[];
   correo?: string;
   canalOrigen: string;
   criterioResolucion: CriterioResolucion;
   fechaCreacion: string;
-  /** Ids de personas absorbidas al consolidar por cédula (`plan.md` §5.1). */
-  fusionadaDesde?: string[];
+  /** Copias de las personas absorbidas al consolidar por cédula (`plan.md` §5.1). */
+  fusionadaDesde?: PersonaAbsorbida[];
 }
+
+/**
+ * Copia íntegra de una persona absorbida en una fusión. Guardar solo su id
+ * haría la fusión irreversible: con esto se puede auditar y deshacer
+ * (`plan.md` §5), porque se sabe qué era de quién.
+ */
+export interface PersonaAbsorbida {
+  id: string;
+  nombreApellido: string;
+  cedula?: string;
+  telefonoWhatsApp: string;
+  telefonosAdicionales?: string[];
+  correo?: string;
+  fechaCreacion: string;
+  fusionadaEn: string;
+  /** Registros reasignados a la sobreviviente. Sin esto no se puede revertir. */
+  oportunidadIds: string[];
+  citaIds: string[];
+  interaccionIds: string[];
+}
+
+/** Todos los teléfonos de una persona, el principal primero. */
+export const telefonosDe = (p: Pick<Persona, 'telefonoWhatsApp' | 'telefonosAdicionales'>): string[] => [
+  p.telefonoWhatsApp,
+  ...(p.telefonosAdicionales ?? []),
+];
 
 /** Instantánea del vehículo al momento del interés: el precio de entonces importa. */
 export interface ResumenVehiculo {
@@ -131,6 +163,16 @@ export interface Oportunidad {
   motivoPerdidaTexto?: string;
   fechaCreacion: string;
   fechaCierre?: string;
+  /**
+   * Enlace personal de solicitud de crédito, emitido al pulsar «Vender Vehículo»
+   * con pago financiado (`spec.md` §8.8).
+   */
+  enlaceFinanciamiento?: EnlaceFinanciamiento;
+}
+
+export interface EnlaceFinanciamiento {
+  token: string;
+  emitidoEn: string;
 }
 
 /** Append-only: corregir es añadir, nunca editar (`spec.md` RF-010.10). */
@@ -251,3 +293,37 @@ export function estaEstancada(oportunidad: Oportunidad, ultimaActividad: string,
   const dias = (ahora.getTime() - new Date(ultimaActividad).getTime()) / 86_400_000;
   return dias > umbral;
 }
+
+/**
+ * La próxima acción vence al terminar el día indicado, no a medianoche del
+ * anterior. En una oportunidad cerrada no hay nada que vencer.
+ */
+export function proximaAccionVencida(oportunidad: Oportunidad, ahora: Date = new Date()): boolean {
+  if (!oportunidad.proximaAccionFecha || definicionEtapa(oportunidad.etapa).esTerminal) return false;
+  return new Date(`${oportunidad.proximaAccionFecha}T23:59:59`).getTime() < ahora.getTime();
+}
+
+// ── Enlace personal de financiamiento (`spec.md` §8.8) ────────────────────────
+
+/**
+ * Limitación de la maqueta: el token solo se valida por su forma. No hay
+ * servidor que guarde los emitidos, y el cliente abre el enlace en su propio
+ * teléfono, donde los datos del asesor no existen. En producción el servidor lo
+ * emite y lo valida: aleatorio, de un solo uso y con vencimiento. Esto
+ * demuestra el flujo; no es un control de acceso.
+ */
+const FORMA_TOKEN = /^sol-[a-z0-9]{12}$/;
+const ALFABETO_TOKEN = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+export function generarTokenFinanciamiento(): string {
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  return `sol-${Array.from(bytes, (b) => ALFABETO_TOKEN[b % ALFABETO_TOKEN.length]).join('')}`;
+}
+
+export const esTokenFinanciamientoValido = (token: string | null | undefined): boolean =>
+  Boolean(token && FORMA_TOKEN.test(token));
+
+/** Ruta relativa del enlace personal: el vehículo va en el enlace, los datos personales no. */
+export const rutaSolicitudFinanciamiento = (vehiculoId: string, token: string) =>
+  `/solicitud-credito?vehiculo=${encodeURIComponent(vehiculoId)}&enlace=${encodeURIComponent(token)}`;

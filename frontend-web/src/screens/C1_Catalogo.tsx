@@ -160,7 +160,7 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
   return (
     <div>
       <header style={{ marginBottom: 'var(--space-lg)' }}>
-        <h1 style={{ fontSize: '26px' }}>Vitrina WAMMA</h1>
+        <h1 style={{ fontSize: '26px' }}>Catálogo WAMMA</h1>
         <p style={{ fontSize: '14px', color: 'var(--texto-secundario)' }}>
           Vehículos usados con inspección de 240 puntos y validación legal de documentos.
           Todo el inventario está disponible en la <strong>Gran Caracas</strong>.

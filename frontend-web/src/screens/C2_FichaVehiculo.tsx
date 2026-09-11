@@ -10,7 +10,6 @@ import { Estado } from '../components/Estado';
 import { TarjetaVehiculo } from '../components/TarjetaVehiculo';
 import { Seccion } from '../components/Seccion';
 import { Imperfecciones } from '../components/Imperfecciones';
-import { useFavoritos } from '../state/favoritosContexto';
 import { useVehiculos } from '../state/vehiculosContexto';
 import { ModalAgendarCita } from '../components/ModalAgendarCita';
 import { creditosFotos } from '../mocks/creditosFotos';
@@ -40,7 +39,6 @@ const formatoUSD = (v: number) =>
 export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { tieneAlerta, alternarAlerta } = useFavoritos();
   const { vehiculos, obtenerImperfecciones } = useVehiculos();
 
   const [modalCitaAbierto, setModalCitaAbierto] = React.useState(false);
@@ -102,7 +100,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
           marginBottom: 'var(--space-lg)',
         }}
       >
-        ← Volver a la vitrina
+        ← Volver al catálogo
       </button>
 
       <div className="ficha-cuerpo">
@@ -360,24 +358,26 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
                 </Boton>
               </div>
             )}
-
-            <div>
-              <Boton
-                variant="secondary"
-                fullWidth
-                onClick={() => alternarAlerta(vehiculo.id)}
-              >
-                {tieneAlerta(vehiculo.id)
-                  ? '✓ Alerta de precio activa'
-                  : 'Avisarme si baja de precio'}
-              </Boton>
-            </div>
           </div>
 
+          {/*
+            Con una cita en curso, «Solicitar financiamiento» también se desactiva:
+            antes reabría el formulario de agendar y el mismo auto se podía
+            reservar dos veces. Quien agendó recibe luego un enlace personal
+            (specs/010-crm-comercial/spec.md §8.8).
+          */}
           <SimuladorCuota
             precioUSD={vehiculo.precioUSD}
             rateBCV={rateBCV}
             onSolicitar={() => abrirAgendarCita(true)}
+            botonDeshabilitado={
+              vehiculo.estadoDisponibilidad === 'cita_agendada' || vehiculo.estadoDisponibilidad === 'vendido'
+            }
+            motivoDeshabilitado={
+              vehiculo.estadoDisponibilidad === 'vendido'
+                ? 'Este vehículo ya fue vendido.'
+                : 'Este vehículo tiene una cita en curso. Quien lo agendó recibirá de su asesor un enlace personal para solicitar el crédito.'
+            }
           />
         </aside>
       </div>

@@ -100,7 +100,9 @@ Migraciones versionadas en `backend/migrations/`, idempotentes.
 
 | Tabla | Notas de implementación |
 |---|---|
-| `personas` | `cedula_bidx` con **índice único parcial** (`WHERE cedula_bidx IS NOT NULL`); `telefono_bidx` con índice no único. `canal_origen` como texto trazado, sin interpretación |
+| `personas` | `cedula_bidx` con **índice único parcial** (`WHERE cedula_bidx IS NOT NULL`). `canal_origen` como texto trazado, sin interpretación |
+| `personas_telefonos` | Un teléfono por fila: `persona_id`, teléfono cifrado, `telefono_bidx`, `es_principal`. Así la deduplicación busca por **cualquiera** de los teléfonos de una persona con un índice (§5.1) |
+| `fusiones_persona` | **Append-only**, con el tratamiento de §3.3. Copia íntegra del registro absorbido + ids reasignados + momento. Es lo que hace reversible una fusión (§5.1) |
 | `oportunidades` | FK a `personas` y `vehiculos`. `etapa` valida contra `catalogo_etapas`. `motivo_perdida` con `CHECK`: obligatorio si y solo si `etapa = 'cerrado_perdido'`. FK opcional a `solicitudes_credito`. Índices en `(etapa, asesor_id)` y `(persona_id)` |
 | `interacciones` | **Append-only.** `corrige_interaccion_id` autorreferencial y nulo. Índice en `(persona_id, ocurrido_en DESC)` |
 | `etapa_historial` | **Append-only.** `oportunidad_id`, `etapa_anterior`, `etapa_nueva`, `nota`, `actor_id`, `ts`. Índice en `(oportunidad_id, ts)` |
@@ -190,10 +192,18 @@ Con la captura en dos pasos, la persona nace resuelta **por teléfono** y la cé
 | Situación | Acción |
 |---|---|
 | La cédula no existe en ninguna otra persona | Se adjunta a la persona actual |
-| La cédula ya existe en **otra** persona | **Fusión**: las dos son la misma gente. Sobrevive la más antigua; las oportunidades e interacciones de la otra se reasignan y la fusión queda auditada |
+| La cédula ya existe en **otra** persona | **Fusión**: las dos son la misma gente. Sobrevive la más antigua; las oportunidades, citas e interacciones de la otra se reasignan. **Ningún dato se descarta** (ver abajo) |
 | La cédula ya está en **esta** persona | Nada que hacer |
 
 La fusión es la operación delicada del módulo: mueve historial entre registros. Va en **una transacción**, deja traza del origen y del destino, y es la razón por la que §5 exige guardar el criterio de deduplicación — sin él no se puede revisar una fusión dudosa.
+
+#### Qué se conserva en una fusión (corregido en septiembre 2026)
+
+La primera implementación en la maqueta eliminaba la persona absorbida y guardaba solo su id. El recorrido en navegador lo detectó: se perdía el teléfono que el cliente dio en esa cita, la fusión no se podía deshacer y, además, el siguiente contacto desde ese teléfono volvía a crear una persona duplicada — la fusión se deshacía sola. La regla vigente:
+
+1. **Todos los teléfonos se conservan.** El principal pasa a ser el de la cita más reciente —si el cliente agendó con un número nuevo, por ahí quiere que lo contacten— y los demás van a `telefonos_adicionales`.
+2. **La deduplicación por teléfono mira todos**, no solo el principal. Si no, la fusión se deshace en el próximo contacto.
+3. **Se guarda una copia íntegra** del registro absorbido junto con la lista de oportunidades, citas e interacciones que se le reasignaron (`fusion_persona`, append-only). Es lo que permite auditar y revertir. El botón de revertir no está construido en la maqueta; los datos para hacerlo, sí.
 
 ---
 

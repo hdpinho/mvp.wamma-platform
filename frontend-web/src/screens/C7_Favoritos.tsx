@@ -1,13 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockVehiculos } from '../mocks/vehiculos';
 import { TarjetaVehiculo } from '../components/TarjetaVehiculo';
 import { Boton } from '../components/Boton';
 import { NotaSimulada } from '../components/NotaSimulada';
 import { useFavoritos } from '../state/favoritosContexto';
+import { useVehiculos } from '../state/vehiculosContexto';
 
 /**
- * C7 · Guardados y alertas — Fase 2 (módulo 12 · Marketplace).
+ * C7 · Guardados — Fase 2 (módulo 12 · Marketplace).
+ *
+ * Las alertas de baja de precio se retiraron por decisión del Product Owner
+ * (septiembre 2026).
  */
 
 interface C7FavoritosProps {
@@ -16,17 +19,19 @@ interface C7FavoritosProps {
 
 export const C7_Favoritos: React.FC<C7FavoritosProps> = ({ rateBCV }) => {
   const navigate = useNavigate();
-  const { favoritos, alertas } = useFavoritos();
+  const { favoritos } = useFavoritos();
+  const { vehiculos } = useVehiculos();
 
-  const guardados = mockVehiculos.filter((v) => favoritos.includes(v.id));
-  const conAlerta = mockVehiculos.filter((v) => alertas.includes(v.id));
+  // Del inventario vivo y no de los mocks: así aparecen también los vehículos
+  // cargados desde el backoffice.
+  const guardados = vehiculos.filter((v) => favoritos.includes(v.id));
 
   return (
     <div>
       <header style={{ marginBottom: 'var(--space-xl)' }}>
         <h1 style={{ fontSize: '26px' }}>Mis guardados</h1>
         <p style={{ fontSize: '14px', color: 'var(--texto-secundario)' }}>
-          Los vehículos que marcaste y las alertas de precio que activaste.
+          Los vehículos que marcaste para tenerlos a mano.
         </p>
       </header>
 
@@ -68,11 +73,10 @@ export const C7_Favoritos: React.FC<C7FavoritosProps> = ({ rateBCV }) => {
               margin: '0 auto var(--space-xl)',
             }}
           >
-            Toca el corazón en cualquier vehículo de la vitrina para tenerlo a mano y seguir su
-            precio.
+            Toca el corazón en cualquier vehículo del catálogo para tenerlo a mano.
           </p>
           <Boton variant="primary" onClick={() => navigate('/catalogo')}>
-            Explorar la vitrina
+            Explorar el catálogo
           </Boton>
         </div>
       ) : (
@@ -100,53 +104,10 @@ export const C7_Favoritos: React.FC<C7FavoritosProps> = ({ rateBCV }) => {
         </>
       )}
 
-      {/* Alertas de precio */}
-      {conAlerta.length > 0 && (
-        <section style={{ marginTop: 'var(--space-xxxl)' }}>
-          <h2 style={{ fontSize: '20px', marginBottom: 'var(--space-lg)' }}>Alertas de precio</h2>
-          <div
-            style={{
-              backgroundColor: 'var(--blanco)',
-              border: '1px solid var(--borde-claro)',
-              borderRadius: 'var(--radius-md)',
-              overflow: 'hidden',
-            }}
-          >
-            {conAlerta.map((v, i) => (
-              <button
-                key={v.id}
-                type="button"
-                onClick={() => navigate(`/vehiculo/${v.id}`)}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 'var(--space-md)',
-                  padding: 'var(--space-lg)',
-                  border: 'none',
-                  borderTop: i === 0 ? 'none' : '1px solid var(--borde-claro)',
-                  backgroundColor: 'transparent',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  textAlign: 'left',
-                }}
-              >
-                <span style={{ fontSize: '14px', fontWeight: 700 }}>
-                  {v.marca} {v.modelo} {v.anio}
-                </span>
-                <span className="badge badge-naranja">Te avisaremos si baja</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
       <div style={{ marginTop: 'var(--space-xl)' }}>
         <NotaSimulada variante="bloque">
-          Guardados y alertas corresponden al módulo 12 (Marketplace), planificado para la Fase 2. Se
-          muestran como maqueta visual: no hay persistencia, el listado se pierde al recargar la
-          página.
+          Los guardados corresponden al módulo 12 (Marketplace), planificado para la Fase 2. Se muestran
+          como maqueta visual: no hay persistencia, el listado se pierde al recargar la página.
         </NotaSimulada>
       </div>
     </div>

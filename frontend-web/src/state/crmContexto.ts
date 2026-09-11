@@ -46,11 +46,27 @@ export interface DatosInteraccion {
   nota: string;
 }
 
+/** Lo que el asesor puede aportar o corregir al confirmar la cita. */
+export interface DatosConfirmacion {
+  /** Correo para enviarle la confirmación, si no lo dejó al agendar. */
+  correo?: string;
+  /** Día acordado (AAAA-MM-DD), si difiere del que pidió el cliente. */
+  dia?: string;
+  franja?: Cita['franjaHoraria'];
+}
+
 export interface ResultadoConfirmacion {
   ok: boolean;
   error?: string;
   /** Cierto si la cédula ya existía en otra persona y ambas se fusionaron. */
   fusionada?: boolean;
+}
+
+export interface ResultadoVenta {
+  ok: boolean;
+  error?: string;
+  /** Solo en ventas financiadas: el token del enlace personal emitido. */
+  token?: string;
 }
 
 export interface CRMContextValue {
@@ -70,7 +86,7 @@ export interface CRMContextValue {
 
   agendarCita: (datos: DatosNuevaCita) => { cita: Cita; oportunidad: Oportunidad; persona: Persona };
   /** Segundo paso de la captura: la cédula llega aquí (`spec.md` §8.5). */
-  confirmarCita: (citaId: string, cedula: string) => ResultadoConfirmacion;
+  confirmarCita: (citaId: string, cedula: string, extra?: DatosConfirmacion) => ResultadoConfirmacion;
   descartarCita: (citaId: string, motivo: MotivoPerdida, texto?: string) => void;
 
   cambiarEtapa: (
@@ -78,11 +94,21 @@ export interface CRMContextValue {
     nueva: Etapa,
     opciones?: OpcionesTransicion,
   ) => { ok: boolean; error?: string };
+  /**
+   * «Vender Vehículo» tras la visita (`spec.md` §8.8). De contado cierra la
+   * venta; financiado emite el enlace personal y deja el auto reservado.
+   */
+  venderVehiculo: (oportunidadId: string, modalidad: 'Contado' | 'Financiamiento') => ResultadoVenta;
   registrarInteraccion: (datos: DatosInteraccion) => Interaccion;
   asignarAsesor: (oportunidadId: string, asesorId: string | null) => void;
   fijarProximaAccion: (oportunidadId: string, accion: string, fecha: string) => void;
 
   restablecerDatosDemo: () => void;
+  /**
+   * Solo para la demostración: carga prospectos de ejemplo, rotulados como
+   * tales, que cubren todas las etapas, casos estancados y acciones vencidas.
+   */
+  cargarDatosEjemplo: () => void;
 }
 
 export const CRMContext = createContext<CRMContextValue | null>(null);

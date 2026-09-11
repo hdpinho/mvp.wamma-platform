@@ -14,7 +14,7 @@ interface C0HomeProps {
 /** Los tres pilares para la compra de vehículos publicados. */
 const ACCESOS = [
   {
-    titulo: 'Explora la vitrina',
+    titulo: 'Explora el catálogo',
     detalle: 'Inventario real certificado listo para entrega inmediata.',
     a: '/catalogo',
     icono: (
@@ -37,8 +37,8 @@ const ACCESOS = [
   },
   {
     titulo: 'Financiamiento directo',
-    detalle: 'Simula cuotas en USD/Bs y solicita crédito en minutos.',
-    a: '/solicitud-credito',
+    detalle: 'Simula tu cuota en USD y Bs. El crédito se solicita después de tu visita.',
+    a: '/financiamiento',
     icono: (
       <>
         <rect x="2" y="5" width="20" height="14" rx="2" />
@@ -52,7 +52,7 @@ const ACCESOS = [
 const PASOS = [
   {
     titulo: 'Encuentra tu auto',
-    detalle: 'Explora la vitrina y filtra por precio, cuota mensual, marca o sede.',
+    detalle: 'Explora el catálogo y filtra por precio, cuota mensual, marca o sede.',
   },
   {
     titulo: 'Agenda tu cita',
@@ -316,7 +316,7 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
       <Seccion
         titulo="Explora por tipo"
         bajada="Encuentra el vehículo que se ajusta a tu día a día."
-        enlace={{ texto: 'Ver toda la vitrina', a: '/catalogo' }}
+        enlace={{ texto: 'Ver todo el catálogo', a: '/catalogo' }}
       >
         <div
           style={{
@@ -379,7 +379,7 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
       </Seccion>
 
       {/* ── Proceso en 3 pasos ───────────────────────────────── */}
-      <Seccion titulo="Cómo funciona" bajada="Tres pasos desde la vitrina hasta las llaves.">
+      <Seccion titulo="Cómo funciona" bajada="Tres pasos desde el catálogo hasta las llaves.">
         <div
           style={{
             display: 'grid',
@@ -436,15 +436,8 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
           <SimuladorCuota
             precioEditable
             rateBCV={rateBCV}
-            onSolicitar={(datos) =>
-              navigate('/financiamiento', {
-                state: {
-                  montoFinanciado: Math.round(datos.montoFinanciado),
-                  plazo: datos.plazo,
-                  cuotaInicialUSD: Math.round(datos.cuotaInicialUSD),
-                },
-              })
-            }
+            textoBoton="Ver vehículos del catálogo"
+            onSolicitar={() => navigate('/catalogo')}
           />
 
           <div
@@ -475,7 +468,7 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
               {[
                 'Precios en USD con equivalencia a tasa BCV en cada operación.',
                 'Cuotas fijas con tabla de amortización visible desde el primer día.',
-                'Aprobación ágil y directa sobre el inventario en vitrina.',
+                'Aprobación ágil y directa sobre el inventario del catálogo.',
               ].map((item) => (
                 <li key={item} style={{ display: 'flex', gap: 'var(--space-sm)' }}>
                   <svg

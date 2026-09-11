@@ -7,11 +7,8 @@ import { createContext, useContext } from 'react';
 
 export interface FavoritosContextValue {
   favoritos: string[];
-  alertas: string[];
   esFavorito: (id: string) => boolean;
   alternarFavorito: (id: string) => void;
-  tieneAlerta: (id: string) => boolean;
-  alternarAlerta: (id: string) => void;
 }
 
 export const FavoritosContext = createContext<FavoritosContextValue | null>(null);

@@ -2,12 +2,14 @@ import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo';
 import { useCRM, CORREO_NOTIFICACIONES_WAMMA } from '../../state/crmContexto';
+import { estaEstancada } from '../../types/crm';
 
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
-  const { citas } = useCRM();
+  const { citas, oportunidades, ultimaActividad } = useCRM();
 
   const citasPendientes = citas.filter((c) => c.estado === 'pendiente').length;
+  const estancadas = oportunidades.filter((o) => estaEstancada(o, ultimaActividad(o.id))).length;
 
   return (
     <div className="admin-layout">
@@ -38,6 +40,27 @@ export const AdminLayout: React.FC = () => {
           </NavLink>
 
           <NavLink
+            to="/admin/embudo"
+            className={({ isActive }) => `admin-nav-item ${isActive ? 'activo' : ''}`}
+          >
+            <span className="admin-nav-icono">📊</span>
+            <span>Embudo Comercial</span>
+            {estancadas > 0 && (
+              <span className="admin-badge-count" title="Oportunidades estancadas">
+                {estancadas}
+              </span>
+            )}
+          </NavLink>
+
+          <NavLink
+            to="/admin/personas"
+            className={({ isActive }) => `admin-nav-item ${isActive ? 'activo' : ''}`}
+          >
+            <span className="admin-nav-icono">👤</span>
+            <span>Personas</span>
+          </NavLink>
+
+          <NavLink
             to="/admin/financiamiento"
             className={({ isActive }) => `admin-nav-item ${isActive ? 'activo' : ''}`}
           >
@@ -58,7 +81,7 @@ export const AdminLayout: React.FC = () => {
             className="btn-volver-web"
             onClick={() => navigate('/catalogo')}
           >
-            ← Volver a Vitrina Pública
+            ← Volver al Catálogo Público
           </button>
         </div>
       </aside>

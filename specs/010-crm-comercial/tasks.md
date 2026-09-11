@@ -25,6 +25,8 @@
 
 **Las olas 1 y 2 se pueden ejecutar hoy**, íntegras: son núcleo puro y maqueta, sin I/O ni identidad. Con C1 y C5 cerrados, **ninguna tarea de la ola 2 queda bloqueada**. Lo que **no** se puede es dar el módulo por terminado.
 
+> **Avance al 2026-09-10:** ola 2 completa (F1–F5), verificada con un recorrido automatizado en navegador sobre la maqueta. Ese recorrido detectó un defecto en la fusión —se descartaba el registro absorbido— que se corrigió antes de construir F4 y F5; la regla vigente está en `plan.md` §5.1. La ola 1 (núcleo puro en Go) sigue pendiente.
+
 ---
 
 ## Ola 1 · Núcleo puro (cero I/O, máxima cobertura)
@@ -58,30 +60,35 @@ Módulo `metrics/`: conversión entre etapas, tiempo en etapa y detección de es
 
 Arranca en paralelo con la ola 1. Su propósito es que el equipo comercial corrija etapas y motivos **antes** de que exista una migración (`plan.md` §2.3).
 
-### F1 — Separar el contexto de CRM
+### F1 — Separar el contexto de CRM ✅ HECHO
 Extraer `frontend-web/src/state/crmContexto.tsx` con personas, oportunidades, interacciones y citas. `vehiculosContexto.tsx` se queda con inventario e imperfecciones. Tipos nuevos en `types/crm.ts`.
 **Depende de:** nada.
 **Verifica:** el inventario y los favoritos siguen funcionando igual; `npm run build` limpio; ningún componente importa ambos contextos para una sola tarea.
 
-### F2 — Resolución de persona al capturar
+### F2 — Resolución de persona al capturar ✅ HECHO
 `ModalAgendarCita.tsx` deja de crear una cita suelta: resuelve o crea la persona y abre la oportunidad en etapa `nuevo`.
 **Depende de:** F1. **Afectada por:** C1.
 **Verifica:** **`CA-010.1`** — dos citas con la misma cédula producen una persona y dos oportunidades. Prueba manual documentada, más prueba automatizada si ya existe arnés.
 
-### F3 — Migración de los datos locales v1 → v2
+### F3 — Migración de los datos locales v1 → v2 ✅ HECHO
 Función de arranque que lee las claves `wamma_*_v1`, agrupa las citas existentes por cédula, crea personas y oportunidades, y persiste `v2`. Es el ensayo de la migración real.
 **Depende de:** F1, F2. **Afectada por:** C5 (marca de estancadas).
 **Verifica:** con 20 citas simuladas de 12 personas distintas, el resultado son 12 personas y 20 oportunidades, sin pérdida de datos ni duplicados. La v1 no se borra hasta confirmar.
 
-### F4 — Pantalla de embudo
+### F4 — Pantalla de embudo ✅ HECHO (sin filtro por asesor: bloqueado por C4)
 `screens/admin/O7_EmbudoComercial.tsx`: columnas por etapa con conteo y monto, filtro por asesor, marca de estancadas y de próxima acción vencida.
 **Depende de:** F1, F3.
 **Verifica:** mover una oportunidad respeta la máquina de estados; cerrar en perdido exige motivo en la interfaz, no solo en el modelo.
 
-### F5 — Ficha 360 y registro de interacción
+### F5 — Ficha 360 y registro de interacción ✅ HECHO
 `screens/admin/O7_FichaPersona.tsx` con oportunidades e historial. En `O3_GestionCitas.tsx`, tras pulsar WhatsApp se ofrece registrar la interacción con canal, dirección y fecha ya rellenados y **un solo campo obligatorio** (`plan.md` §7.4).
 **Depende de:** F4.
 **Verifica:** registrar una interacción tras usar WhatsApp cuesta un clic y escribir la nota. Si cuesta más, la tarea no está terminada — es el punto donde este módulo se abandona.
+
+### F6 — Venta tras la visita y enlace de financiamiento ✅ HECHO
+Botones «Asistió» y «Vender Vehículo» en la bandeja de citas; enlace personal de solicitud de crédito; bloqueo de «Solicitar financiamiento» en la ficha mientras hay cita; correo de confirmación desde el correo del asesor (`spec.md` §8.8, RF-010.18 a 21).
+**Depende de:** F5.
+**Verifica:** de contado, la venta se cierra y el vehículo queda vendido; financiado, el vehículo sigue reservado y el enlace abre la solicitud con el vehículo cargado; sin enlace, la solicitud no se muestra.
 
 ---
 

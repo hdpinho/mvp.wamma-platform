@@ -1,7 +1,7 @@
 import type { VehiculoData } from '../types/vehiculo';
 
 /**
- * Inventario simulado de la vitrina. DATOS SIMULADOS: ni los vehículos, ni los
+ * Inventario simulado del catálogo. DATOS SIMULADOS: ni los vehículos, ni los
  * precios, ni las sedes corresponden a inventario real de WAMMA.
  */
 export const mockVehiculos: VehiculoData[] = [

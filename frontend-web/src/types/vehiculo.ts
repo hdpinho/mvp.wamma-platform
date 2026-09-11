@@ -1,5 +1,5 @@
 /**
- * Modelo de un vehículo publicado en la vitrina.
+ * Modelo de un vehículo publicado en el catálogo.
  *
  * Alineado con las entidades `vehiculo` y `publicacion` de
  * `specs/000-overview/data-model.md`. Los campos de presentación

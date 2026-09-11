@@ -28,6 +28,10 @@ interface SimuladorCuotaProps {
   /** Recibe la simulación actual para arrastrarla a la solicitud (C5). */
   onSolicitar?: (datos: DatosSimulacion) => void;
   textoBoton?: string;
+  /** Desactiva el botón, p. ej. cuando el vehículo ya tiene una cita en curso. */
+  botonDeshabilitado?: boolean;
+  /** Explica por qué el botón está desactivado. */
+  motivoDeshabilitado?: string;
 }
 
 const formatoUSD = (v: number) =>
@@ -43,6 +47,8 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
   rateBCV = 36.5,
   onSolicitar,
   textoBoton = 'Solicitar financiamiento',
+  botonDeshabilitado = false,
+  motivoDeshabilitado,
 }) => {
   const [precio, setPrecio] = useState(precioUSD);
   const [inicialPct, setInicialPct] = useState<number>(PARAMETROS_FINANCIAMIENTO.inicialPorcentaje);
@@ -111,7 +117,7 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
               type="button"
               onClick={() => setInicialPct(pct)}
               style={{
-                flex: '1 1 60px',
+                flex: '1 1 48px',
                 padding: '8px',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '13px',
@@ -220,6 +226,7 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
         <Boton
           variant="primary"
           fullWidth
+          disabled={botonDeshabilitado}
           onClick={() =>
             onSolicitar({
               precioUSD: precio,
@@ -233,6 +240,12 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
         >
           {textoBoton}
         </Boton>
+      )}
+
+      {onSolicitar && botonDeshabilitado && motivoDeshabilitado && (
+        <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', margin: 0, textAlign: 'center', lineHeight: 1.4 }}>
+          {motivoDeshabilitado}
+        </p>
       )}
 
       <NotaSimulada>

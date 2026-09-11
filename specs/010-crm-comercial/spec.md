@@ -105,6 +105,12 @@ El asesor **solo ve las oportunidades que le pertenecen** más las que no tienen
 - **RF-010.16** Tiempo medio en cada etapa y listado de oportunidades **estancadas** (sin interacción ni cambio de etapa en N días; N configurable).
 - **RF-010.17** Motivos de pérdida agregados por período.
 
+### Venta y financiamiento (decisión del Product Owner, septiembre 2026)
+- **RF-010.18** Agendar una cita desactiva «Agendar cita» y «Solicitar financiamiento» en la ficha del vehículo mientras la cita siga abierta.
+- **RF-010.19** Una cita confirmada ofrece «Asistió», que lleva la oportunidad a `visito`. Solo después aparece «Vender Vehículo».
+- **RF-010.20** «Vender Vehículo» de contado cierra la venta; financiado emite un enlace personal de solicitud de crédito y deja el vehículo reservado (§8.8).
+- **RF-010.21** Confirmar una cita, si hay correo, abre el correo del asesor con la confirmación para el cliente (§10). El asesor puede corregir el día y el horario acordados antes de confirmar.
+
 ## 7. Requisitos no funcionales
 
 | Requisito | Exigencia |
@@ -125,7 +131,7 @@ El asesor **solo ve las oportunidades que le pertenecen** más las que no tienen
 | `nuevo` | Interés registrado, nadie lo ha contactado | Automática al capturar |
 | `contactado` | Hubo comunicación saliente y el cliente respondió | Asesor, al registrar interacción |
 | `cita_confirmada` | Día y hora acordados con el cliente | Asesor, desde la bandeja de citas |
-| `visito` | El cliente se presentó en la sede | Asesor |
+| `visito` | El cliente se presentó en la sede | Asesor, con «Asistió» en la bandeja de citas |
 | `negociacion` | Hay una oferta concreta sobre la mesa | Asesor |
 | `cerrado_ganado` | Venta concretada | Asesor / coordinador |
 | `cerrado_perdido` | No se concretó; exige motivo | Asesor / coordinador |
@@ -164,7 +170,7 @@ La cédula **no se pide para agendar**. El formulario público exige **nombre y 
 **Consecuencia sobre la deduplicación (RF-010.2):** entre la captura y la confirmación, la persona se resuelve por **teléfono normalizado**. Al llegar la cédula, se consolida:
 
 - Si la cédula **no existe** en otra persona, se adjunta a la actual.
-- Si la cédula **ya existe** en otra persona, hay dos registros que son la misma gente y se **fusionan**, quedando la fusión auditada con el criterio que la produjo.
+- Si la cédula **ya existe** en otra persona, hay dos registros que son la misma gente y se **fusionan sin descartar ningún dato**: se conservan todos los teléfonos (el más reciente queda como principal) y una copia del registro absorbido, de modo que la fusión se puede auditar y revertir (`plan.md` §5.1).
 - Una persona sin cédula **no bloquea** el embudo: avanza hasta `cita_confirmada`, que es donde el dato se exige.
 
 ### 8.6 Umbrales de estancamiento (decisión C5)
@@ -187,6 +193,21 @@ Los cinco valores son **parámetros configurables**, no constantes de código: s
 
 Igual que el módulo 009, este módulo **refleja** el estado del vehículo (005) y **referencia** el expediente de crédito. La fuente de verdad de cada dato sigue siendo su módulo dueño.
 
+### 8.8 Venta tras la visita y habilitación del financiamiento (decisión del Product Owner, septiembre 2026)
+
+Agendar una cita **reserva el vehículo**: en su ficha se desactivan «Agendar cita» y «Solicitar financiamiento» para todos los visitantes.
+
+Después, desde la bandeja de citas:
+
+1. **«Asistió»**, en una cita confirmada, lleva la oportunidad a `visito`.
+2. **«Vender Vehículo»** aparece solo después de la asistencia. Pide confirmar la forma de pago, precargada con la que el cliente indicó al agendar, porque puede haber cambiado:
+   - **Contado:** cierra la venta (`cerrado_ganado`) y el vehículo pasa a **vendido**.
+   - **Financiamiento:** la oportunidad pasa a `negociacion`, el vehículo **sigue reservado** y se emite un **enlace personal** de solicitud de crédito para esa persona y ese vehículo. El asesor lo envía por WhatsApp o por correo. La venta se cierra desde el embudo cuando se apruebe el crédito.
+
+El enlace es la única forma de llegar a la solicitud de crédito (`../solicitud-credito/spec.md` §0.5). Lleva el vehículo, pero ningún dato personal.
+
+**Limitación de la maqueta:** sin servidor, el enlace se valida solo por su forma, así que no es un control de acceso. En producción el token es aleatorio, de un solo uso y con vencimiento, y lo valida el servidor. Además, en la maqueta cada navegador guarda su propio inventario: un vehículo creado desde el backoffice no existe en el teléfono del cliente.
+
 ## 9. Entidades de datos
 
 `persona`, `oportunidad`, `interaccion`, `etapa_historial` (ver `../000-overview/data-model.md` §4).
@@ -196,7 +217,7 @@ Igual que el módulo 009, este módulo **refleja** el estado del vehículo (005)
 | Integración | Decisión |
 |---|---|
 | **WhatsApp** | Enlaces `wa.me` con mensaje prellenado y número venezolano normalizado, como ya hace el backoffice. Gratuito, sin verificación de empresa y sin dependencia de Meta. **Contrapartida asumida:** la conversación ocurre fuera de la plataforma y el registro depende de que el asesor escriba la nota (RF-010.11) |
-| **Correo** | Notificación de nueva captura al buzón comercial, como ya ocurre hoy |
+| **Correo** | Notificación de nueva captura al buzón comercial. Al **confirmar la cita** se abre el correo del propio asesor con la confirmación ya redactada para el cliente: enlace `mailto:`, por decisión del Product Owner, sin proveedor ni dominio. Solo admite texto plano: un correo con diseño y logo exigiría envío desde servidor, fuera de esta etapa. Si el cliente no dejó correo al agendar, el asesor puede anotarlo al confirmar |
 | **Módulo 005** | Lectura del vehículo publicado y escritura de su estado de disponibilidad |
 | **solicitud-credito** | Entrega del `lead_id`; lectura del **estado** de la solicitud, nunca de su contenido |
 

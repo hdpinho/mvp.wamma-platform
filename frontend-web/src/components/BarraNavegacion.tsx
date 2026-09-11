@@ -8,7 +8,7 @@ export interface BarraNavegacionProps {}
 /** Menú principal de escritorio. */
 const MENU = [
   { a: '/catalogo', texto: 'Catálogo' },
-  { a: '/solicitud-credito', texto: 'Financiamiento' },
+  { a: '/financiamiento', texto: 'Financiamiento' },
 ];
 
 /** Pestañas inferiores en móvil. */
@@ -26,7 +26,7 @@ const TABS = [
     ),
   },
   {
-    a: '/solicitud-credito',
+    a: '/financiamiento',
     texto: 'Financiamiento',
     icono: (
       <>
@@ -154,7 +154,7 @@ export const BarraNavegacion: React.FC<BarraNavegacionProps> = () => {
               transition: 'background-color 0.2s ease',
             }}
           >
-            Explorar Vitrina
+            Explorar Catálogo
           </NavLink>
         </div>
       </header>

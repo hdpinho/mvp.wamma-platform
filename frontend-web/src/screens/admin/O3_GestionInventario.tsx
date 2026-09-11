@@ -244,7 +244,7 @@ export const O3_GestionInventario: React.FC<O3GestionInventarioProps> = ({ rateB
                           type="button"
                           className="btn-accion"
                           onClick={() => navigate(`/vehiculo/${v.id}`)}
-                          title="Ver en vitrina pública"
+                          title="Ver en el catálogo público"
                         >
                           👁️ Ver
                         </button>
