@@ -2,9 +2,38 @@ spring:
   application:
     name: wamma-platform
 
-  # ── Supabase PostgreSQL ──────────────────────────────────────────────
-  # Conexión real en variables de entorno o perfil local.
-  # Nunca secretos en este archivo (Constitución, Principio VI).
+  profiles:
+    default: standalone
+
+server:
+  port: ${PORT:${SERVER_PORT:8080}}
+
+logging:
+  level:
+    com.wamma: DEBUG
+    org.springframework.security: INFO
+
+---
+# ── Perfil Standalone (por defecto para maqueta / arranque sin base de datos) ──
+spring:
+  config:
+    activate:
+      on-profile: standalone
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+---
+# ── Perfil Supabase (se activa al configurar SPRING_PROFILES_ACTIVE=supabase) ──
+spring:
+  config:
+    activate:
+      on-profile: supabase
+
   datasource:
     url: ${SUPABASE_DB_URL:jdbc:postgresql://localhost:5432/wamma}
     username: ${SUPABASE_DB_USER:postgres}
@@ -13,29 +42,18 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate          # Flyway gestiona el esquema; Hibernate solo valida.
-    open-in-view: false           # Evitar lazy-loading fuera de transacción.
+      ddl-auto: validate
+    open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  # ── Flyway ───────────────────────────────────────────────────────────
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
     locations: classpath:db/migration
     baseline-on-migrate: true
 
-  # ── Redis ────────────────────────────────────────────────────────────
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-
-server:
-  port: ${PORT:${SERVER_PORT:8080}}
-
-# ── Logging ──────────────────────────────────────────────────────────
-logging:
-  level:
-    com.wamma: DEBUG
-    org.springframework.security: INFO
