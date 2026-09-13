@@ -44,7 +44,7 @@ Plataforma propia de **WAMMA by Token Pago POS**: venta, certificación y financ
 - **Si un cambio viola la Constitución, detente** y explícalo; no lo ejecutes.
 - **Idioma:** documentación y mensajes de commit en español; identificadores de código en inglés técnico estándar.
 - **Verifica tu trabajo:** pruebas para reglas de negocio críticas (cálculo de cuotas, asientos del ledger, decisiones de scoring). El ledger y la cobranza requieren cobertura de pruebas alta.
-- **Secretos:** nunca en el repositorio. Usa variables de entorno / gestor de secretos.
+- **Secretos:** nunca en el repositorio. Usa variables de entorno / gestor de secretos (en desarrollo local residen en `backend/.env`, protegido por `.gitignore`).
 
 ## Convenciones de código (resumen)
 
