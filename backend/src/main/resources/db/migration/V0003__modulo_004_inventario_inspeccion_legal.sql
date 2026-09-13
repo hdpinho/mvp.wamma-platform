@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS vehiculo (
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_vehiculo_actualizado_en
+CREATE OR REPLACE TRIGGER trg_vehiculo_actualizado_en
 BEFORE UPDATE ON vehiculo
 FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 

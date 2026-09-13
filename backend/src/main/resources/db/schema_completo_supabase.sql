@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS usuario (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_usuario_actualizado_en BEFORE UPDATE ON usuario FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
+CREATE OR REPLACE TRIGGER trg_usuario_actualizado_en BEFORE UPDATE ON usuario FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 CREATE INDEX IF NOT EXISTS idx_usuario_email ON usuario(email);
 CREATE INDEX IF NOT EXISTS idx_usuario_tipo_estado ON usuario(tipo, estado);
 
@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS auditoria_evento (
     user_agent TEXT,
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_auditoria_evento_inmutable BEFORE UPDATE OR DELETE ON auditoria_evento FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
+CREATE OR REPLACE TRIGGER trg_auditoria_evento_inmutable BEFORE UPDATE OR DELETE ON auditoria_evento FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 CREATE INDEX IF NOT EXISTS idx_auditoria_entidad ON auditoria_evento(entidad, entidad_id);
 CREATE INDEX IF NOT EXISTS idx_auditoria_actor_fecha ON auditoria_evento(actor_id, creado_en DESC);
 CREATE INDEX IF NOT EXISTS idx_auditoria_fecha ON auditoria_evento(creado_en DESC);
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS secreto_config (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_secreto_config_actualizado_en BEFORE UPDATE ON secreto_config FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
+CREATE OR REPLACE TRIGGER trg_secreto_config_actualizado_en BEFORE UPDATE ON secreto_config FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 
 -- ==============================================================================
 -- DOMINIO 2: INVENTARIO, INSPECCIÓN Y LEGAL (MÓDULO 004)
@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS vehiculo (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_vehiculo_actualizado_en BEFORE UPDATE ON vehiculo FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
+CREATE OR REPLACE TRIGGER trg_vehiculo_actualizado_en BEFORE UPDATE ON vehiculo FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 CREATE INDEX IF NOT EXISTS idx_vehiculo_vin ON vehiculo(vin);
 CREATE INDEX IF NOT EXISTS idx_vehiculo_placa ON vehiculo(placa);
 CREATE INDEX IF NOT EXISTS idx_vehiculo_estado ON vehiculo(estado);
@@ -223,7 +223,7 @@ CREATE TABLE IF NOT EXISTS persona (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_persona_actualizado_en BEFORE UPDATE ON persona FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
+CREATE OR REPLACE TRIGGER trg_persona_actualizado_en BEFORE UPDATE ON persona FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 CREATE INDEX IF NOT EXISTS idx_persona_ciego_telefono ON persona(indice_ciego_telefono);
 CREATE INDEX IF NOT EXISTS idx_persona_ciego_correo ON persona(indice_ciego_correo);
 CREATE INDEX IF NOT EXISTS idx_persona_asesor ON persona(asesor_id);
@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS fusion_persona (
     fusionada_en TIMESTAMPTZ NOT NULL DEFAULT now(),
     fusionada_por UUID NOT NULL REFERENCES usuario(id) ON DELETE RESTRICT
 );
-CREATE TRIGGER trg_fusion_persona_inmutable BEFORE UPDATE OR DELETE ON fusion_persona FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
+CREATE OR REPLACE TRIGGER trg_fusion_persona_inmutable BEFORE UPDATE OR DELETE ON fusion_persona FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 CREATE INDEX IF NOT EXISTS idx_fusion_persona_sobreviviente ON fusion_persona(persona_sobreviviente_id);
 
 CREATE TABLE IF NOT EXISTS catalogo_etapa (
@@ -295,7 +295,7 @@ CREATE TABLE IF NOT EXISTS oportunidad (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_oportunidad_actualizado_en BEFORE UPDATE ON oportunidad FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
+CREATE OR REPLACE TRIGGER trg_oportunidad_actualizado_en BEFORE UPDATE ON oportunidad FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 CREATE INDEX IF NOT EXISTS idx_oportunidad_persona ON oportunidad(persona_id);
 CREATE INDEX IF NOT EXISTS idx_oportunidad_vehiculo ON oportunidad(vehiculo_id);
 CREATE INDEX IF NOT EXISTS idx_oportunidad_asesor ON oportunidad(asesor_id);
@@ -313,7 +313,7 @@ CREATE TABLE IF NOT EXISTS interaccion (
     ocurrido_en TIMESTAMPTZ NOT NULL,
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_interaccion_inmutable BEFORE UPDATE OR DELETE ON interaccion FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
+CREATE OR REPLACE TRIGGER trg_interaccion_inmutable BEFORE UPDATE OR DELETE ON interaccion FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 CREATE INDEX IF NOT EXISTS idx_interaccion_persona ON interaccion(persona_id);
 CREATE INDEX IF NOT EXISTS idx_interaccion_oportunidad ON interaccion(oportunidad_id);
 CREATE INDEX IF NOT EXISTS idx_interaccion_ocurrido ON interaccion(ocurrido_en DESC);
@@ -327,7 +327,7 @@ CREATE TABLE IF NOT EXISTS etapa_historial (
     actor_id UUID NOT NULL REFERENCES usuario(id) ON DELETE RESTRICT,
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_etapa_historial_inmutable BEFORE UPDATE OR DELETE ON etapa_historial FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
+CREATE OR REPLACE TRIGGER trg_etapa_historial_inmutable BEFORE UPDATE OR DELETE ON etapa_historial FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 CREATE INDEX IF NOT EXISTS idx_etapa_historial_oportunidad ON etapa_historial(oportunidad_id, creado_en);
 
 CREATE TABLE IF NOT EXISTS cita_inspeccion (
@@ -366,7 +366,7 @@ CREATE TABLE IF NOT EXISTS publicacion (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_publicacion_actualizado_en BEFORE UPDATE ON publicacion FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
+CREATE OR REPLACE TRIGGER trg_publicacion_actualizado_en BEFORE UPDATE ON publicacion FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 CREATE INDEX IF NOT EXISTS idx_publicacion_estado_precio ON publicacion(estado, precio_venta);
 CREATE INDEX IF NOT EXISTS idx_publicacion_fecha ON publicacion(publicado_en DESC);
 
@@ -435,7 +435,7 @@ CREATE TABLE IF NOT EXISTS solicitud_credito (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_solicitud_credito_actualizado_en BEFORE UPDATE ON solicitud_credito FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
+CREATE OR REPLACE TRIGGER trg_solicitud_credito_actualizado_en BEFORE UPDATE ON solicitud_credito FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 CREATE INDEX IF NOT EXISTS idx_solicitud_numero ON solicitud_credito(numero_solicitud);
 CREATE INDEX IF NOT EXISTS idx_solicitud_persona ON solicitud_credito(persona_id);
 CREATE INDEX IF NOT EXISTS idx_solicitud_oportunidad ON solicitud_credito(oportunidad_id);
@@ -531,7 +531,7 @@ CREATE TABLE IF NOT EXISTS asiento (
     creado_por UUID NOT NULL REFERENCES usuario(id) ON DELETE RESTRICT,
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_asiento_inmutable BEFORE UPDATE OR DELETE ON asiento FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
+CREATE OR REPLACE TRIGGER trg_asiento_inmutable BEFORE UPDATE OR DELETE ON asiento FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 CREATE INDEX IF NOT EXISTS idx_asiento_numero ON asiento(numero_asiento);
 CREATE INDEX IF NOT EXISTS idx_asiento_fecha ON asiento(fecha_asiento);
 CREATE INDEX IF NOT EXISTS idx_asiento_transaccion_ref ON asiento(transaccion_ref);
@@ -549,7 +549,7 @@ CREATE TABLE IF NOT EXISTS linea_asiento (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (debe > 0 OR haber > 0)
 );
-CREATE TRIGGER trg_linea_asiento_inmutable BEFORE UPDATE OR DELETE ON linea_asiento FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
+CREATE OR REPLACE TRIGGER trg_linea_asiento_inmutable BEFORE UPDATE OR DELETE ON linea_asiento FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 CREATE INDEX IF NOT EXISTS idx_linea_asiento_asiento ON linea_asiento(asiento_id);
 CREATE INDEX IF NOT EXISTS idx_linea_asiento_cuenta ON linea_asiento(cuenta_id);
 
@@ -569,7 +569,7 @@ CREATE TABLE IF NOT EXISTS credito (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_credito_actualizado_en BEFORE UPDATE ON credito FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
+CREATE OR REPLACE TRIGGER trg_credito_actualizado_en BEFORE UPDATE ON credito FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 CREATE INDEX IF NOT EXISTS idx_credito_numero ON credito(numero_credito);
 CREATE INDEX IF NOT EXISTS idx_credito_persona ON credito(persona_id);
 CREATE INDEX IF NOT EXISTS idx_credito_estado ON credito(estado);
@@ -592,7 +592,7 @@ CREATE TABLE IF NOT EXISTS cuota (
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (credito_id, numero_cuota)
 );
-CREATE TRIGGER trg_cuota_actualizado_en BEFORE UPDATE ON cuota FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
+CREATE OR REPLACE TRIGGER trg_cuota_actualizado_en BEFORE UPDATE ON cuota FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 CREATE INDEX IF NOT EXISTS idx_cuota_credito_vencimiento ON cuota(credito_id, fecha_vencimiento);
 CREATE INDEX IF NOT EXISTS idx_cuota_estado ON cuota(estado);
 
@@ -658,7 +658,7 @@ CREATE TABLE IF NOT EXISTS movimiento_inventario (
     autor_id UUID NOT NULL REFERENCES usuario(id) ON DELETE RESTRICT,
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TRIGGER trg_movimiento_inventario_inmutable BEFORE UPDATE OR DELETE ON movimiento_inventario FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
+CREATE OR REPLACE TRIGGER trg_movimiento_inventario_inmutable BEFORE UPDATE OR DELETE ON movimiento_inventario FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 CREATE INDEX IF NOT EXISTS idx_movimiento_inv_vehiculo ON movimiento_inventario(vehiculo_id);
 CREATE INDEX IF NOT EXISTS idx_movimiento_inv_fecha ON movimiento_inventario(creado_en DESC);
 

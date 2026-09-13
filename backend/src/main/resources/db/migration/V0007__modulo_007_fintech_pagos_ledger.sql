@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS asiento (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_asiento_inmutable
+CREATE OR REPLACE TRIGGER trg_asiento_inmutable
 BEFORE UPDATE OR DELETE ON asiento
 FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS linea_asiento (
     CHECK (debe > 0 OR haber > 0)
 );
 
-CREATE TRIGGER trg_linea_asiento_inmutable
+CREATE OR REPLACE TRIGGER trg_linea_asiento_inmutable
 BEFORE UPDATE OR DELETE ON linea_asiento
 FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS credito (
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_credito_actualizado_en
+CREATE OR REPLACE TRIGGER trg_credito_actualizado_en
 BEFORE UPDATE ON credito
 FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS cuota (
     UNIQUE (credito_id, numero_cuota)
 );
 
-CREATE TRIGGER trg_cuota_actualizado_en
+CREATE OR REPLACE TRIGGER trg_cuota_actualizado_en
 BEFORE UPDATE ON cuota
 FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 

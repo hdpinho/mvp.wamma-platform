@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS usuario (
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_usuario_actualizado_en
+CREATE OR REPLACE TRIGGER trg_usuario_actualizado_en
 BEFORE UPDATE ON usuario
 FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 
@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS auditoria_evento (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_auditoria_evento_inmutable
+CREATE OR REPLACE TRIGGER trg_auditoria_evento_inmutable
 BEFORE UPDATE OR DELETE ON auditoria_evento
 FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 
@@ -119,6 +119,6 @@ CREATE TABLE IF NOT EXISTS secreto_config (
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_secreto_config_actualizado_en
+CREATE OR REPLACE TRIGGER trg_secreto_config_actualizado_en
 BEFORE UPDATE ON secreto_config
 FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();

@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS solicitud_credito (
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_solicitud_credito_actualizado_en
+CREATE OR REPLACE TRIGGER trg_solicitud_credito_actualizado_en
 BEFORE UPDATE ON solicitud_credito
 FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 

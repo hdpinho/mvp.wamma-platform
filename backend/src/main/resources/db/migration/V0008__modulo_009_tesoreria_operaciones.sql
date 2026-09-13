@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS movimiento_inventario (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_movimiento_inventario_inmutable
+CREATE OR REPLACE TRIGGER trg_movimiento_inventario_inmutable
 BEFORE UPDATE OR DELETE ON movimiento_inventario
 FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 

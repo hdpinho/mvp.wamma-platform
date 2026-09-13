@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS persona (
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_persona_actualizado_en
+CREATE OR REPLACE TRIGGER trg_persona_actualizado_en
 BEFORE UPDATE ON persona
 FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS fusion_persona (
     fusionada_por UUID NOT NULL REFERENCES usuario(id) ON DELETE RESTRICT
 );
 
-CREATE TRIGGER trg_fusion_persona_inmutable
+CREATE OR REPLACE TRIGGER trg_fusion_persona_inmutable
 BEFORE UPDATE OR DELETE ON fusion_persona
 FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS oportunidad (
     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_oportunidad_actualizado_en
+CREATE OR REPLACE TRIGGER trg_oportunidad_actualizado_en
 BEFORE UPDATE ON oportunidad
 FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 
@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS interaccion (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_interaccion_inmutable
+CREATE OR REPLACE TRIGGER trg_interaccion_inmutable
 BEFORE UPDATE OR DELETE ON interaccion
 FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 
@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS etapa_historial (
     creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TRIGGER trg_etapa_historial_inmutable
+CREATE OR REPLACE TRIGGER trg_etapa_historial_inmutable
 BEFORE UPDATE OR DELETE ON etapa_historial
 FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
 
