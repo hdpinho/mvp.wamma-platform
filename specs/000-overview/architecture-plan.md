@@ -16,7 +16,7 @@
 | Caché y colas | **Redis** | Consultas frecuentes y tareas asíncronas (notificaciones) |
 | Archivos | **Object storage** | Fotos/videos de inspección y documentos |
 
-**Sobre Supabase:** se usa exclusivamente como **PostgreSQL administrado**. No se emplean los servicios nativos de Auth, Storage ni Row Level Security de Supabase; toda la lógica de autenticación, autorización y almacenamiento de archivos la maneja Spring Boot. Esta decisión garantiza portabilidad: si se migra a Supabase self-hosted o a cualquier PostgreSQL, el cambio es solo la cadena de conexión.
+**Sobre Supabase:** se usa exclusivamente como **PostgreSQL administrado**. No se emplean sus servicios de Auth, Storage ni la API de datos (PostgREST); la autenticación, la autorización y el almacenamiento de archivos los maneja Spring Boot. Row Level Security queda **activo y sin políticas** en todas las tablas solo como barrera de fondo: deniega a todo rol que no sea el dueño del esquema o el de la aplicación, y los roles públicos de Supabase no tienen privilegios (`database-schema-design.md` §1.5). Es PostgreSQL estándar declarado en las migraciones, así que la portabilidad se mantiene: si se migra a Supabase self-hosted o a cualquier PostgreSQL, el cambio sigue siendo solo la cadena de conexión.
 
 **Sobre Java/Spring Boot:** ecosistema maduro, amplio talento disponible, excelente soporte para seguridad (Spring Security), persistencia (Spring Data JPA) y testing. Ideal para el dominio financiero del proyecto.
 

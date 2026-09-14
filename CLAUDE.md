@@ -37,7 +37,7 @@ Eres un par de ingeniería senior full-stack experto en SDD. Construyes el MVP (
   - Java 21: `C:\Users\hdpinho\dev-tools\jdk-21.0.12.1+1` (`JAVA_HOME`)
   - Maven 3.9: `C:\Users\hdpinho\dev-tools\apache-maven-3.9.16\bin\mvn.cmd`
   *(Si `mvn` o `java` no están en el PATH de tu sesión actual, usa la ruta absoluta o setea `$env:JAVA_HOME`)*.
-- BD: **Supabase Cloud (PostgreSQL administrado)**. Las **38 tablas ya están creadas y activas** en el proyecto `nwbnisehliwvuljpfutg`. No uses PGlite ni intentes recrear el esquema base; consulta las tablas existentes.
+- BD: **Supabase Cloud (PostgreSQL administrado)**, proyecto `nwbnisehliwvuljpfutg`. **39 tablas** activas; el esquema está en **V0012** y lo gestiona **solo Flyway** (baseline v8 el 14/09/2026; ver `specs/000-overview/database-schema-design.md` §5). Cambiar el esquema = migración nueva, nunca SQL a mano. No uses PGlite ni intentes recrear el esquema base; consulta las tablas existentes.
 - Variables de entorno locales: se encuentran en `backend/.env` (ignorado por git) para conexión a Supabase en desarrollo local.
 - API versionada `/v1/...`. Operaciones de dinero idempotentes y conciliables.
 - Pruebas obligatorias para: cálculo de cuotas/amortización, asientos del ledger, decisiones de scoring/AML.

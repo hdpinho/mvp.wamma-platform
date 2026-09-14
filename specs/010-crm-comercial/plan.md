@@ -86,41 +86,45 @@ Es deliberado: los catálogos de etapas y motivos son la parte del diseño que m
 
 ## 3. Modelo físico
 
-Migraciones versionadas en `backend/migrations/`, idempotentes.
+Migraciones Flyway en `backend/src/main/resources/db/migration/`. El modelo base llegó en V0004 y quedó alineado con este plan en V0009–V0012 (septiembre 2026). Los nombres de tabla son singulares, como en el resto del esquema (`../000-overview/database-schema-design.md`).
 
 ### 3.1 Convenciones
 
-- **Identificadores:** UUID v7 (ordenable por tiempo, mejor localidad de índice).
-- **Dinero:** `NUMERIC(18,2)` + `moneda CHAR(3)` + `tasa_bcv NUMERIC(18,6)` + `fecha_tasa DATE`. **Prohibido `float`** (Principio V).
+- **Identificadores:** UUID. La base genera v4 (`gen_random_uuid()`); la aplicación puede asignar v7, ordenable por tiempo, cuando le convenga.
+- **Dinero:** `NUMERIC(18,2)` + `moneda VARCHAR(3)` (`USD`/`VES`) + `tasa_bcv NUMERIC(18,8)` + `fecha_tasa DATE`. **Prohibido `float`** (Principio V).
 - **Auditoría de fila:** `creado_en`, `creado_por`, `actualizado_en`.
 - **Cifrado de campo:** `cedula`, `telefono_whatsapp` y `correo` como `BYTEA` con sobre cifrado vía `platform/crypto`.
-- **Índice ciego:** columna `<campo>_bidx` con HMAC-SHA256 determinista y clave separada, para deduplicar sin descifrar.
+- **Índice ciego:** columna `indice_ciego_<campo>` con HMAC-SHA256 determinista y clave separada, para deduplicar sin descifrar.
 
 ### 3.2 Tablas
 
 | Tabla | Notas de implementación |
 |---|---|
-| `personas` | `cedula_bidx` con **índice único parcial** (`WHERE cedula_bidx IS NOT NULL`). `canal_origen` como texto trazado, sin interpretación |
-| `personas_telefonos` | Un teléfono por fila: `persona_id`, teléfono cifrado, `telefono_bidx`, `es_principal`. Así la deduplicación busca por **cualquiera** de los teléfonos de una persona con un índice (§5.1) |
-| `fusiones_persona` | **Append-only**, con el tratamiento de §3.3. Copia íntegra del registro absorbido + ids reasignados + momento. Es lo que hace reversible una fusión (§5.1) |
-| `oportunidades` | FK a `personas` y `vehiculos`. `etapa` valida contra `catalogo_etapas`. `motivo_perdida` con `CHECK`: obligatorio si y solo si `etapa = 'cerrado_perdido'`. FK opcional a `solicitudes_credito`. Índices en `(etapa, asesor_id)` y `(persona_id)` |
-| `interacciones` | **Append-only.** `corrige_interaccion_id` autorreferencial y nulo. Índice en `(persona_id, ocurrido_en DESC)` |
-| `etapa_historial` | **Append-only.** `oportunidad_id`, `etapa_anterior`, `etapa_nueva`, `nota`, `actor_id`, `ts`. Índice en `(oportunidad_id, ts)` |
-| `catalogo_etapas` | Código, nombre, orden, `es_terminal`. Se siembra con las siete etapas de `spec.md` §8.1 |
-| `catalogo_motivos_perdida` | Código, nombre, `exige_texto`. Se siembra con el catálogo de `spec.md` §8.2 |
+| `persona` | `indice_ciego_cedula` único (admite nulos: la cédula llega en el segundo paso, §5.1). `canal_origen` como texto trazado, sin lista cerrada. `criterio_resolucion` registra si la identidad se resolvió por cédula, por teléfono o es nueva (§5) |
+| `persona_telefono` | Un teléfono por fila: `persona_id`, `telefono_cifrado`, `indice_ciego_telefono`, `es_principal` (como mucho uno por persona). Así la deduplicación busca por **cualquiera** de los teléfonos de una persona con un índice (§5.1) |
+| `fusion_persona` | **Append-only**, con el tratamiento de §3.3. Sobreviviente, absorbida (queda en estado `fusionado`; no se borra), copia íntegra del registro absorbido con sus datos personales ya cifrados, ids reasignados y momento. Es lo que hace reversible una fusión (§5.1) |
+| `oportunidad` | FK a `persona` y `vehiculo`. `etapa` referencia `catalogo_etapa.codigo`. `motivo_perdida` con `CHECK`: obligatorio si y solo si `etapa = 'cerrado_perdido'`. Puntero `solicitud_credito_id` sin unión de datos. Enlace de financiamiento como hash SHA-256 con emisión, vencimiento y uso único. `version` para el `If-Match` de §6. Índices en `(etapa, asesor_id)` y `(persona_id)` |
+| `interaccion` | **Append-only.** `corrige_interaccion_id` autorreferencial y nulo. `idempotency_key` única (§6). Índice en `(persona_id, ocurrido_en DESC)` |
+| `etapa_historial` | **Append-only.** `oportunidad_id`, `etapa_anterior`, `etapa_nueva` (códigos del catálogo), `nota`, `actor_id`, `creado_en`. Índice en `(oportunidad_id, creado_en)` |
+| `cita_inspeccion` | Evento dentro de una oportunidad (§7.1): `oportunidad_id`, `dia_preferido`, `franja` (`manana`/`tarde`), `estado` (`pendiente`/`confirmada`/`descartada`) |
+| `catalogo_etapa` | Código, nombre, orden, `es_terminal`, `umbral_estancada_dias` (`spec.md` §8.6; nulo en las terminales). Se siembra con las siete etapas de `spec.md` §8.1 |
+| `catalogo_motivo_perdida` | Código, nombre, `exige_texto`. Se siembra con el catálogo de `spec.md` §8.2 |
 
 ### 3.3 Inmutabilidad real, no por convención
 
-`interacciones` y `etapa_historial` reciben el mismo tratamiento que la auditoría de `creditapp`:
+`interaccion` y `etapa_historial`, como toda tabla append-only del esquema, reciben tres barreras (V0009):
 
 ```sql
-REVOKE UPDATE, DELETE ON interacciones, etapa_historial FROM app_user;
-CREATE TRIGGER abortar_mutacion_interacciones
-  BEFORE UPDATE OR DELETE ON interacciones
-  FOR EACH ROW EXECUTE FUNCTION abortar_mutacion();
+REVOKE UPDATE, DELETE, TRUNCATE ON interaccion, etapa_historial FROM wamma_app;
+CREATE TRIGGER trg_interaccion_inmutable
+  BEFORE UPDATE OR DELETE ON interaccion
+  FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
+CREATE TRIGGER trg_interaccion_sin_truncate
+  BEFORE TRUNCATE ON interaccion
+  FOR EACH STATEMENT EXECUTE FUNCTION prevenir_modificacion_inmutable();
 ```
 
-El `REVOKE` protege del error honesto; el *trigger* protege de una conexión con privilegios de más. Una nota de seguimiento es la clase de dato que alguien querrá "arreglar" cuando una venta se caiga y haya que explicar por qué — y ese es exactamente el momento en que debe ser inmutable.
+El `REVOKE` protege del error honesto; el *trigger* de fila, de una conexión con privilegios de más; el de sentencia cubre `TRUNCATE`, que los de fila no ven. Una nota de seguimiento es la clase de dato que alguien querrá "arreglar" cuando una venta se caiga y haya que explicar por qué — y ese es exactamente el momento en que debe ser inmutable.
 
 `CA-010.4` verifica esto con **prueba de integración obligatoria**: sin base de datos real, la prueba no demuestra nada.
 

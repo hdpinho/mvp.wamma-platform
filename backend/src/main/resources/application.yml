@@ -51,7 +51,14 @@ spring:
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
     locations: classpath:db/migration
-    baseline-on-migrate: true
+    # Flyway migra con el dueño del esquema. Así la aplicación puede conectarse con un
+    # rol de menos privilegios (wamma_app, V0009) sin que las migraciones dejen de correr.
+    user: ${FLYWAY_DB_USER:${SUPABASE_DB_USER:postgres}}
+    password: ${FLYWAY_DB_PASSWORD:${SUPABASE_DB_PASSWORD:}}
+    # Sin baseline automático: un esquema con tablas y sin historial de Flyway es un error
+    # que debe verse, no algo que se adopta en silencio. Supabase se registró una única vez
+    # con baseline en la versión 8 (specs/000-overview/database-schema-design.md §5).
+    baseline-on-migrate: false
 
   data:
     redis:

@@ -100,16 +100,19 @@ Botones «Asistió» y «Vender Vehículo» en la bandeja de citas; enlace perso
 Las seis tablas de `plan.md` §3.2. UUID v7, `NUMERIC(18,2)` para el valor estimado, `BYTEA` + `_bidx` para cédula, teléfono y correo.
 **Depende de:** módulo 001 (`platform/crypto`).
 **Verifica:** la migración sube y baja limpia; ningún campo monetario es `float`; el índice único parcial sobre `cedula_bidx` existe.
+**Estado (septiembre 2026):** el esquema ya existía (V0004, aplicado en Supabase) y se **corrigió** contra este plan en V0010–V0011: `persona` + `persona_telefono` con `BYTEA` e índice ciego, sin `float`, cédula única. Ensayado en Supabase con transacción revertida, sobre el esquema real y desde cero (`../000-overview/database-schema-design.md` §5.4), y aplicado el 14 de septiembre de 2026 (esquema en V0012). Flyway libre no tiene migraciones de bajada: la reversión se ensaya así. **Sigue bloqueado por el 001** todo lo que escriba datos: sin `platform/crypto` no hay qué cifrar.
 
 ### O2 — Inmutabilidad a nivel de motor
 `REVOKE UPDATE, DELETE` + *trigger* `abortar_mutacion()` sobre `interacciones` y `etapa_historial`.
 **Depende de:** O1.
 **Verifica:** **`CA-010.4`** — `UPDATE` y `DELETE` fallan desde el usuario de aplicación. **Prueba de integración obligatoria**; sin base real no demuestra nada.
+**Estado (septiembre 2026):** motor listo en V0009 — `REVOKE` a `wamma_app`, trigger de fila y trigger de `TRUNCATE`; el ensayo confirmó que `UPDATE`, `DELETE` y `TRUNCATE` fallan. Falta la prueba automática desde el rol de aplicación, que exige activar `wamma_app` (`database-schema-design.md` §5.3).
 
 ### O3 — Siembra de catálogos
 `catalogo_etapas` y `catalogo_motivos_perdida` con los valores de `spec.md` §8.1 y §8.2, ya corregidos por lo aprendido en la ola 2.
 **Depende de:** O1, F4.
 **Verifica:** los catálogos sembrados coinciden con los que el equipo validó en la maqueta. Ninguna etapa ni motivo inventado.
+**Estado (septiembre 2026):** hecho en V0010 — reemplaza las etapas y los motivos inventados en V0004 por los de §8.1 y §8.2, con los umbrales de §8.6. El ensayo verificó ambos catálogos contra el spec.
 
 ---
 
