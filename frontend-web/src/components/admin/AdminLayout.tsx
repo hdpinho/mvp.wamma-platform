@@ -30,7 +30,7 @@ export const AdminLayout: React.FC = () => {
 
         {/* Solo las secciones que el rol permite (plan 001 §9); el servidor aplica lo mismo. */}
         <nav className="admin-nav">
-          {MENU_ADMIN.filter((entrada) => puede(...entrada.permisos)).map((entrada) => {
+          {MENU_ADMIN.filter((entrada) => entrada.permisos.length === 0 || puede(...entrada.permisos)).map((entrada) => {
             const contador = contadores[entrada.ruta];
             return (
               <NavLink
@@ -91,6 +91,12 @@ export const AdminLayout: React.FC = () => {
           >
             ← Volver al Catálogo Público
           </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>V 3.0 Release 1</span>
+            <NavLink to="/admin/acerca" style={{ fontSize: '11px', color: '#fb923c', textDecoration: 'none' }}>
+              Acerca de →
+            </NavLink>
+          </div>
         </div>
       </aside>
 

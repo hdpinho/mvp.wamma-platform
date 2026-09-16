@@ -26,6 +26,7 @@ const ORDENES: { valor: Orden; etiqueta: string }[] = [
 interface RangoIngreso {
   id: string;
   etiqueta: string;
+  subtitulo: string;
   cuotaMin?: number;
   cuotaMax?: number;
   chip: string;
@@ -35,21 +36,24 @@ interface RangoIngreso {
 const RANGOS_INGRESO: RangoIngreso[] = [
   {
     id: '1000-1300',
-    etiqueta: '€1.000 – €1.300 (cuota máx. €390)',
+    etiqueta: '€1.000 – €1.300 / mes',
+    subtitulo: 'Cuota máx. €390',
     cuotaMax: 390,
-    chip: '€1.000 – €1.300 (cuota máx. €390)',
+    chip: 'Ingreso €1.000 – €1.300',
   },
   {
     id: '1301-2000',
-    etiqueta: '€1.301 – €2.000 (cuota máx. €600)',
+    etiqueta: '€1.301 – €2.000 / mes',
+    subtitulo: 'Cuota máx. €600',
     cuotaMax: 600,
-    chip: '€1.301 – €2.000 (cuota máx. €600)',
+    chip: 'Ingreso €1.301 – €2.000',
   },
   {
     id: '2001+',
-    etiqueta: '€2.001 en adelante (601 en adelante)',
+    etiqueta: 'Más de €2.000 / mes',
+    subtitulo: 'Cuota desde €601',
     cuotaMin: 601,
-    chip: '€2.001 en adelante (601 en adelante)',
+    chip: 'Ingreso > €2.000',
   },
 ];
 
@@ -370,6 +374,7 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
               border: '1px solid var(--borde-claro)',
               borderRadius: 'var(--radius-md)',
               padding: 'var(--space-lg)',
+              boxSizing: 'border-box',
             }}
           >
             <GrupoFiltro titulo="Cuota mensual">
@@ -402,18 +407,53 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
             </GrupoFiltro>
 
             <GrupoFiltro titulo="Rango de ingresos">
-              <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
-                {RANGOS_INGRESO.map((rango) => (
-                  <ChipFiltro
-                    key={rango.id}
-                    etiqueta={rango.etiqueta}
-                    activo={rangoIngreso === rango.id}
-                    onClick={() => {
-                      setCuotaMax('');
-                      setRangoIngreso((prev) => (prev === rango.id ? '' : rango.id));
-                    }}
-                  />
-                ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)', width: '100%' }}>
+                {RANGOS_INGRESO.map((rango) => {
+                  const activo = rangoIngreso === rango.id;
+                  return (
+                    <button
+                      key={rango.id}
+                      type="button"
+                      aria-pressed={activo}
+                      onClick={() => {
+                        setCuotaMax('');
+                        setRangoIngreso((prev) => (prev === rango.id ? '' : rango.id));
+                      }}
+                      className={`btn-rango-ingreso ${activo ? 'activo' : ''}`}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '8px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        fontFamily: 'var(--font-sans)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        border: `1.5px solid ${activo ? 'var(--naranja-500)' : 'var(--borde)'}`,
+                        backgroundColor: activo ? 'var(--naranja-500)' : 'var(--blanco)',
+                        color: activo ? 'var(--blanco)' : 'var(--texto-primario)',
+                        transition: 'all 0.15s ease',
+                        boxShadow: activo ? '0 2px 6px rgba(224, 90, 24, 0.22)' : 'none',
+                      }}
+                    >
+                      <span style={{ fontSize: '13px', fontWeight: activo ? 700 : 600, lineHeight: 1.3 }}>
+                        {rango.etiqueta}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 400,
+                          color: activo ? 'rgba(255, 255, 255, 0.92)' : 'var(--texto-mudo)',
+                          marginTop: '2px',
+                        }}
+                      >
+                        {rango.subtitulo}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </GrupoFiltro>
 
@@ -563,11 +603,15 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
       <style>{`
         .catalogo-cuerpo {
           display: grid;
-          grid-template-columns: 260px 1fr;
+          grid-template-columns: 280px 1fr;
           gap: var(--space-xl);
           align-items: start;
         }
         .panel-filtros { position: sticky; top: 104px; }
+        .btn-rango-ingreso:not(.activo):hover {
+          border-color: var(--naranja-300) !important;
+          background-color: var(--naranja-50, #fff7ed) !important;
+        }
         @media (min-width: 1025px) and (max-width: 1279px) {
           .panel-filtros { top: 92px; }
         }

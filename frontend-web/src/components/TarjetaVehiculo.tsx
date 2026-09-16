@@ -17,7 +17,7 @@ const formatoEUR = (v: number) =>
     style: 'currency',
     currency: 'EUR',
     maximumFractionDigits: 0,
-  }).format(v);
+  }).format(Number.isFinite(v) ? v : 0);
 
 
 
@@ -25,7 +25,8 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
   vehiculo,
   onSelect,
 }) => {
-  const cuota = cuotaDesde(vehiculo.precio);
+  const precioNum = Number.isFinite(vehiculo.precio) ? vehiculo.precio : 0;
+  const cuota = cuotaDesde(precioNum);
 
   return (
     <article
@@ -142,7 +143,7 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
         {/* Precio y cuota */}
         <div style={{ marginTop: 'auto', paddingTop: 'var(--space-md)' }}>
           <div style={{ fontSize: '20px', fontWeight: 700, lineHeight: 1.2 }}>
-            {formatoEUR(vehiculo.precio)}
+            {formatoEUR(precioNum)}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--texto-mudo)' }}>
             Ref. Tasa Euro BCV

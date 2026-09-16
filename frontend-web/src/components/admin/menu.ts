@@ -23,4 +23,5 @@ export const MENU_ADMIN: EntradaMenu[] = [
   { ruta: '/admin/tasa-bcv', icono: '💱', texto: 'Tasa BCV', permisos: ['tasa_bcv.registrar'] },
   { ruta: '/admin/usuarios', icono: '🔑', texto: 'Usuarios', permisos: ['usuarios.gestionar'] },
   { ruta: '/admin/bitacora', icono: '📜', texto: 'Bitácora', permisos: ['auditoria.ver'] },
+  { ruta: '/admin/acerca', icono: 'ℹ️', texto: 'Acerca de', permisos: [] },
 ];

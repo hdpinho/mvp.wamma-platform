@@ -17,10 +17,12 @@ const formatoEUR = (valor: number) =>
     currency: 'EUR',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(valor);
+  }).format(Number.isFinite(valor) ? valor : 0);
 
-const formatoBs = (valor: number) =>
-  `${new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(valor)} Bs.`;
+const formatoBs = (valor: number) => {
+  const seguro = Number.isFinite(valor) ? valor : 0;
+  return `${new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(seguro)} Bs.`;
+};
 
 export const PrecioMoneda: React.FC<PrecioMonedaProps> = ({
   monto,

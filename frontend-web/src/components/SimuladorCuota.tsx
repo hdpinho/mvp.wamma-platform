@@ -39,7 +39,7 @@ const formatoEUR = (v: number) =>
     style: 'currency',
     currency: 'EUR',
     maximumFractionDigits: 0,
-  }).format(v);
+  }).format(Number.isFinite(v) ? v : 0);
 
 export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
   precio: precioInicial = 12000,

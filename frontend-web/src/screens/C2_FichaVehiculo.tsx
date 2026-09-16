@@ -32,7 +32,7 @@ const formatoEUR = (v: number) =>
     style: 'currency',
     currency: 'EUR',
     maximumFractionDigits: 0,
-  }).format(v);
+  }).format(Number.isFinite(v) ? v : 0);
 
 export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) => {
   const { id } = useParams<{ id: string }>();
@@ -59,7 +59,8 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
   const fotos = vehiculo.fotos ?? [];
   const foto = fotos[Math.min(fotoActiva, Math.max(fotos.length - 1, 0))];
   const credito = foto?.credito;
-  const precioVes = vehiculo.precioVes ?? (rateBCV ? vehiculo.precio * rateBCV : null);
+  const precioNum = Number.isFinite(vehiculo.precio) ? vehiculo.precio : 0;
+  const precioVes = vehiculo.precioVes ?? (rateBCV && precioNum ? precioNum * rateBCV : null);
 
   /**
    * Abre el modal para agendar cita para este vehículo.
@@ -102,22 +103,40 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
   return (
     <div>
       {/* Migas */}
-      <button
-        type="button"
-        onClick={() => navigate('/catalogo')}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          fontFamily: 'var(--font-sans)',
-          fontSize: '13px',
-          color: 'var(--texto-secundario)',
-          padding: 0,
-          marginBottom: 'var(--space-lg)',
-        }}
-      >
-        ← Volver a la vitrina
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            fontSize: '13px',
+            color: 'var(--naranja-600)',
+            fontWeight: 600,
+            padding: 0,
+          }}
+        >
+          🏠 Ir a inicio
+        </button>
+        <span style={{ color: 'var(--texto-mudo)', fontSize: '13px' }}>·</span>
+        <button
+          type="button"
+          onClick={() => navigate('/catalogo')}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            fontSize: '13px',
+            color: 'var(--texto-secundario)',
+            padding: 0,
+          }}
+        >
+          ← Volver a la vitrina
+        </button>
+      </div>
 
       <div className="ficha-cuerpo">
         {/* ── Columna izquierda ──────────────────────────────── */}
@@ -363,7 +382,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
 
             <div style={{ margin: 'var(--space-lg) 0' }}>
               <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1.15 }}>
-                {formatoEUR(vehiculo.precio)}
+                {formatoEUR(precioNum)}
               </div>
               <div style={{ fontSize: '12px', color: 'var(--texto-mudo)' }}>
                 {precioVes
@@ -484,7 +503,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
                   key={v.id}
                   vehiculo={v}
                   rateBCV={rateBCV}
-                  onSelect={(vid) => navigate(`/vehiculo/${vid}`)}
+                  onSelect={(vid) => { navigate(`/vehiculo/${vid}`); window.scrollTo(0, 0); }}
                 />
               ))}
             </div>

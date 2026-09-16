@@ -101,7 +101,7 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
       style: 'currency',
       currency: 'EUR',
       maximumFractionDigits: 0,
-    }).format(v);
+    }).format(Number.isFinite(v) ? v : 0);
 
   return (
     <div className="modal-overlay" onClick={onCerrar}>

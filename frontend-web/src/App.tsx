@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import './App.css';
 import { apiConfigurada } from './api/cliente';
 import { BarraNavegacion } from './components/BarraNavegacion';
@@ -23,6 +23,7 @@ import { O1_Ingreso } from './screens/admin/O1_Ingreso';
 import { O1_Usuarios } from './screens/admin/O1_Usuarios';
 import { O1_Bitacora } from './screens/admin/O1_Bitacora';
 import { O1_MiCuenta } from './screens/admin/O1_MiCuenta';
+import { O1_AcercaDe } from './screens/admin/O1_AcercaDe';
 import { O3_GestionInventario } from './screens/admin/O3_GestionInventario';
 import { O3_FormularioVehiculo } from './screens/admin/O3_FormularioVehiculo';
 import { O3_GestionCitas } from './screens/admin/O3_GestionCitas';
@@ -51,6 +52,7 @@ function AppRutas({ rateBCV }: { rateBCV: number }) {
           <Route path="/solicitud-credito" element={<C9_SolicitudCredito rateBCV={rateBCV} />} />
           <Route path="/financiamiento" element={<C10_Financiamiento rateBCV={rateBCV} />} />
           <Route path="/vehiculo/:id" element={<C2_FichaVehiculo rateBCV={rateBCV} />} />
+          <Route path="/acerca" element={<Navigate to="/admin/acerca" replace />} />
 
           {/* Rutas Backoffice WAMMA: todas exigen sesión (módulo 001), salvo el ingreso. */}
           <Route path="/admin/ingresar" element={<O1_Ingreso />} />
@@ -152,6 +154,7 @@ function AppRutas({ rateBCV }: { rateBCV: number }) {
               }
             />
             <Route path="cuenta" element={<O1_MiCuenta />} />
+            <Route path="acerca" element={<O1_AcercaDe />} />
           </Route>
         </Routes>
       </main>

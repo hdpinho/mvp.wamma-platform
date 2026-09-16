@@ -17,9 +17,9 @@ type Filtro = 'todos' | EstadoDisponibilidad | 'sin_publicar';
 const mensajeDe = (e: unknown) => (e instanceof ErrorApi ? e.detalle || e.titulo : 'No se pudo completar la acción.');
 
 const formatoEUR = (valor: number) =>
-  new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(valor);
+  new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Number.isFinite(valor) ? valor : 0);
 
-const formatoBs = (valor: number) => `${valor.toLocaleString('es-VE', { maximumFractionDigits: 0 })} Bs.`;
+const formatoBs = (valor: number) => { const s = Number.isFinite(valor) ? valor : 0; return `${s.toLocaleString('es-VE', { maximumFractionDigits: 0 })} Bs.`; };
 
 export const O3_GestionInventario: React.FC<O3GestionInventarioProps> = ({ rateBCV }) => {
   const navigate = useNavigate();

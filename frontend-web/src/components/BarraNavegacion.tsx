@@ -7,6 +7,7 @@ export type BarraNavegacionProps = Record<string, never>;
 
 /** Menú principal de escritorio. */
 const MENU = [
+  { a: '/', texto: 'Inicio' },
   { a: '/catalogo', texto: 'Vitrina' },
   { a: '/financiamiento', texto: 'Financiamiento' },
 ];

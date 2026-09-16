@@ -34,6 +34,8 @@ export const ChipFiltro: React.FC<ChipFiltroProps> = ({
       fontWeight: activo ? 700 : 400,
       cursor: 'pointer',
       whiteSpace: 'nowrap',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
       border: `1px solid ${activo ? 'var(--naranja-500)' : 'var(--borde)'}`,
       backgroundColor: activo ? 'var(--naranja-500)' : 'var(--blanco)',
       color: activo ? 'var(--blanco)' : 'var(--texto-secundario)',
