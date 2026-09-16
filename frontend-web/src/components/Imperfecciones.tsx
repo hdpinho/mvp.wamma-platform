@@ -27,18 +27,13 @@ const COLOR_SEVERIDAD = {
 } as const;
 
 export const Imperfecciones: React.FC<ImperfeccionesProps> = ({ vehiculo, listaImperfecciones }) => {
-  let contextImperfecciones: Imperfeccion[] = [];
-  try {
-    const { obtenerImperfecciones } = useVehiculos();
-    contextImperfecciones = obtenerImperfecciones(vehiculo.id);
-  } catch {
-    contextImperfecciones = imperfeccionesDe(vehiculo.id);
-  }
+  const { obtenerImperfecciones } = useVehiculos();
 
-  const todas = useMemo(
-    () => listaImperfecciones ?? (contextImperfecciones.length > 0 ? contextImperfecciones : imperfeccionesDe(vehiculo.id)),
-    [listaImperfecciones, contextImperfecciones, vehiculo.id],
-  );
+  const todas = useMemo(() => {
+    if (listaImperfecciones) return listaImperfecciones;
+    const delInventario = obtenerImperfecciones(vehiculo.id);
+    return delInventario.length > 0 ? delInventario : imperfeccionesDe(vehiculo.id);
+  }, [listaImperfecciones, obtenerImperfecciones, vehiculo.id]);
   const [zona, setZona] = useState<Zona>('exterior');
   const [indice, setIndice] = useState(0);
 

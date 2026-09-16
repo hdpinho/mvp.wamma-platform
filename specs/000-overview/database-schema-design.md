@@ -6,6 +6,8 @@
 **Principios vinculantes:** `.specify/memory/constitution.md` (Principios I, II, V, VI, VII)
 
 > **v1.1 (septiembre 2026):** incorpora las migraciones correctivas V0009–V0012: acceso mínimo, inmutabilidad también frente a `TRUNCATE`, cuadre del ledger verificado por el motor, CRM alineado con el spec aprobado 010, trazabilidad monetaria completa y retiro de cifras no confirmadas. Operación en §5; pendientes en §6.
+>
+> **v1.2 (15 de septiembre de 2026):** añade V0013 (identidad, sesiones y permisos del módulo 001) y V0014 (inventario, catálogo y tasa BCV del módulo 005): código de inventario, placa y adquisición opcionales, publicación en euros con la tasa fijada al publicar, fotos con miniatura y créditos, y la tasa BCV por fecha y moneda. **Aplicadas en local y en la CI; Supabase sigue en V0012** hasta que se despliegue (§5.2).
 
 ---
 
@@ -536,8 +538,9 @@ Patios físicos de exhibición, inspección y entrega.
 #### 9. `vehiculo`
 Inventario propio adquirido por WAMMA.
 * `id` (UUID, PK)
+* `codigo` (VARCHAR(20), UNIQUE, NOT NULL) — Identificador visible y de la API. `DEFAULT 'WAM-' || lpad(nextval('vehiculo_codigo_seq')…, 5, '0')`; los de demostración usan `veh-001`…`veh-016` (V0014)
 * `vin` (VARCHAR(17), UNIQUE, NOT NULL)
-* `placa` (VARCHAR(10), UNIQUE, NOT NULL)
+* `placa` (VARCHAR(10), UNIQUE) — Opcional desde V0014 (D-12): un vehículo entra al inventario sin placa
 * `marca` (VARCHAR(50), NOT NULL)
 * `modelo` (VARCHAR(50), NOT NULL)
 * `version` (VARCHAR(50))
@@ -549,12 +552,10 @@ Inventario propio adquirido por WAMMA.
 * `combustible` (VARCHAR(30), NOT NULL) — Gasolina, Diésel, Híbrido
 * `traccion` (VARCHAR(20)) — 4x2, 4x4, AWD. Sin valor por defecto (V0011)
 * `puestos` (SMALLINT) — Sin valor por defecto (V0011)
-* `estado` (VARCHAR(30), NOT NULL) — `inspeccion`, `reacondicionamiento`, `exhibicion`, `reservado`, `vendido`, `bloqueado_legal`
-* `sede_id` (UUID, FK -> `sede.id`, NOT NULL)
-* `precio_adquisicion` (NUMERIC(18, 2), NOT NULL)
-* `moneda_adquisicion` (VARCHAR(3), NOT NULL, DEFAULT `'USD'`) — `USD` o `VES`
-* `tasa_bcv_adquisicion` (NUMERIC(18, 8), NOT NULL)
-* `fecha_tasa_adquisicion` (DATE, NOT NULL)
+* `estado` (VARCHAR(30), NOT NULL) — `inspeccion`, `reacondicionamiento`, `exhibicion`, `reservado`, `vendido`, `bloqueado_legal`. La **disponibilidad** que expone la API es una vista de esta columna: `disponible` = `exhibicion`, `cita_agendada` = `reservado`, `vendido` (spec 010 §8.4)
+* `sede_id` (UUID, FK -> `sede.id`, NOT NULL) — En la Fase 1 hay una sola sede, Distrito Capital (D-23)
+* `es_demostracion` (BOOLEAN, NOT NULL, DEFAULT false) — Marca la carga inicial de ejemplo, para poder distinguirla del inventario real (V0014)
+* `precio_adquisicion` (NUMERIC(18, 2)), `moneda_adquisicion` (VARCHAR(3)), `tasa_bcv_adquisicion` (NUMERIC(18, 8)), `fecha_tasa_adquisicion` (DATE) — **Opcionales desde V0014** (D-12), con `CHECK` de todo-o-nada: o se declaran los cuatro o ninguno. Dato interno: no sale a la vitrina
 * `creado_en` (TIMESTAMPTZ, DEFAULT `now()`)
 * `actualizado_en` (TIMESTAMPTZ, DEFAULT `now()`)
 
@@ -613,24 +614,27 @@ Vehículos certificados visibles en la vitrina pública.
 * `titulo` (VARCHAR(150), NOT NULL)
 * `descripcion` (TEXT)
 * `precio_venta` (NUMERIC(18, 2), NOT NULL)
-* `moneda` (VARCHAR(3), NOT NULL, DEFAULT `'USD'`) — `USD` o `VES`
-* `tasa_bcv` (NUMERIC(18, 8), NOT NULL)
-* `fecha_tasa` (DATE, NOT NULL)
+* `moneda` (VARCHAR(3), NOT NULL) — `EUR` o `VES`; en la Fase 1 se publica en **euros** (D-21). V0014 retiró el valor por defecto `'USD'` y el `CHECK` ya no lo admite
+* `tasa_bcv` (NUMERIC(18, 8)), `fecha_tasa` (DATE) — **Se fijan al publicar**, no antes: un borrador todavía no tiene tasa. Corregir después la tasa del día no reescribe lo ya publicado (V0014)
 * `garantia_meses` (SMALLINT) — Sin valor por defecto: `[NEEDS CLARIFICATION: condiciones de garantía]` (spec 005)
 * `kilometraje_garantia` (INT) — Ídem
-* `estado` (VARCHAR(25), NOT NULL, DEFAULT `'publicado'`) — `borrador`, `publicado`, `pausado`, `vendido`
+* `estado` (VARCHAR(25), NOT NULL) — `borrador`, `publicado`, `pausado`, `vendido`. V0014 retiró el valor por defecto `'publicado'`: publicar es un acto explícito
+* `etiqueta` (VARCHAR(30)) — Etiqueta comercial sobre la foto: `recien_ingresado`, `dificil_de_conseguir`, `listo_para_entrega` (V0014)
 * `publicado_en` (TIMESTAMPTZ)
 * `creado_por` (UUID, FK -> `usuario.id`)
 * `creado_en` (TIMESTAMPTZ, DEFAULT `now()`)
 
 #### 14. `publicacion_foto`
-Fotografías de alta resolución del vehículo publicado.
+Fotografías del vehículo publicado. De **5 a 10 por vehículo** (D-10); una sola de demostración basta para la carga de ejemplo.
 * `id` (UUID, PK)
 * `publicacion_id` (UUID, FK -> `publicacion.id`, ON DELETE CASCADE, NOT NULL)
-* `url` (TEXT, NOT NULL)
+* `clave` (TEXT, NOT NULL) — Ruta del objeto en el almacén, no una URL: la dirección pública se arma al servirla, para poder cambiar de proveedor sin migrar datos (V0014 renombró `url`)
+* `clave_miniatura` (TEXT, NOT NULL) — Versión de 640 px; la grande es de 1600 px. Ambas se recodifican como JPEG **sin metadatos de ubicación**
+* `ancho` (INT), `alto` (INT) — Dimensiones reales, para reservar el espacio en la página y evitar saltos al cargar
 * `orden` (SMALLINT, NOT NULL, DEFAULT 0)
-* `es_principal` (BOOLEAN, DEFAULT false)
-* `etiqueta` (VARCHAR(50)) — `frente`, `trasera`, `lateral_izq`, `interior`, `tablero`, `motor`
+* `es_principal` (BOOLEAN, DEFAULT false) — Índice único **parcial**: una sola principal por publicación
+* `credito_autor`, `credito_licencia`, `credito_origen` (TEXT) — Solo en las fotos referenciales de la carga de ejemplo; las propias de WAMMA no llevan crédito (D-22)
+* `subida_por` (UUID, FK -> `usuario.id`)
 * `creado_en` (TIMESTAMPTZ, DEFAULT `now()`)
 
 #### 15. `reserva`
@@ -1068,7 +1072,9 @@ mvn flyway:baseline -Dflyway.baselineVersion=8 -Dflyway.baselineDescription="V00
 mvn flyway:migrate
 ```
 
-La conexión llega por `FLYWAY_URL`, `FLYWAY_USER` y `FLYWAY_PASSWORD`, nunca por el repositorio. `baseline-on-migrate` queda en `false`: un esquema con tablas y sin historial es un error que debe verse, no algo que se adopta en silencio. En un PostgreSQL vacío (recuperación ante desastres, CI) Flyway aplica V0001–V0012 desde cero, sin baseline.
+La conexión llega por `FLYWAY_URL`, `FLYWAY_USER` y `FLYWAY_PASSWORD`, nunca por el repositorio. `baseline-on-migrate` queda en `false`: un esquema con tablas y sin historial es un error que debe verse, no algo que se adopta en silencio. En un PostgreSQL vacío (recuperación ante desastres, CI) Flyway aplica todas las migraciones desde cero, sin baseline.
+
+**V0013 y V0014** (etapas 1 y 2) se desarrollaron y se probaron **solo en local**, contra un PostgreSQL embebido que se crea vacío en cada arranque: ahí Flyway aplica V0001–V0014 desde cero y una prueba automática comprueba el esquema resultante. **Supabase sigue en V0012**; aplicarlas allí es una acción de despliegue pendiente, que se ensaya primero en una transacción que se revierte (§5.4).
 
 ### 5.3 Activar el rol de aplicación
 1. En el SQL Editor de Supabase: `ALTER ROLE wamma_app WITH LOGIN PASSWORD '<secreto>';`

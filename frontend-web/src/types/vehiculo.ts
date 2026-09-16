@@ -1,9 +1,9 @@
 /**
- * Modelo de un vehículo publicado en el catálogo.
+ * Modelo de un vehículo del inventario y de la vitrina.
  *
- * Alineado con las entidades `vehiculo` y `publicacion` de
- * `specs/000-overview/data-model.md`. Los campos de presentación
- * (`etiqueta`, `color`) existen solo para la maqueta.
+ * Alineado con `vehiculo`, `publicacion` y `publicacion_foto` del backend (spec 005 Rev. 2).
+ * Los precios van en **euros** (D-21) y la equivalencia en bolívares la calcula el servidor
+ * con la tasa BCV del euro vigente.
  */
 
 /** Tipos de carrocería usados para explorar el catálogo. */
@@ -18,16 +18,19 @@ export const CARROCERIAS = [
 
 export type Carroceria = (typeof CARROCERIAS)[number];
 
+export type Transmision = 'Automático' | 'Manual' | 'Secuencial';
+
 /** Etiqueta comercial que se pinta sobre la foto en el catálogo. */
 export type EtiquetaVehiculo = 'Recién ingresado' | 'Difícil de conseguir' | 'Listo para entrega';
 
+export type EstadoDisponibilidad = 'disponible' | 'cita_agendada' | 'vendido';
+
 /**
- * Hallazgo cosmético declarado en la inspección de 240 puntos.
+ * Hallazgo cosmético declarado en la inspección.
  *
- * Corresponde a un `inspeccion_punto` con resultado no conforme y su
- * `evidencia_url` (ver data-model, módulo 004). Publicarlas es lo que
- * distingue a WAMMA de un clasificado: el comprador ve el desgaste real
- * antes de ir a la sede.
+ * Corresponde a un `inspeccion_punto` estético no conforme (módulo 004). Publicarlas es lo
+ * que distingue a WAMMA de un clasificado: el comprador ve el desgaste real antes de ir a
+ * la sede.
  */
 export interface Imperfeccion {
   id: string;
@@ -46,31 +49,82 @@ export interface Imperfeccion {
   y: number;
 }
 
+/** Monedas admitidas para registrar lo que se pagó por el vehículo. */
+export type MonedaAdquisicion = 'EUR' | 'USD' | 'VES';
+
+/** Crédito de una foto referencial; las fotos propias de WAMMA no lo llevan (D-22). */
+export interface CreditoFoto {
+  autor: string;
+  licencia: string;
+  origen: string | null;
+}
+
+export interface FotoVehiculoData {
+  id: string;
+  url: string;
+  urlMiniatura: string;
+  ancho: number;
+  alto: number;
+  credito?: CreditoFoto | null;
+}
+
+/** Estado de la publicación en la vitrina (solo con servidor). */
+export interface EstadoPublicacion {
+  estado: 'borrador' | 'publicado' | 'pausado';
+  publicadoEn: string | null;
+  /** Tasa con la que se fijó el precio publicado. */
+  tasaBcv: number | null;
+  fechaTasa: string | null;
+}
+
 export interface VehiculoData {
+  /** Código de inventario: `veh-001` en los de demostración, `WAM-00017` en los nuevos. */
   id: string;
   vin: string;
+  /** Dato interno: no sale a la vitrina (D-12, opcional). */
+  placa?: string | null;
   marca: string;
   modelo: string;
   /** Versión o acabado, p. ej. "XEI 1.8 Aut.". */
   version: string;
   anio: number;
-  precioUSD: number;
+  /** Precio en euros (D-21). */
+  precio: number;
+  /** Equivalencia en bolívares a la tasa vigente; la calcula el servidor. */
+  precioVes?: number | null;
   kilometraje: number;
-  transmision: 'Automático' | 'Manual';
+  transmision: Transmision;
   combustible: string;
   carroceria: Carroceria;
   puestos: number;
   traccion: '4x2' | '4x4';
   certificado: boolean;
   etiqueta?: EtiquetaVehiculo;
-  /** Ruta de la fotografía en `public/vehiculos/`. Ver `mocks/creditosFotos.ts`. */
+  /** Galería; la primera es la principal. */
+  fotos: FotoVehiculoData[];
+  /** Dirección de la foto principal, para los componentes que muestran una sola. */
   foto?: string;
   /** Color de la carrocería; tiñe el marcador cuando no hay foto. */
   color: string;
   sede: string;
-  /** Estado de disponibilidad comercial para el MVP híbrido. */
-  estadoDisponibilidad?: 'disponible' | 'cita_agendada' | 'vendido';
+  /** Estado de disponibilidad comercial. */
+  estadoDisponibilidad?: EstadoDisponibilidad;
+  /** Hallazgos declarados. Con servidor llegan con el vehículo; en maqueta viven aparte. */
+  imperfecciones?: Imperfeccion[];
+
+  // ── Solo con servidor, para el backoffice ────────────────────────────────
+  publicacion?: EstadoPublicacion;
+  /** Lo que falta para poder publicarlo; vacío cuando ya se puede. */
+  faltaParaPublicar?: string[];
+  fotosMinimas?: number;
+  esDemostracion?: boolean;
+  adquisicion?: { precio: number; moneda: MonedaAdquisicion; tasaBcv: number; fecha: string } | null;
+  /** Marca de tiempo de la última modificación, para detectar cambios simultáneos. */
+  actualizadoEn?: string;
 }
+
+/** Forma de los datos de maqueta: sin galería ni campos del servidor. */
+export type VehiculoMaqueta = Omit<VehiculoData, 'fotos'>;
 
 /**
  * La cita y todo el seguimiento comercial se movieron a `types/crm.ts`

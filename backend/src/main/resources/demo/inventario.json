@@ -1,0 +1,770 @@
+{
+  "nota": "Vehículos de demostración (D-10, D-25). Datos simulados: ni las unidades ni los precios son inventario real de WAMMA. Generado desde frontend-web/src/mocks.",
+  "vehiculos": [
+    {
+      "codigo": "veh-001",
+      "vin": "8X1AB2C3D4E5F6G7H",
+      "marca": "Toyota",
+      "modelo": "Yaris",
+      "version": "XLI 1.3 Aut.",
+      "anio": 2018,
+      "precio": 8900,
+      "kilometraje": 74000,
+      "transmision": "automatica",
+      "combustible": "gasolina",
+      "carroceria": "sedan",
+      "puestos": 5,
+      "traccion": "4x2",
+      "certificado": true,
+      "etiqueta": "dificil_de_conseguir",
+      "color": "#D32F2F",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-001.webp",
+        "autor": "Bull-Doser",
+        "licencia": "Public domain",
+        "origen": "https://commons.wikimedia.org/wiki/File:%2716-%2718_Toyota_Yaris_R_--_Front.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Rayón superficial",
+          "descripcion": "Rayón de pintura que no llega a la base. No requiere repintado.",
+          "severidad": "leve",
+          "ubicacion": "Puerta delantera derecha",
+          "x": 46,
+          "y": 58
+        },
+        {
+          "zona": "interior",
+          "tipo": "Desgaste de tapicería",
+          "descripcion": "Brillo por uso en el lateral del asiento del conductor.",
+          "severidad": "leve",
+          "ubicacion": "Asiento del conductor",
+          "x": 33,
+          "y": 44
+        }
+      ]
+    },
+    {
+      "codigo": "veh-002",
+      "vin": "9Y2CD3E4F5G6H7I8J",
+      "marca": "Chevrolet",
+      "modelo": "Aveo",
+      "version": "LS 1.6 Sinc.",
+      "anio": 2017,
+      "precio": 6500,
+      "kilometraje": 95000,
+      "transmision": "manual",
+      "combustible": "gasolina",
+      "carroceria": "sedan",
+      "puestos": 5,
+      "traccion": "4x2",
+      "certificado": true,
+      "etiqueta": null,
+      "color": "#303F9F",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-002.webp",
+        "autor": "Michge",
+        "licencia": "CC BY-SA 3.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:FSO_Chevrolet_Aveo_II_Sedan_front_-_PSM_2009.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Abolladura",
+          "descripcion": "Abolladura sin daño de pintura, del tamaño de una moneda.",
+          "severidad": "moderada",
+          "ubicacion": "Guardafango trasero izquierdo",
+          "x": 74,
+          "y": 55
+        },
+        {
+          "zona": "exterior",
+          "tipo": "Rayón superficial",
+          "descripcion": "Marcas finas de uso en el paragolpes trasero.",
+          "severidad": "leve",
+          "ubicacion": "Paragolpes trasero",
+          "x": 86,
+          "y": 62
+        },
+        {
+          "zona": "interior",
+          "tipo": "Desgaste de mandos",
+          "descripcion": "Pérdida de brillo en la palanca de cambios por uso.",
+          "severidad": "leve",
+          "ubicacion": "Consola central",
+          "x": 48,
+          "y": 43
+        }
+      ]
+    },
+    {
+      "codigo": "veh-003",
+      "vin": "1A3EF4G5H6I7J8K9L",
+      "marca": "Ford",
+      "modelo": "Fiesta",
+      "version": "Move 1.6 Sinc.",
+      "anio": 2016,
+      "precio": 7200,
+      "kilometraje": 112000,
+      "transmision": "manual",
+      "combustible": "gasolina",
+      "carroceria": "hatchback",
+      "puestos": 5,
+      "traccion": "4x2",
+      "certificado": false,
+      "etiqueta": null,
+      "color": "#C0CA33",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-003.webp",
+        "autor": "Navigator84",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:Ford_Fiesta_VI_hatch_facelift_01_China_2016-04-12.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Pintura opaca",
+          "descripcion": "Techo con pérdida de brillo por exposición al sol.",
+          "severidad": "moderada",
+          "ubicacion": "Techo",
+          "x": 50,
+          "y": 22
+        },
+        {
+          "zona": "exterior",
+          "tipo": "Rayón profundo",
+          "descripcion": "Rayón que alcanza la base. Se recomienda retoque de pintura.",
+          "severidad": "moderada",
+          "ubicacion": "Puerta trasera izquierda",
+          "x": 62,
+          "y": 58
+        },
+        {
+          "zona": "exterior",
+          "tipo": "Rin rozado",
+          "descripcion": "Roce de acera en el borde del rin.",
+          "severidad": "leve",
+          "ubicacion": "Rin delantero derecho",
+          "x": 26,
+          "y": 70
+        },
+        {
+          "zona": "interior",
+          "tipo": "Rasgadura de tapicería",
+          "descripcion": "Descosido de 3 cm en la costura del asiento trasero.",
+          "severidad": "moderada",
+          "ubicacion": "Asiento trasero",
+          "x": 56,
+          "y": 68
+        }
+      ]
+    },
+    {
+      "codigo": "veh-004",
+      "vin": "2B4FG5H6I7J8K9L0M",
+      "marca": "Toyota",
+      "modelo": "Corolla",
+      "version": "GLI 1.8 Aut.",
+      "anio": 2020,
+      "precio": 15400,
+      "kilometraje": 48000,
+      "transmision": "automatica",
+      "combustible": "gasolina",
+      "carroceria": "sedan",
+      "puestos": 5,
+      "traccion": "4x2",
+      "certificado": true,
+      "etiqueta": "recien_ingresado",
+      "color": "#FAFAFA",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-004.webp",
+        "autor": "LuvsMG481",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:2020_Toyota_Corolla_Altis_petrol_version_front.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Rayón superficial",
+          "descripcion": "Marca fina en el paragolpes delantero, apenas perceptible.",
+          "severidad": "leve",
+          "ubicacion": "Paragolpes delantero",
+          "x": 14,
+          "y": 64
+        }
+      ]
+    },
+    {
+      "codigo": "veh-005",
+      "vin": "3C5GH6I7J8K9L0M1N",
+      "marca": "Toyota",
+      "modelo": "Fortuner",
+      "version": "SR 2.7 Aut. 4x4",
+      "anio": 2019,
+      "precio": 28900,
+      "kilometraje": 86000,
+      "transmision": "automatica",
+      "combustible": "gasolina",
+      "carroceria": "suv",
+      "puestos": 7,
+      "traccion": "4x4",
+      "certificado": true,
+      "etiqueta": "dificil_de_conseguir",
+      "color": "#37474F",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-005.webp",
+        "autor": "Captainmorlypogi1959",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:Toyota_Fortuner_4x2_G_2019.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Rayón superficial",
+          "descripcion": "Roces propios del uso en la platina del estribo lateral.",
+          "severidad": "leve",
+          "ubicacion": "Estribo lateral derecho",
+          "x": 50,
+          "y": 72
+        },
+        {
+          "zona": "interior",
+          "tipo": "Desgaste de alfombra",
+          "descripcion": "Alfombra del conductor con desgaste visible por el talón.",
+          "severidad": "leve",
+          "ubicacion": "Piso del conductor",
+          "x": 33,
+          "y": 56
+        }
+      ]
+    },
+    {
+      "codigo": "veh-006",
+      "vin": "4D6HI7J8K9L0M1N2O",
+      "marca": "Chevrolet",
+      "modelo": "Silverado",
+      "version": "LT 5.3 Aut. 4x4",
+      "anio": 2015,
+      "precio": 19800,
+      "kilometraje": 141000,
+      "transmision": "automatica",
+      "combustible": "gasolina",
+      "carroceria": "pick_up",
+      "puestos": 5,
+      "traccion": "4x4",
+      "certificado": true,
+      "etiqueta": null,
+      "color": "#455A64",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-006.webp",
+        "autor": "Kevauto",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:2015_Chevrolet_Silverado_1500_LTZ,_front_2.29.20.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Abolladura",
+          "descripcion": "Hundimiento leve en la pared del platón, sin fisura.",
+          "severidad": "moderada",
+          "ubicacion": "Platón lateral izquierdo",
+          "x": 78,
+          "y": 54
+        },
+        {
+          "zona": "exterior",
+          "tipo": "Pintura descascarada",
+          "descripcion": "Saltaduras de pintura en el borde del capó por piedras.",
+          "severidad": "moderada",
+          "ubicacion": "Borde del capó",
+          "x": 22,
+          "y": 53
+        },
+        {
+          "zona": "interior",
+          "tipo": "Desgaste de tapicería",
+          "descripcion": "Tela del asiento del conductor con brillo y pelusa.",
+          "severidad": "moderada",
+          "ubicacion": "Asiento del conductor",
+          "x": 33,
+          "y": 44
+        }
+      ]
+    },
+    {
+      "codigo": "veh-007",
+      "vin": "5E7IJ8K9L0M1N2O3P",
+      "marca": "Hyundai",
+      "modelo": "Tucson",
+      "version": "GLS 2.0 Aut.",
+      "anio": 2018,
+      "precio": 16700,
+      "kilometraje": 79000,
+      "transmision": "automatica",
+      "combustible": "gasolina",
+      "carroceria": "suv",
+      "puestos": 5,
+      "traccion": "4x2",
+      "certificado": true,
+      "etiqueta": "listo_para_entrega",
+      "color": "#8D6E63",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-007.webp",
+        "autor": "LuvsMG481",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:2018_Hyundai_Tucson_Elite_front.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Rayón superficial",
+          "descripcion": "Rayón corto en la manilla de la puerta del conductor.",
+          "severidad": "leve",
+          "ubicacion": "Puerta del conductor",
+          "x": 40,
+          "y": 56
+        }
+      ]
+    },
+    {
+      "codigo": "veh-008",
+      "vin": "6F8JK9L0M1N2O3P4Q",
+      "marca": "Kia",
+      "modelo": "Rio",
+      "version": "EX 1.4 Aut.",
+      "anio": 2019,
+      "precio": 10200,
+      "kilometraje": 62000,
+      "transmision": "automatica",
+      "combustible": "gasolina",
+      "carroceria": "hatchback",
+      "puestos": 5,
+      "traccion": "4x2",
+      "certificado": true,
+      "etiqueta": null,
+      "color": "#E53935",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-008.webp",
+        "autor": "RL GNZLZ from Chile",
+        "licencia": "CC BY-SA 2.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:Kia_Rio5_1.4_LX_2018_(38923614811).jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "interior",
+          "tipo": "Mancha en tapicería",
+          "descripcion": "Mancha tratada en la alfombra trasera; permanece sombra leve.",
+          "severidad": "leve",
+          "ubicacion": "Piso trasero",
+          "x": 60,
+          "y": 79
+        }
+      ]
+    },
+    {
+      "codigo": "veh-009",
+      "vin": "7G9KL0M1N2O3P4Q5R",
+      "marca": "Ford",
+      "modelo": "Explorer",
+      "version": "XLT 3.5 Aut. 4x4",
+      "anio": 2016,
+      "precio": 17900,
+      "kilometraje": 128000,
+      "transmision": "automatica",
+      "combustible": "gasolina",
+      "carroceria": "suv",
+      "puestos": 7,
+      "traccion": "4x4",
+      "certificado": false,
+      "etiqueta": null,
+      "color": "#212121",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-009.webp",
+        "autor": "Vauxford",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:2011%E2%80%932016_Ford_Explorer_Front.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Pintura opaca",
+          "descripcion": "Capó y techo con oxidación superficial del barniz.",
+          "severidad": "moderada",
+          "ubicacion": "Capó y techo",
+          "x": 50,
+          "y": 12
+        },
+        {
+          "zona": "exterior",
+          "tipo": "Abolladura",
+          "descripcion": "Dos abolladuras contiguas en la puerta trasera derecha.",
+          "severidad": "moderada",
+          "ubicacion": "Puerta trasera derecha",
+          "x": 66,
+          "y": 57
+        },
+        {
+          "zona": "exterior",
+          "tipo": "Faro opaco",
+          "descripcion": "Policarbonato del faro derecho amarillento.",
+          "severidad": "leve",
+          "ubicacion": "Faro delantero derecho",
+          "x": 16,
+          "y": 60
+        },
+        {
+          "zona": "interior",
+          "tipo": "Desgaste de mandos",
+          "descripcion": "Letras del climatizador desgastadas por el uso.",
+          "severidad": "leve",
+          "ubicacion": "Consola central",
+          "x": 48,
+          "y": 43
+        }
+      ]
+    },
+    {
+      "codigo": "veh-010",
+      "vin": "8H0LM1N2O3P4Q5R6S",
+      "marca": "Renault",
+      "modelo": "Logan",
+      "version": "Expression 1.6 Sinc.",
+      "anio": 2017,
+      "precio": 6900,
+      "kilometraje": 104000,
+      "transmision": "manual",
+      "combustible": "gasolina",
+      "carroceria": "sedan",
+      "puestos": 5,
+      "traccion": "4x2",
+      "certificado": true,
+      "etiqueta": null,
+      "color": "#9E9E9E",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-010.webp",
+        "autor": "KGC626",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:2017_Dacia_Logan_Ambiance_1.5_dCi_90_Facelift.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Rin rozado",
+          "descripcion": "Roce de acera en dos rines del lado derecho.",
+          "severidad": "leve",
+          "ubicacion": "Rines lado derecho",
+          "x": 74,
+          "y": 70
+        },
+        {
+          "zona": "interior",
+          "tipo": "Desgaste de tapicería",
+          "descripcion": "Costura del asiento del conductor con hilos flojos.",
+          "severidad": "leve",
+          "ubicacion": "Asiento del conductor",
+          "x": 33,
+          "y": 44
+        }
+      ]
+    },
+    {
+      "codigo": "veh-011",
+      "vin": "9I1MN2O3P4Q5R6S7T",
+      "marca": "Toyota",
+      "modelo": "Hilux",
+      "version": "SRV 3.0 Aut. 4x4",
+      "anio": 2018,
+      "precio": 32500,
+      "kilometraje": 97000,
+      "transmision": "automatica",
+      "combustible": "diesel",
+      "carroceria": "pick_up",
+      "puestos": 5,
+      "traccion": "4x4",
+      "certificado": true,
+      "etiqueta": "dificil_de_conseguir",
+      "color": "#BDBDBD",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-011.webp",
+        "autor": "Captainmorlypogi1959",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:Toyota_Hilux_FX_2018.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Rayón profundo",
+          "descripcion": "Rayón de rama en el lateral, llega a la base.",
+          "severidad": "moderada",
+          "ubicacion": "Lateral derecho",
+          "x": 58,
+          "y": 54
+        },
+        {
+          "zona": "exterior",
+          "tipo": "Pintura descascarada",
+          "descripcion": "Saltaduras en el paragolpes delantero por uso fuera de asfalto.",
+          "severidad": "leve",
+          "ubicacion": "Paragolpes delantero",
+          "x": 14,
+          "y": 66
+        }
+      ]
+    },
+    {
+      "codigo": "veh-012",
+      "vin": "0J2NO3P4Q5R6S7T8U",
+      "marca": "Chevrolet",
+      "modelo": "Optra",
+      "version": "Limited 1.8 Aut.",
+      "anio": 2015,
+      "precio": 5400,
+      "kilometraje": 156000,
+      "transmision": "automatica",
+      "combustible": "gasolina",
+      "carroceria": "sedan",
+      "puestos": 5,
+      "traccion": "4x2",
+      "certificado": false,
+      "etiqueta": null,
+      "color": "#546E7A",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-012.webp",
+        "autor": "Ethan Llamas",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:2004_Chevrolet_Optra_1.6_LS,_front_left,_06-21-2024.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Pintura opaca",
+          "descripcion": "Barniz deteriorado en todo el techo y los espejos.",
+          "severidad": "moderada",
+          "ubicacion": "Techo",
+          "x": 50,
+          "y": 22
+        },
+        {
+          "zona": "exterior",
+          "tipo": "Abolladura",
+          "descripcion": "Abolladura en la puerta trasera izquierda con pintura marcada.",
+          "severidad": "moderada",
+          "ubicacion": "Puerta trasera izquierda",
+          "x": 66,
+          "y": 57
+        },
+        {
+          "zona": "exterior",
+          "tipo": "Faro opaco",
+          "descripcion": "Ambos faros con amarilleo pronunciado.",
+          "severidad": "moderada",
+          "ubicacion": "Faros delanteros",
+          "x": 16,
+          "y": 60
+        },
+        {
+          "zona": "interior",
+          "tipo": "Rasgadura de tapicería",
+          "descripcion": "Rasgadura de 5 cm en el lateral del asiento del conductor.",
+          "severidad": "moderada",
+          "ubicacion": "Asiento del conductor",
+          "x": 33,
+          "y": 44
+        }
+      ]
+    },
+    {
+      "codigo": "veh-013",
+      "vin": "1K3OP4Q5R6S7T8U9V",
+      "marca": "Jeep",
+      "modelo": "Grand Cherokee",
+      "version": "Laredo 3.6 Aut. 4x4",
+      "anio": 2017,
+      "precio": 24300,
+      "kilometraje": 110000,
+      "transmision": "automatica",
+      "combustible": "gasolina",
+      "carroceria": "suv",
+      "puestos": 5,
+      "traccion": "4x4",
+      "certificado": true,
+      "etiqueta": null,
+      "color": "#4E342E",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-013.webp",
+        "autor": "Benespit",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:0_Jeep_Grand_Cherokee_(WK2,_2017)_1.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Rayón superficial",
+          "descripcion": "Marcas de lavado en el capó, visibles a contraluz.",
+          "severidad": "leve",
+          "ubicacion": "Capó",
+          "x": 50,
+          "y": 11
+        },
+        {
+          "zona": "interior",
+          "tipo": "Desgaste de cuero",
+          "descripcion": "Cuero del volante con brillo en las posiciones de agarre.",
+          "severidad": "leve",
+          "ubicacion": "Volante",
+          "x": 34,
+          "y": 29
+        }
+      ]
+    },
+    {
+      "codigo": "veh-014",
+      "vin": "2L4PQ5R6S7T8U9V0W",
+      "marca": "Ford",
+      "modelo": "EcoSport",
+      "version": "Titanium 2.0 Aut.",
+      "anio": 2019,
+      "precio": 13800,
+      "kilometraje": 58000,
+      "transmision": "automatica",
+      "combustible": "gasolina",
+      "carroceria": "suv",
+      "puestos": 5,
+      "traccion": "4x2",
+      "certificado": true,
+      "etiqueta": "recien_ingresado",
+      "color": "#1565C0",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-014.webp",
+        "autor": "DestinationFearFan",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:2019_Ford_EcoSport.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Rayón superficial",
+          "descripcion": "Rayón leve en la tapa del baúl, junto a la manilla.",
+          "severidad": "leve",
+          "ubicacion": "Tapa del baúl",
+          "x": 85,
+          "y": 58
+        }
+      ]
+    },
+    {
+      "codigo": "veh-015",
+      "vin": "3M5QR6S7T8U9V0W1X",
+      "marca": "Hyundai",
+      "modelo": "Accent",
+      "version": "GL 1.4 Sinc.",
+      "anio": 2016,
+      "precio": 7600,
+      "kilometraje": 118000,
+      "transmision": "manual",
+      "combustible": "gasolina",
+      "carroceria": "sedan",
+      "puestos": 5,
+      "traccion": "4x2",
+      "certificado": true,
+      "etiqueta": null,
+      "color": "#00838F",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-015.webp",
+        "autor": "EurovisionNim",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:2016_Hyundai_Accent_(RB4_MY17)_Active_sedan_(2018-08-20).jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Abolladura",
+          "descripcion": "Abolladura pequeña en la puerta delantera izquierda.",
+          "severidad": "leve",
+          "ubicacion": "Puerta delantera izquierda",
+          "x": 44,
+          "y": 58
+        },
+        {
+          "zona": "interior",
+          "tipo": "Desgaste de alfombra",
+          "descripcion": "Alfombras delanteras con desgaste parejo por uso.",
+          "severidad": "leve",
+          "ubicacion": "Piso delantero",
+          "x": 36,
+          "y": 56
+        }
+      ]
+    },
+    {
+      "codigo": "veh-016",
+      "vin": "4N6RS7T8U9V0W1X2Y",
+      "marca": "Mitsubishi",
+      "modelo": "Lancer",
+      "version": "Touring 2.0 Aut.",
+      "anio": 2015,
+      "precio": 8100,
+      "kilometraje": 133000,
+      "transmision": "automatica",
+      "combustible": "gasolina",
+      "carroceria": "sedan",
+      "puestos": 5,
+      "traccion": "4x2",
+      "certificado": false,
+      "etiqueta": null,
+      "color": "#6A1B9A",
+      "disponibilidad": "disponible",
+      "foto": {
+        "archivo": "veh-016.webp",
+        "autor": "MercurySable99",
+        "licencia": "CC BY-SA 4.0",
+        "origen": "https://commons.wikimedia.org/wiki/File:12-15_Mitsubishi_Lancer_GT_sedan.jpg"
+      },
+      "imperfecciones": [
+        {
+          "zona": "exterior",
+          "tipo": "Pintura descascarada",
+          "descripcion": "Saltaduras en el borde del guardafango delantero derecho.",
+          "severidad": "moderada",
+          "ubicacion": "Guardafango delantero derecho",
+          "x": 28,
+          "y": 60
+        },
+        {
+          "zona": "exterior",
+          "tipo": "Rin rozado",
+          "descripcion": "Roce marcado en el rin trasero izquierdo.",
+          "severidad": "leve",
+          "ubicacion": "Rin trasero izquierdo",
+          "x": 74,
+          "y": 70
+        },
+        {
+          "zona": "interior",
+          "tipo": "Desgaste de mandos",
+          "descripcion": "Botones del volante con letras desgastadas.",
+          "severidad": "leve",
+          "ubicacion": "Volante",
+          "x": 34,
+          "y": 29
+        }
+      ]
+    }
+  ]
+}

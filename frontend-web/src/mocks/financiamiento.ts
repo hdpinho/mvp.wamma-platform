@@ -58,10 +58,10 @@ export function calcularCuota(
  * Cuota "desde" que se muestra en las tarjetas del catálogo: la más baja posible,
  * es decir con la inicial más alta y el plazo más largo disponibles.
  */
-export function cuotaDesde(precioUSD: number): number {
+export function cuotaDesde(precio: number): number {
   const inicialMaxima = Math.max(...PARAMETROS_FINANCIAMIENTO.inicialesDisponibles);
   const plazoMaximo = Math.max(...PARAMETROS_FINANCIAMIENTO.plazosMeses);
-  return calcularCuota(precioUSD * (1 - inicialMaxima), plazoMaximo);
+  return calcularCuota(precio * (1 - inicialMaxima), plazoMaximo);
 }
 
 /** Genera la tabla de amortización de un crédito simulado. */

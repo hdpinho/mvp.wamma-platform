@@ -365,7 +365,7 @@ export const O3_GestionCitas: React.FC = () => {
                     </div>
                     <div style={{ fontWeight: 700, fontSize: '14px', marginTop: '2px' }}>{vehiculoTitulo}</div>
                     <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--naranja-600)' }}>
-                      ${vRes.precioUSD.toLocaleString()} USD
+                      {vRes.precioUSD.toLocaleString('es-VE')} €
                     </div>
                     <div style={{ marginTop: '8px', fontSize: '12px', background: 'var(--superficie)', padding: '6px 10px', borderRadius: '4px' }}>
                       📅 <strong>{cita.estado === 'confirmada' ? 'Visita acordada:' : 'Preferencia de visita:'}</strong>{' '}

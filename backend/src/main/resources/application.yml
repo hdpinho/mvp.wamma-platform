@@ -2,33 +2,78 @@ spring:
   application:
     name: wamma-platform
 
+  # Desde la etapa 1 el backend siempre necesita base de datos: el control de accesos
+  # (módulo 001) vive en ella. Las pruebas de integración usan un PostgreSQL embebido.
   profiles:
-    default: standalone
+    default: supabase
+
+  # Fotos de vehículos (plan 005 §5): una por petición, hasta 10 MB.
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
 
 server:
   port: ${PORT:${SERVER_PORT:8080}}
+  # Render termina el TLS y reenvía la IP del cliente en X-Forwarded-For (bitácora y
+  # límite de ingresos por IP). Solo Render llega al contenedor.
+  forward-headers-strategy: framework
+
+wamma:
+  cors:
+    # Orígenes del frontend autorizados a llamar a la API, separados por coma.
+    # Nunca un comodín. En Render: WAMMA_CORS_ORIGINS=https://wamma-mvp.vercel.app
+    allowed-origins: ${WAMMA_CORS_ORIGINS:http://localhost:5173}
+
+  security:
+    # Claves de 32 bytes en Base64 (plan 001 §7). Sin ellas el servidor no arranca.
+    encryption-key: ${WAMMA_CLAVE_CIFRADO:}
+    index-key: ${WAMMA_CLAVE_INDICE:}
+    # Valores aprobados por el PO (D-24).
+    session-idle-timeout: 30m
+    session-max-duration: 12h
+    partial-session-ttl: 5m
+    password-min-length: 12
+    max-failed-attempts: 5
+    lockout-duration: 15m
+    # Límite adicional por IP en el endpoint de ingreso (plan 001, S6).
+    login-attempts-per-ip: 20
+    login-ip-window: 10m
+
+  # Primer administrador (D-07). Solo se usa si la base no tiene ningún usuario.
+  bootstrap-admin:
+    username: ${WAMMA_ADMIN_USUARIO:}
+    first-name: ${WAMMA_ADMIN_NOMBRE:}
+    last-name: ${WAMMA_ADMIN_APELLIDO:}
+    email: ${WAMMA_ADMIN_CORREO:}
+    initial-password: ${WAMMA_ADMIN_CONTRASENA_INICIAL:}
+
+  # Fotos de los vehículos (plan 005 §5, D-09). En local y en pruebas, en disco y servidas
+  # por el backend; en producción, en Supabase Storage por su API S3 (perfil supabase).
+  fotos:
+    almacen: ${WAMMA_FOTOS_ALMACEN:disco}
+    url-publica: ${WAMMA_FOTOS_URL_PUBLICA:http://localhost:8080/archivos}
+    disco:
+      carpeta: ${WAMMA_FOTOS_CARPETA:${java.io.tmpdir}/wamma-fotos}
+    s3:
+      endpoint: ${WAMMA_S3_ENDPOINT:}
+      region: ${WAMMA_S3_REGION:}
+      bucket: ${WAMMA_S3_BUCKET:vehiculos}
+      access-key: ${WAMMA_S3_ACCESS_KEY:}
+      secret-key: ${WAMMA_S3_SECRET_KEY:}
+
+  # Carga inicial de los vehículos de demostración (D-10, D-25). Solo actúa con el
+  # inventario vacío: se activa en el primer despliegue y en el servidor local.
+  demo:
+    cargar-inventario: ${WAMMA_DEMO_CARGAR_INVENTARIO:false}
 
 logging:
   level:
-    com.wamma: DEBUG
+    com.wamma: ${LOG_LEVEL_WAMMA:INFO}
     org.springframework.security: INFO
 
 ---
-# ── Perfil Standalone (por defecto para maqueta / arranque sin base de datos) ──
-spring:
-  config:
-    activate:
-      on-profile: standalone
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
-      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
-
----
-# ── Perfil Supabase (se activa al configurar SPRING_PROFILES_ACTIVE=supabase) ──
+# ── Perfil supabase (el habitual; SPRING_PROFILES_ACTIVE=supabase) ──
 spring:
   config:
     activate:
@@ -38,15 +83,6 @@ spring:
     url: ${SUPABASE_DB_URL:jdbc:postgresql://localhost:5432/wamma}
     username: ${SUPABASE_DB_USER:postgres}
     password: ${SUPABASE_DB_PASSWORD:}
-    driver-class-name: org.postgresql.Driver
-
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
 
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
@@ -60,7 +96,7 @@ spring:
     # con baseline en la versión 8 (specs/000-overview/database-schema-design.md §5).
     baseline-on-migrate: false
 
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+wamma:
+  fotos:
+    # En producción, siempre S3: el disco de Render se borra en cada despliegue.
+    almacen: ${WAMMA_FOTOS_ALMACEN:s3}

@@ -327,7 +327,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
   const [paso, setPaso] = useState(0);
   const [datos, setDatos] = useState<Datos>(() => {
     const vehiculoId = params.get('vehiculo') ?? '';
-    const precio = vehiculos.find((v) => v.id === vehiculoId)?.precioUSD;
+    const precio = vehiculos.find((v) => v.id === vehiculoId)?.precio;
     return {
       ...datosIniciales,
       vehiculoId,
@@ -359,7 +359,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
 
   // ── Cálculos en vivo ──────────────────────────────────────────────
   const financiero = useMemo(() => {
-    const precio = vehiculo?.precioUSD ?? aNumero(datos.montoSolicitado);
+    const precio = vehiculo?.precio ?? aNumero(datos.montoSolicitado);
     const inicial = aNumero(datos.inicialAportado);
     const aFinanciar = Math.max(precio - inicial, 0);
     const cuota = calcularCuota(aFinanciar, datos.plazoMeses);
@@ -738,7 +738,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
                   </strong>
                   <span style={{ color: 'var(--texto-secundario)' }}>{vehiculo.version}</span>
                   <span style={{ color: 'var(--texto-secundario)' }}>
-                    Precio {formatoUSD(vehiculo.precioUSD)}
+                    Precio {formatoUSD(vehiculo.precio)}
                   </span>
                 </div>
               </div>
@@ -752,7 +752,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
                   { value: '', label: 'Aún no he elegido vehículo' },
                   ...vehiculos.map((v) => ({
                     value: v.id,
-                    label: `${v.marca} ${v.modelo} ${v.anio} — ${formatoUSD(v.precioUSD)}`,
+                    label: `${v.marca} ${v.modelo} ${v.anio} — ${formatoUSD(v.precio)}`,
                   })),
                 ]}
               />

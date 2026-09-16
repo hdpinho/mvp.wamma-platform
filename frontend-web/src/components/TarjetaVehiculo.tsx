@@ -12,22 +12,20 @@ interface TarjetaVehiculoProps {
   rateBCV?: number;
 }
 
-const formatoUSD = (v: number) =>
-  new Intl.NumberFormat('en-US', {
+const formatoEUR = (v: number) =>
+  new Intl.NumberFormat('de-DE', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'EUR',
     maximumFractionDigits: 0,
   }).format(v);
 
-const formatoBs = (v: number) =>
-  new Intl.NumberFormat('es-VE', { maximumFractionDigits: 0 }).format(v);
+
 
 export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
   vehiculo,
   onSelect,
-  rateBCV = 36.5,
 }) => {
-  const cuota = cuotaDesde(vehiculo.precioUSD);
+  const cuota = cuotaDesde(vehiculo.precio);
 
   return (
     <article
@@ -144,10 +142,10 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
         {/* Precio y cuota */}
         <div style={{ marginTop: 'auto', paddingTop: 'var(--space-md)' }}>
           <div style={{ fontSize: '20px', fontWeight: 700, lineHeight: 1.2 }}>
-            {formatoUSD(vehiculo.precioUSD)}
+            {formatoEUR(vehiculo.precio)}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--texto-mudo)' }}>
-            Ref. {formatoBs(vehiculo.precioUSD * rateBCV)} Bs. · tasa BCV {rateBCV.toFixed(2)}
+            Ref. Tasa Euro BCV
           </div>
 
           <div
@@ -160,7 +158,7 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
               color: 'var(--naranja-700)',
             }}
           >
-            Desde {formatoUSD(cuota)} /mes*
+            Desde {formatoEUR(cuota)} /mes*
           </div>
         </div>
 

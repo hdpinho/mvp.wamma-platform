@@ -1,6 +1,5 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { mockVehiculos } from '../mocks/vehiculos';
 import { FotoVehiculo } from '../components/FotoVehiculo';
 import { BotonFavorito } from '../components/BotonFavorito';
 import { SelloCertificado } from '../components/SelloCertificado';
@@ -12,7 +11,6 @@ import { Seccion } from '../components/Seccion';
 import { Imperfecciones } from '../components/Imperfecciones';
 import { useVehiculos } from '../state/vehiculosContexto';
 import { ModalAgendarCita } from '../components/ModalAgendarCita';
-import { creditosFotos } from '../mocks/creditosFotos';
 
 interface C2FichaVehiculoProps {
   rateBCV: number;
@@ -29,10 +27,10 @@ const AREAS_INSPECCION = [
   { area: 'Documentación legal', puntos: 25 },
 ];
 
-const formatoUSD = (v: number) =>
-  new Intl.NumberFormat('en-US', {
+const formatoEUR = (v: number) =>
+  new Intl.NumberFormat('de-DE', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'EUR',
     maximumFractionDigits: 0,
   }).format(v);
 
@@ -43,6 +41,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
 
   const [modalCitaAbierto, setModalCitaAbierto] = React.useState(false);
   const [interesFinanciamiento, setInteresFinanciamiento] = React.useState(false);
+  const [fotoActiva, setFotoActiva] = React.useState(0);
 
   const vehiculo = vehiculos.find((v) => v.id === id);
 
@@ -57,7 +56,10 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
   }
 
   const imperfecciones = obtenerImperfecciones(vehiculo.id);
-  const credito = creditosFotos[vehiculo.id];
+  const fotos = vehiculo.fotos ?? [];
+  const foto = fotos[Math.min(fotoActiva, Math.max(fotos.length - 1, 0))];
+  const credito = foto?.credito;
+  const precioVes = vehiculo.precioVes ?? (rateBCV ? vehiculo.precio * rateBCV : null);
 
   /**
    * Abre el modal para agendar cita para este vehículo.
@@ -67,9 +69,23 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
     setModalCitaAbierto(true);
   };
 
-  const similares = mockVehiculos
-    .filter((v) => v.id !== vehiculo.id && v.carroceria === vehiculo.carroceria)
+  const similares = vehiculos
+    .filter((v) => {
+      if (v.id === vehiculo.id) return false;
+      if (v.carroceria !== vehiculo.carroceria) return false;
+      // También filtrar por rango de precio ±30% para mayor relevancia
+      const min = vehiculo.precio * 0.7;
+      const max = vehiculo.precio * 1.3;
+      return v.precio >= min && v.precio <= max;
+    })
     .slice(0, 4);
+
+  // Si no hay similares en rango de precio, caer en solo carrocería
+  const similaresFinales = similares.length > 0
+    ? similares
+    : vehiculos
+        .filter((v) => v.id !== vehiculo.id && v.carroceria === vehiculo.carroceria)
+        .slice(0, 4);
 
   const ESPECIFICACIONES: [string, string][] = [
     ['Año', String(vehiculo.anio)],
@@ -100,14 +116,31 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
           marginBottom: 'var(--space-lg)',
         }}
       >
-        ← Volver al catálogo
+        ← Volver a la vitrina
       </button>
 
       <div className="ficha-cuerpo">
         {/* ── Columna izquierda ──────────────────────────────── */}
         <div>
           <div style={{ position: 'relative', marginBottom: 'var(--space-sm)' }}>
-            <FotoVehiculo vehiculo={vehiculo} alto={420} redondeo="var(--radius-lg)" />
+            {foto ? (
+              <img
+                src={foto.url}
+                alt={`${vehiculo.marca} ${vehiculo.modelo} ${vehiculo.anio}`}
+                width={foto.ancho}
+                height={foto.alto}
+                style={{
+                  width: '100%',
+                  height: '420px',
+                  objectFit: 'cover',
+                  borderRadius: 'var(--radius-lg)',
+                  display: 'block',
+                  backgroundColor: '#EFEDEA',
+                }}
+              />
+            ) : (
+              <FotoVehiculo vehiculo={vehiculo} alto={420} redondeo="var(--radius-lg)" />
+            )}
             <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
               <BotonFavorito vehiculoId={vehiculo.id} tamano={22} />
             </div>
@@ -132,6 +165,46 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
             )}
           </div>
 
+          {/* Galería: la primera foto es la principal */}
+          {fotos.length > 1 && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 'var(--space-sm)',
+                overflowX: 'auto',
+                paddingBottom: '4px',
+                marginBottom: 'var(--space-sm)',
+              }}
+            >
+              {fotos.map((f, indice) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFotoActiva(indice)}
+                  aria-label={`Ver la foto ${indice + 1} de ${fotos.length}`}
+                  aria-current={f.id === foto?.id}
+                  style={{
+                    flex: '0 0 auto',
+                    padding: 0,
+                    border: `2px solid ${f.id === foto?.id ? 'var(--naranja-500)' : 'transparent'}`,
+                    borderRadius: 'var(--radius-sm)',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    background: 'none',
+                    lineHeight: 0,
+                  }}
+                >
+                  <img
+                    src={f.urlMiniatura}
+                    alt=""
+                    loading="lazy"
+                    style={{ width: '92px', height: '69px', objectFit: 'cover', display: 'block' }}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Atribución de la fotografía (exigida por las licencias CC BY-SA) */}
           {credito && (
             <p
@@ -141,16 +214,20 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
                 marginBottom: 'var(--space-lg)',
               }}
             >
-              Foto referencial del modelo, no de esta unidad. {credito.autor} ·{' '}
-              {credito.licencia} ·{' '}
-              <a
-                href={credito.pagina}
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: 'var(--texto-secundario)' }}
-              >
-                Wikimedia Commons
-              </a>
+              Foto referencial del modelo, no de esta unidad. {credito.autor} · {credito.licencia}
+              {credito.origen && (
+                <>
+                  {' · '}
+                  <a
+                    href={credito.origen}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: 'var(--texto-secundario)' }}
+                  >
+                    Origen
+                  </a>
+                </>
+              )}
             </p>
           )}
 
@@ -286,14 +363,12 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
 
             <div style={{ margin: 'var(--space-lg) 0' }}>
               <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1.15 }}>
-                {formatoUSD(vehiculo.precioUSD)}
+                {formatoEUR(vehiculo.precio)}
               </div>
               <div style={{ fontSize: '12px', color: 'var(--texto-mudo)' }}>
-                Ref.{' '}
-                {new Intl.NumberFormat('es-VE', { maximumFractionDigits: 0 }).format(
-                  vehiculo.precioUSD * rateBCV,
-                )}{' '}
-                Bs. · tasa BCV {rateBCV.toFixed(2)}
+                {precioVes
+                  ? `Ref. ${precioVes.toLocaleString('es-VE', { maximumFractionDigits: 0 })} Bs. a la tasa BCV del euro`
+                  : 'Ref. Tasa Euro BCV'}
               </div>
             </div>
 
@@ -356,6 +431,14 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
                 >
                   Agendar cita
                 </Boton>
+                <Boton
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => navigate('/financiamiento')}
+                  style={{ marginTop: 'var(--space-sm)' }}
+                >
+                  🏦 Banco
+                </Boton>
               </div>
             )}
           </div>
@@ -367,7 +450,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
             (specs/010-crm-comercial/spec.md §8.8).
           */}
           <SimuladorCuota
-            precioUSD={vehiculo.precioUSD}
+            precio={vehiculo.precio}
             rateBCV={rateBCV}
             onSolicitar={() => abrirAgendarCita(true)}
             botonDeshabilitado={
@@ -383,7 +466,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
       </div>
 
       {/* Similares */}
-      {similares.length > 0 && (
+      {similaresFinales.length > 0 && (
         <div style={{ marginTop: 'var(--space-xxxl)' }}>
           <Seccion
             titulo="Otros vehículos parecidos"
@@ -396,7 +479,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
                 gap: 'var(--space-lg)',
               }}
             >
-              {similares.map((v) => (
+              {similaresFinales.map((v) => (
                 <TarjetaVehiculo
                   key={v.id}
                   vehiculo={v}

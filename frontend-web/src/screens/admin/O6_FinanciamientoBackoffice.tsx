@@ -33,13 +33,13 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
   const [copiado, setCopiado] = useState(false);
 
   const vehiculo = vehiculos.find((v) => v.id === vehiculoSeleccionadoId);
-  const precioUSD =
+  const precio =
     vehiculoSeleccionadoId === 'personalizado'
       ? precioPersonalizado
-      : vehiculo?.precioUSD || 8000;
+      : vehiculo?.precio || 8000;
 
-  const inicialUSD = Math.round((precioUSD * porcentajeInicial) / 100);
-  const montoFinanciado = Math.max(0, precioUSD - inicialUSD);
+  const inicialUSD = Math.round((precio * porcentajeInicial) / 100);
+  const montoFinanciado = Math.max(0, precio - inicialUSD);
 
   // Cuota sistema francés
   const cuotaMensualUSD = useMemo(() => {
@@ -71,7 +71,7 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
     const texto = `*PROPUESTA DE FINANCIAMIENTO WAMMA* 🚗
 ${nombreCliente ? `*Cliente:* ${nombreCliente}\n` : ''}
 *Vehículo:* ${vehiculoTitulo}
-*Precio de Venta:* $${precioUSD.toLocaleString()} USD (Ref. ${(precioUSD * rateBCV).toLocaleString('es-VE', { maximumFractionDigits: 0 })} Bs.)
+*Precio de Venta:* $${precio.toLocaleString()} USD (Ref. ${(precio * rateBCV).toLocaleString('es-VE', { maximumFractionDigits: 0 })} Bs.)
 ----------------------------------
 *Inicial (${porcentajeInicial}%):* $${inicialUSD.toLocaleString()} USD
 *Monto Financiado:* $${montoFinanciado.toLocaleString()} USD
@@ -121,13 +121,13 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
                   setVehiculoSeleccionadoId(e.target.value);
                   if (e.target.value !== 'personalizado') {
                     const sel = vehiculos.find((v) => v.id === e.target.value);
-                    if (sel) setPrecioPersonalizado(sel.precioUSD);
+                    if (sel) setPrecioPersonalizado(sel.precio);
                   }
                 }}
               >
                 {vehiculos.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.marca} {v.modelo} {v.version} ({v.anio}) — ${v.precioUSD.toLocaleString()} USD
+                    {v.marca} {v.modelo} {v.version} ({v.anio}) — ${v.precio.toLocaleString()} USD
                   </option>
                 ))}
                 <option value="personalizado">-- Ingresar Precio Manual --</option>

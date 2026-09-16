@@ -143,6 +143,10 @@ export interface ResumenVehiculo {
   modelo: string;
   version: string;
   anio: number;
+  /**
+   * Precio del vehículo cuando se capturó la oportunidad, en euros (D-21). Conserva el
+   * nombre anterior para no romper los datos que ya están guardados en los navegadores.
+   */
   precioUSD: number;
   foto?: string;
 }

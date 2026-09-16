@@ -98,6 +98,12 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* El backoffice no tiene la barra pública: no necesita el hueco que se le reserva arriba ni abajo. */
+.app-container.app-container-admin {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .main-content {
   flex: 1;
   max-width: 1200px;

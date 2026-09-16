@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { SEDES } from '../mocks/vehiculos';
 import { useVehiculos } from '../state/vehiculosContexto';
 import { CARROCERIAS } from '../types/vehiculo';
 import type { Carroceria } from '../types/vehiculo';
@@ -24,7 +23,35 @@ const ORDENES: { valor: Orden; etiqueta: string }[] = [
   { valor: 'anio-desc', etiqueta: 'Más nuevos' },
 ];
 
-const TOPES_CUOTA = [200, 400, 600, 900];
+interface RangoIngreso {
+  id: string;
+  etiqueta: string;
+  cuotaMin?: number;
+  cuotaMax?: number;
+  chip: string;
+}
+
+/** Rangos de ingresos y cuotas asociadas. */
+const RANGOS_INGRESO: RangoIngreso[] = [
+  {
+    id: '1000-1300',
+    etiqueta: '€1.000 – €1.300 (cuota máx. €390)',
+    cuotaMax: 390,
+    chip: '€1.000 – €1.300 (cuota máx. €390)',
+  },
+  {
+    id: '1301-2000',
+    etiqueta: '€1.301 – €2.000 (cuota máx. €600)',
+    cuotaMax: 600,
+    chip: '€1.301 – €2.000 (cuota máx. €600)',
+  },
+  {
+    id: '2001+',
+    etiqueta: '€2.001 en adelante (601 en adelante)',
+    cuotaMin: 601,
+    chip: '€2.001 en adelante (601 en adelante)',
+  },
+];
 
 const alternar = <T,>(lista: T[], valor: T): T[] =>
   lista.includes(valor) ? lista.filter((x) => x !== valor) : [...lista, valor];
@@ -63,10 +90,10 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
   });
 
   const [marcas, setMarcas] = useState<string[]>([]);
-  const [sedes, setSedes] = useState<string[]>([]);
   const [transmisiones, setTransmisiones] = useState<string[]>([]);
   const [precioMax, setPrecioMax] = useState('');
   const [cuotaMax, setCuotaMax] = useState('');
+  const [rangoIngreso, setRangoIngreso] = useState('');
   const [anioMin, setAnioMin] = useState('');
   const [kmMax, setKmMax] = useState('');
   const [soloCertificados, setSoloCertificados] = useState(false);
@@ -86,10 +113,16 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
       if (texto && !nombre.includes(texto)) return false;
       if (marcas.length && !marcas.includes(v.marca)) return false;
       if (carrocerias.length && !carrocerias.includes(v.carroceria)) return false;
-      if (sedes.length && !sedes.includes(v.sede)) return false;
       if (transmisiones.length && !transmisiones.includes(v.transmision)) return false;
-      if (precioMax && v.precioUSD > Number(precioMax)) return false;
-      if (cuotaMax && cuotaDesde(v.precioUSD) > Number(cuotaMax)) return false;
+      if (precioMax && v.precio > Number(precioMax)) return false;
+      const cuota = cuotaDesde(v.precio);
+      const rangoObj = RANGOS_INGRESO.find((r) => r.id === rangoIngreso);
+      if (rangoObj) {
+        if (rangoObj.cuotaMin !== undefined && cuota < rangoObj.cuotaMin) return false;
+        if (rangoObj.cuotaMax !== undefined && cuota > rangoObj.cuotaMax) return false;
+      } else if (cuotaMax && cuota > Number(cuotaMax)) {
+        return false;
+      }
       if (anioMin && v.anio < Number(anioMin)) return false;
       if (kmMax && v.kilometraje > Number(kmMax)) return false;
       if (soloCertificados && !v.certificado) return false;
@@ -99,10 +132,10 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
     const ordenados = [...filtrados];
     switch (orden) {
       case 'precio-asc':
-        ordenados.sort((a, b) => a.precioUSD - b.precioUSD);
+        ordenados.sort((a, b) => a.precio - b.precio);
         break;
       case 'precio-desc':
-        ordenados.sort((a, b) => b.precioUSD - a.precioUSD);
+        ordenados.sort((a, b) => b.precio - a.precio);
         break;
       case 'km-asc':
         ordenados.sort((a, b) => a.kilometraje - b.kilometraje);
@@ -120,13 +153,14 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
     }
     return ordenados;
   }, [
+    vehiculos,
     busqueda,
     marcas,
     carrocerias,
-    sedes,
     transmisiones,
     precioMax,
     cuotaMax,
+    rangoIngreso,
     anioMin,
     kmMax,
     soloCertificados,
@@ -137,10 +171,10 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
     setBusqueda('');
     setMarcas([]);
     setCarrocerias([]);
-    setSedes([]);
     setTransmisiones([]);
     setPrecioMax('');
     setCuotaMax('');
+    setRangoIngreso('');
     setAnioMin('');
     setKmMax('');
     setSoloCertificados(false);
@@ -149,10 +183,10 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
   const filtrosActivos =
     marcas.length +
     carrocerias.length +
-    sedes.length +
     transmisiones.length +
     (precioMax ? 1 : 0) +
     (cuotaMax ? 1 : 0) +
+    (rangoIngreso ? 1 : 0) +
     (anioMin ? 1 : 0) +
     (kmMax ? 1 : 0) +
     (soloCertificados ? 1 : 0);
@@ -160,7 +194,7 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
   return (
     <div>
       <header style={{ marginBottom: 'var(--space-lg)' }}>
-        <h1 style={{ fontSize: '26px' }}>Catálogo WAMMA</h1>
+        <h1 style={{ fontSize: '26px' }}>Vitrina WAMMA</h1>
         <p style={{ fontSize: '14px', color: 'var(--texto-secundario)' }}>
           Vehículos usados con inspección de 240 puntos y validación legal de documentos.
           Todo el inventario está disponible en la <strong>Gran Caracas</strong>.
@@ -248,15 +282,6 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
               onClick={() => setCarrocerias((p) => alternar(p, c))}
             />
           ))}
-          {sedes.map((s) => (
-            <ChipFiltro
-              key={`s-${s}`}
-              etiqueta={s.split(' - ')[1] ?? s}
-              activo
-              removible
-              onClick={() => setSedes((p) => alternar(p, s))}
-            />
-          ))}
           {transmisiones.map((t) => (
             <ChipFiltro
               key={`t-${t}`}
@@ -268,15 +293,23 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
           ))}
           {precioMax && (
             <ChipFiltro
-              etiqueta={`Hasta $${Number(precioMax).toLocaleString('en-US')}`}
+              etiqueta={`Hasta €${Number(precioMax).toLocaleString('de-DE')}`}
               activo
               removible
               onClick={() => setPrecioMax('')}
             />
           )}
-          {cuotaMax && (
+          {rangoIngreso && (
             <ChipFiltro
-              etiqueta={`Cuota ≤ $${cuotaMax}`}
+              etiqueta={RANGOS_INGRESO.find((r) => r.id === rangoIngreso)?.chip ?? ''}
+              activo
+              removible
+              onClick={() => setRangoIngreso('')}
+            />
+          )}
+          {cuotaMax && !rangoIngreso && (
+            <ChipFiltro
+              etiqueta={`Cuota ≤ €${cuotaMax}`}
               activo
               removible
               onClick={() => setCuotaMax('')}
@@ -341,18 +374,50 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
           >
             <GrupoFiltro titulo="Cuota mensual">
               <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
-                {TOPES_CUOTA.map((tope) => (
+                <ChipFiltro
+                  etiqueta="Cuota menor de €390"
+                  activo={cuotaMax === '390' && !rangoIngreso}
+                  onClick={() => {
+                    setRangoIngreso('');
+                    setCuotaMax(cuotaMax === '390' ? '' : '390');
+                  }}
+                />
+                <ChipFiltro
+                  etiqueta="Cuota menor de €600"
+                  activo={cuotaMax === '600' && !rangoIngreso}
+                  onClick={() => {
+                    setRangoIngreso('');
+                    setCuotaMax(cuotaMax === '600' ? '' : '600');
+                  }}
+                />
+                <ChipFiltro
+                  etiqueta="Ver todo"
+                  activo={!cuotaMax && !rangoIngreso}
+                  onClick={() => {
+                    setCuotaMax('');
+                    setRangoIngreso('');
+                  }}
+                />
+              </div>
+            </GrupoFiltro>
+
+            <GrupoFiltro titulo="Rango de ingresos">
+              <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+                {RANGOS_INGRESO.map((rango) => (
                   <ChipFiltro
-                    key={tope}
-                    etiqueta={`≤ $${tope}`}
-                    activo={cuotaMax === String(tope)}
-                    onClick={() => setCuotaMax(cuotaMax === String(tope) ? '' : String(tope))}
+                    key={rango.id}
+                    etiqueta={rango.etiqueta}
+                    activo={rangoIngreso === rango.id}
+                    onClick={() => {
+                      setCuotaMax('');
+                      setRangoIngreso((prev) => (prev === rango.id ? '' : rango.id));
+                    }}
                   />
                 ))}
               </div>
             </GrupoFiltro>
 
-            <GrupoFiltro titulo="Precio máximo (USD)">
+            <GrupoFiltro titulo="Precio máximo (EUR)">
               <input
                 type="number"
                 className="form-input"
@@ -403,18 +468,7 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
               </div>
             </GrupoFiltro>
 
-            <GrupoFiltro titulo="Sede · Gran Caracas">
-              <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
-                {SEDES.map((s) => (
-                  <ChipFiltro
-                    key={s}
-                    etiqueta={s.split(' - ')[1] ?? s}
-                    activo={sedes.includes(s)}
-                    onClick={() => setSedes((p) => alternar(p, s))}
-                  />
-                ))}
-              </div>
-            </GrupoFiltro>
+
 
             <GrupoFiltro titulo="Año y kilometraje">
               <div style={{ display: 'grid', gap: 'var(--space-md)' }}>

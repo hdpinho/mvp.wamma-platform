@@ -3,19 +3,29 @@ import { NavLink } from 'react-router-dom';
 import { Logo } from './Logo';
 import { useFavoritos } from '../state/favoritosContexto';
 
-export interface BarraNavegacionProps {}
+export type BarraNavegacionProps = Record<string, never>;
 
 /** Menú principal de escritorio. */
 const MENU = [
-  { a: '/catalogo', texto: 'Catálogo' },
+  { a: '/catalogo', texto: 'Vitrina' },
   { a: '/financiamiento', texto: 'Financiamiento' },
 ];
 
 /** Pestañas inferiores en móvil. */
 const TABS = [
   {
+    a: '/',
+    texto: 'Inicio',
+    icono: (
+      <>
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </>
+    ),
+  },
+  {
     a: '/catalogo',
-    texto: 'Catálogo',
+    texto: 'Vitrina',
     icono: (
       <>
         <rect x="3" y="3" width="7" height="9" />
@@ -154,7 +164,7 @@ export const BarraNavegacion: React.FC<BarraNavegacionProps> = () => {
               transition: 'background-color 0.2s ease',
             }}
           >
-            Explorar Catálogo
+            Explorar Vitrina
           </NavLink>
         </div>
       </header>

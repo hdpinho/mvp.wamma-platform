@@ -134,11 +134,12 @@ En la maqueta la tasa es un valor **simulado** fijo; la conversión real llega c
 
 | # | Pantalla | Módulo |
 |---|---|---|
-| O1 | Login con 2FA | 001 |
+| O1 | Ingreso con 2FA (`/admin/ingresar`), Usuarios (`/admin/usuarios`), Bitácora (`/admin/bitacora`) y Mi cuenta (`/admin/cuenta`) | 001 |
 | O2 | App de inspección de 240 puntos (inspector) | 004 |
-| O3 | Tablero de inventario por sede y estado | 009 |
-| O4 | Tablero de tesorería / conciliación | 009 |
+| O3 | Inventario (`/admin/inventario`) y ficha del vehículo con fotos, certificación e imperfecciones (`/admin/vehiculo/nuevo`, `/admin/vehiculo/editar/:codigo`) | 004 · 005 |
+| O4 | Tasa BCV del euro (`/admin/tasa-bcv`): registro diario, corrección auditada e historial | 005 |
 | O6 | Decisión de crédito / cumplimiento | 006 |
+| — | Tableros de inventario por sede y de tesorería / conciliación (pendientes) | 009 |
 
 ## 8. Flujo de navegación (cliente)
 

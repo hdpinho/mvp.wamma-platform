@@ -2,14 +2,23 @@ import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo';
 import { useCRM, CORREO_NOTIFICACIONES_WAMMA } from '../../state/crmContexto';
+import { useSesion } from '../../state/sesionContexto';
 import { estaEstancada } from '../../types/crm';
+import { nombreRol } from '../../types/seguridad';
+import { EstadoServidor } from './EstadoServidor';
+import { MENU_ADMIN } from './menu';
 
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const { citas, oportunidades, ultimaActividad } = useCRM();
+  const { estado, perfil, puede, cerrar } = useSesion();
 
   const citasPendientes = citas.filter((c) => c.estado === 'pendiente').length;
   const estancadas = oportunidades.filter((o) => estaEstancada(o, ultimaActividad(o.id))).length;
+  const contadores: Record<string, { valor: number; titulo?: string } | undefined> = {
+    '/admin/citas': { valor: citasPendientes },
+    '/admin/embudo': { valor: estancadas, titulo: 'Oportunidades estancadas' },
+  };
 
   return (
     <div className="admin-layout">
@@ -19,57 +28,56 @@ export const AdminLayout: React.FC = () => {
           <span className="badge-admin">BACKOFFICE</span>
         </div>
 
+        {/* Solo las secciones que el rol permite (plan 001 §9); el servidor aplica lo mismo. */}
         <nav className="admin-nav">
-          <NavLink
-            to="/admin/inventario"
-            className={({ isActive }) => `admin-nav-item ${isActive ? 'activo' : ''}`}
-          >
-            <span className="admin-nav-icono">🚗</span>
-            <span>Inventario Vehículos</span>
-          </NavLink>
-
-          <NavLink
-            to="/admin/citas"
-            className={({ isActive }) => `admin-nav-item ${isActive ? 'activo' : ''}`}
-          >
-            <span className="admin-nav-icono">📅</span>
-            <span>Citas y Solicitudes</span>
-            {citasPendientes > 0 && (
-              <span className="admin-badge-count">{citasPendientes}</span>
-            )}
-          </NavLink>
-
-          <NavLink
-            to="/admin/embudo"
-            className={({ isActive }) => `admin-nav-item ${isActive ? 'activo' : ''}`}
-          >
-            <span className="admin-nav-icono">📊</span>
-            <span>Embudo Comercial</span>
-            {estancadas > 0 && (
-              <span className="admin-badge-count" title="Oportunidades estancadas">
-                {estancadas}
-              </span>
-            )}
-          </NavLink>
-
-          <NavLink
-            to="/admin/personas"
-            className={({ isActive }) => `admin-nav-item ${isActive ? 'activo' : ''}`}
-          >
-            <span className="admin-nav-icono">👤</span>
-            <span>Personas</span>
-          </NavLink>
-
-          <NavLink
-            to="/admin/financiamiento"
-            className={({ isActive }) => `admin-nav-item ${isActive ? 'activo' : ''}`}
-          >
-            <span className="admin-nav-icono">💳</span>
-            <span>Cotizador Crédito</span>
-          </NavLink>
+          {MENU_ADMIN.filter((entrada) => puede(...entrada.permisos)).map((entrada) => {
+            const contador = contadores[entrada.ruta];
+            return (
+              <NavLink
+                key={entrada.ruta}
+                to={entrada.ruta}
+                className={({ isActive }) => `admin-nav-item ${isActive ? 'activo' : ''}`}
+              >
+                <span className="admin-nav-icono">{entrada.icono}</span>
+                <span>{entrada.texto}</span>
+                {contador && contador.valor > 0 && (
+                  <span className="admin-badge-count" title={contador.titulo}>
+                    {contador.valor}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <div className="admin-sidebar-footer">
+          {estado === 'activa' && perfil && (
+            <div className="admin-cuenta">
+              <div className="admin-cuenta-nombre">
+                {perfil.nombre} {perfil.apellido}
+              </div>
+              <div className="admin-cuenta-detalle">
+                {perfil.usuario} · {perfil.roles.map((r) => nombreRol(r)).join(', ')}
+              </div>
+              <div className="admin-cuenta-acciones">
+                <NavLink
+                  to="/admin/cuenta"
+                  className={({ isActive }) => `admin-cuenta-enlace ${isActive ? 'activo' : ''}`}
+                >
+                  Mi cuenta
+                </NavLink>
+                <button type="button" className="admin-cuenta-salir" onClick={() => void cerrar()}>
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
+          )}
+          {estado === 'sin_servidor' && (
+            <div className="admin-cuenta-detalle" style={{ marginBottom: '10px' }}>
+              Modo maqueta: sin inicio de sesión.
+            </div>
+          )}
+          <EstadoServidor />
           <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
             Alertas de correo a:
             <div style={{ color: 'var(--blanco)', fontWeight: 600, wordBreak: 'break-all' }}>
@@ -168,6 +176,58 @@ export const AdminLayout: React.FC = () => {
         .admin-sidebar-footer {
           padding-top: var(--space-xl);
           border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .admin-cuenta {
+          background-color: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: var(--radius-md);
+          padding: 10px 12px;
+          margin-bottom: 12px;
+        }
+        .admin-cuenta-nombre {
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--blanco);
+        }
+        .admin-cuenta-detalle {
+          font-size: 11px;
+          color: rgba(255,255,255,0.6);
+          margin-top: 2px;
+          line-height: 1.4;
+        }
+        .admin-cuenta-acciones {
+          display: flex;
+          gap: 8px;
+          margin-top: 10px;
+        }
+        .admin-cuenta-enlace,
+        .admin-cuenta-salir {
+          flex: 1;
+          text-align: center;
+          font-size: 12px;
+          font-weight: 600;
+          font-family: inherit;
+          padding: 6px 8px;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          text-decoration: none;
+          color: var(--blanco);
+        }
+        .admin-cuenta-enlace {
+          background: rgba(255,255,255,0.1);
+          border: 1px solid rgba(255,255,255,0.2);
+        }
+        .admin-cuenta-enlace.activo {
+          background-color: var(--naranja-500);
+          border-color: var(--naranja-500);
+        }
+        .admin-cuenta-salir {
+          background: transparent;
+          border: 1px solid rgba(255,255,255,0.3);
+        }
+        .admin-cuenta-salir:hover,
+        .admin-cuenta-enlace:hover {
+          background-color: rgba(255,255,255,0.18);
         }
         .btn-volver-web {
           width: 100%;

@@ -14,7 +14,7 @@ interface ModalAgendarCitaProps {
 
 export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
   vehiculo,
-  rateBCV,
+  // rateBCV ya no se usa: eliminados los montos en Bs
   interesFinanciamientoInicial = false,
   onCerrar,
   onExito,
@@ -35,7 +35,7 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
   const [metodoPago, setMetodoPago] = useState<'Contado' | 'Financiamiento'>(
     interesFinanciamientoInicial ? 'Financiamiento' : 'Contado',
   );
-
+  const [rangoIngresos, setRangoIngresos] = useState('');
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [citaConfirmada, setCitaConfirmada] = useState<boolean>(false);
   const [enviando, setEnviando] = useState<boolean>(false);
@@ -96,9 +96,12 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
     }, 600);
   };
 
-  const precioBs = new Intl.NumberFormat('es-VE', { maximumFractionDigits: 0 }).format(
-    vehiculo.precioUSD * rateBCV,
-  );
+  const formatoEUR = (v: number) =>
+    new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency: 'EUR',
+      maximumFractionDigits: 0,
+    }).format(v);
 
   return (
     <div className="modal-overlay" onClick={onCerrar}>
@@ -127,10 +130,7 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
         {/* Resumen visual del vehículo */}
         <div className="modal-vehiculo-resumen">
           <div style={{ fontWeight: 700, fontSize: '15px' }}>
-            ${vehiculo.precioUSD.toLocaleString()} USD
-            <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--texto-mudo)', marginLeft: '8px' }}>
-              (Ref. {precioBs} Bs.)
-            </span>
+            {formatoEUR(vehiculo.precio)}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--naranja-600)', fontWeight: 600 }}>
             {vehiculo.certificado ? '✓ Certificado 240 Puntos' : 'Inspeccionado WAMMA'}
@@ -243,6 +243,22 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
                 </label>
               </div>
             </div>
+
+            {metodoPago === 'Financiamiento' && (
+              <div className="form-group">
+                <label htmlFor="rangoIngresos">Rango de ingresos mensuales *</label>
+                <select
+                  id="rangoIngresos"
+                  value={rangoIngresos}
+                  onChange={(e) => setRangoIngresos(e.target.value)}
+                >
+                  <option value="">Selecciona tu rango</option>
+                  <option value="1000-1300">€1.000 – €1.300 (cuota máx. €390)</option>
+                  <option value="1301-2000">€1.301 – €2.000 (cuota máx. €600)</option>
+                  <option value="2001+">€2.001 en adelante (601 en adelante)</option>
+                </select>
+              </div>
+            )}
 
             <div className="alerta-reserva">
               ℹ️ Al agendar esta cita, el vehículo quedará reservado temporalmente y el botón de agendar

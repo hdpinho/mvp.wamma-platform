@@ -5,7 +5,7 @@
 **Función:** Convertir el interés capturado en la vitrina en venta gestionada
 **Depende de:** 001 (identidad del asesor, auditoría, cifrado); 005 (vehículo publicado)
 **Alimenta a:** `specs/solicitud-credito/` (resuelve el `lead_id`, insumo D15)
-**Estado:** **Aprobado** por el Product Owner (septiembre 2026). C1 y C5 resueltos; quedan abiertas C2, C3, C4 y C6, que no bloquean las olas 1 y 2
+**Estado:** **Aprobado** por el Product Owner (septiembre 2026). C1, C4 y C5 resueltos (C4, con el módulo 001: D-24); quedan abiertas C2, C3 y C6, que no bloquean las olas 1 y 2
 
 > Spec del QUÉ y el POR QUÉ. El CÓMO va en `./plan.md`. Principios en `../../.specify/memory/constitution.md`.
 
@@ -159,7 +159,7 @@ La capa comercial ve **nombre, teléfono, correo, cédula, vehículo de interés
 
 ### 8.4 Dos ejes que no se deben fusionar
 
-`vehiculo.estado_disponibilidad` (disponible / cita agendada / vendido) describe **el auto**. `oportunidad.etapa` describe **la negociación**. Son ejes distintos y se relacionan solo por las reglas de RF-010.12 y por el bloqueo del vehículo al crear la oportunidad. Colapsarlos en un solo campo parece una simplificación y es un error: un mismo auto puede tener una oportunidad perdida y otra en negociación.
+`vehiculo.estado` (disponible / cita agendada / vendido) describe **el auto**. `oportunidad.etapa` describe **la negociación**. Son ejes distintos y se relacionan solo por las reglas de RF-010.12 y por el bloqueo del vehículo al crear la oportunidad. Colapsarlos en un solo campo parece una simplificación y es un error: un mismo auto puede tener una oportunidad perdida y otra en negociación.
 
 ### 8.5 Captura en dos pasos (decisión C1)
 
@@ -252,7 +252,7 @@ Ninguna tarea de implementación arranca con estas abiertas si la afecta (Princi
 - ~~`C1` **¿La cédula es obligatoria para agendar una cita?**~~ **CERRADO** (septiembre 2026): **captura en dos pasos**. Nombre y WhatsApp para agendar; cédula al confirmar la cita. Ver §8.5.
 - `[NEEDS CLARIFICATION: C2]` **Período de conservación** de datos de prospectos que nunca compran. Afecta al requisito de retención de §7.
 - `[NEEDS CLARIFICATION: C3]` **Reparto de oportunidades sin dueño:** ¿manual por el coordinador, o automático por turno? Afecta a RF-010.7.
-- `[NEEDS CLARIFICATION: C4]` **Identidad del asesor mientras el módulo 001 no exista.** Sin `usuario` no hay autor real de una interacción ni dueño real de una oportunidad. Bloquea el módulo en producción; no bloquea la maqueta con datos simulados.
+- ~~`C4` **Identidad del asesor mientras el módulo 001 no exista.**~~ **CERRADO** (15/09/2026, D-24): el módulo 001 ya da usuarios reales, con rol y sesión (`CurrentUser`). El CRM los usa como autor de cada interacción y dueño de cada oportunidad cuando pase al servidor (etapa 3).
 - ~~`C5` **Umbral de "estancada"**~~ **CERRADO** (septiembre 2026): umbral **por etapa** — 2 / 3 / 7 / 7 / 14 días. Ver §8.6.
 - `[NEEDS CLARIFICATION: C6]` **¿Se notifica al cliente** algún cambio de etapa, o el embudo es puramente interno? Afecta al alcance de la integración de correo.
 - ~~`C7` **Enmienda de la Constitución** que recoja la premisa de §0.~~ **CERRADO** — Constitución **v2.0.0** (septiembre 2026). El texto vigente y este spec ya no discrepan.

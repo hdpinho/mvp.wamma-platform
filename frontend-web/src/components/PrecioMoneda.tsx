@@ -1,45 +1,41 @@
 import React from 'react';
 
+/**
+ * Precio en euros con su equivalencia informativa en bolívares (D-21).
+ * La tasa la registra el backoffice a diario; sin tasa, solo se muestra el euro.
+ */
 interface PrecioMonedaProps {
-  amountUSD: number;
-  rateBCV?: number;
-  showSubtitle?: boolean;
+  monto: number;
+  /** Bolívares por euro. */
+  tasaBcv?: number | null;
+  mostrarEquivalencia?: boolean;
 }
 
+const formatoEUR = (valor: number) =>
+  new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(valor);
+
+const formatoBs = (valor: number) =>
+  `${new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(valor)} Bs.`;
+
 export const PrecioMoneda: React.FC<PrecioMonedaProps> = ({
-  amountUSD,
-  rateBCV = 36.50,
-  showSubtitle = true,
-}) => {
-  const amountVES = amountUSD * rateBCV;
-
-  const formatUSD = (val: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
-
-  const formatVES = (val: number) => {
-    return new Intl.NumberFormat('es-VE', {
-      style: 'decimal',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val) + ' Bs.';
-  };
-
-  return (
-    <div style={{ display: 'inline-flex', flexDirection: 'column' }}>
-      <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--texto-primario)' }}>
-        {formatUSD(amountUSD)}
+  monto,
+  tasaBcv,
+  mostrarEquivalencia = true,
+}) => (
+  <div style={{ display: 'inline-flex', flexDirection: 'column' }}>
+    <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--texto-primario)' }}>
+      {formatoEUR(monto)}
+    </span>
+    {mostrarEquivalencia && tasaBcv ? (
+      <span style={{ fontSize: '11px', color: 'var(--texto-secundario)', marginTop: '2px' }}>
+        Ref. {formatoBs(monto * tasaBcv)}{' '}
+        <span style={{ color: 'var(--texto-mudo)' }}>· tasa BCV {tasaBcv.toFixed(2)}</span>
       </span>
-      {showSubtitle && (
-        <span style={{ fontSize: '11px', color: 'var(--texto-secundario)', marginTop: '2px' }}>
-          Ref. {formatVES(amountVES)} <span style={{ color: 'var(--texto-mudo)' }}>· tasa BCV {rateBCV.toFixed(2)}</span>
-        </span>
-      )}
-    </div>
-  );
-};
+    ) : null}
+  </div>
+);

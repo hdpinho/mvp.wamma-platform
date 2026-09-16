@@ -6,7 +6,7 @@
 
 ## 1. Convenciones obligatorias
 
-- **Montos:** nunca `float`/`double`. Usar Java `BigDecimal` con escala fija o `long` en céntimos. Toda fila monetaria guarda `monto`, `moneda` (`USD`/`VES`) y `tasa_bcv` aplicada + `fecha_tasa`.
+- **Montos:** nunca `float`/`double`. Usar Java `BigDecimal` con escala fija o `long` en céntimos. Toda fila monetaria guarda `monto`, `moneda` y `tasa_bcv` aplicada + `fecha_tasa`. La moneda de referencia es el **EUR** (Constitución v3.0.0), con equivalencia en `VES`; la base admite `EUR` desde la etapa 2.
 - **Identificadores:** UUID.
 - **Auditoría:** toda tabla sensible lleva `creado_en`, `creado_por`, y los cambios se registran en `auditoria_evento` (inmutable).
 - **Ledger:** append-only. Prohibido `UPDATE`/`DELETE` sobre asientos; las correcciones son asientos compensatorios.
@@ -15,20 +15,24 @@
 
 | Entidad | Campos clave | Notas |
 |---|---|---|
-| `usuario` | id, tipo (cliente/vendedor/inspector/admin), estado | Base de identidad |
-| `rol` / `permiso` | nombre, ámbito | RBAC; refleja separación de funciones Sudeban |
-| `auditoria_evento` | id, actor, accion, entidad, antes, despues, ts | **Inmutable**; toda transacción y cambio de estado |
-| `secreto_config` | clave, referencia | Solo referencias; secretos fuera de la BD |
+| `usuario` | id, nombre_usuario, nombre, correo, estado, 2FA (secreto TOTP cifrado), bloqueo | Personal del backoffice. Los visitantes del sitio público no tienen cuenta (D-08). Los roles viven en `usuario_rol`, no en un campo del usuario |
+| `rol` / `permiso` | código, nombre, ámbito | RBAC con mínimo privilegio; separación de funciones (Principio I). Roles de D-03; matriz en `001/plan.md` §9 |
+| `sesion` | usuario_id, hash del token, nivel, vencimientos, revocación | Solo el hash del token; se revoca al cerrar sesión o desactivar al usuario |
+| `codigo_recuperacion` | usuario_id, hash del código, usado_en | Recuperación del 2FA; cada código sirve una vez |
+| `auditoria_evento` | id, actor, accion, entidad, antes, despues, ts | **Inmutable**; toda transacción y cambio de estado. Nunca contiene contraseñas, secretos ni tokens |
+| `secreto_config` | clave, referencia | Sin uso: los secretos van en variables de entorno (D-05) |
 
 ## 3. Inventario y certificación (módulos 004, 005)
 
 | Entidad | Campos clave | Notas |
 |---|---|---|
-| `vehiculo` | id, vin, marca, modelo, versión, año, carrocería, transmisión, combustible, tracción, puestos, kilometraje, estado (inspección/reacondicionamiento/exhibición/reservado/vendido), sede | Inventario publicado propio de WAMMA. |
+| `vehiculo` | id, **código de inventario**, vin, placa (opcional), marca, modelo, versión, año, carrocería, transmisión, combustible, tracción, puestos, kilometraje, estado, sede, adquisición (opcional), es_demostracion | Inventario propio de WAMMA. El **código** es el identificador visible y el que usa la API: `WAM-00017` por secuencia, y `veh-001`…`veh-016` en los de ejemplo. La **disponibilidad** comercial es una vista de `estado`: `exhibicion` = disponible, `reservado` = con cita, `vendido`. Placa y precio de adquisición son opcionales, y la adquisición va completa o vacía (D-12, V0014). |
 | `inspeccion` | id, vehiculo_id, inspector_id, estado | Cabecera de los 240 puntos |
 | `inspeccion_punto` | inspeccion_id, codigo_punto, categoria (mecánica/estética/legal), resultado, evidencia_url, zona (exterior/interior), severidad (leve/moderada), ubicacion, posicion_x, posicion_y | **240 puntos**. Los puntos con resultado no conforme y categoría estética se publican como **Imperfecciones** en la ficha (C2). |
 | `validacion_legal` | vehiculo_id, ocr_documentos, cruce_antecedentes, cruce_deudas, resultado | Verificación previa a la publicación |
-| `publicacion` | vehiculo_id, precio_venta, moneda, tasa_bcv, garantia, estado, fotos[] | Ficha del catálogo con fotos en storage nacional |
+| `publicacion` | vehiculo_id, precio_venta, moneda, tasa_bcv + fecha_tasa, garantía, estado (borrador/publicado/pausado/vendido), etiqueta comercial | Ficha de la vitrina. Los precios van en **euros** (D-21) y la **tasa BCV se fija al publicar**: corregir después la tasa del día no reescribe lo ya publicado. Un vehículo solo sale al sitio público cuando su publicación está `publicado` |
+| `publicacion_foto` | publicacion_id, clave y clave_miniatura en el almacén, ancho, alto, orden, es_principal, créditos, subida_por | De **5 a 10 fotos** por vehículo (D-10). Se guardan sin los metadatos de ubicación de la cámara, y la principal es única por publicación |
+| `tasa_cambio_bcv` | fecha, moneda, tasa_ves, fuente, quién la registró y quién la corrigió | Tasa oficial del día, una por fecha y moneda (D-13). La vitrina usa siempre la más reciente; corregir una queda en la bitácora con el valor anterior |
 | `garantia` / `devolucion` | publicacion_id, condiciones, estado | Garantía WAMMA |
 
 ## 4. Seguimiento comercial (módulo 010)

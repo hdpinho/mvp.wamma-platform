@@ -159,7 +159,7 @@ Toda transición, válida o no:
 
 **Efectos laterales sobre el inventario** (RF-010.12), en la misma transacción:
 
-| Transición | Efecto en `vehiculos.estado_disponibilidad` |
+| Transición | Efecto en `vehiculo.estado` |
 |---|---|
 | → `cerrado_ganado` | `vendido` |
 | → `cerrado_perdido` | `disponible`, **solo si** ninguna otra oportunidad abierta lo reclama |
@@ -320,7 +320,7 @@ Mismo criterio que `../solicitud-credito/plan.md` §12: lo que falta va **detrá
 | ~~**C1**~~ cédula obligatoria | **Cerrada**: captura en dos pasos (`spec.md` §8.5). Exige la consolidación de cédula descrita en §5 |
 | **C2** retención | Nada se borra. Cuando haya política, se implementa como tarea programada |
 | **C3** reparto de oportunidades | `asesor_id` nulo = sin asignar. El reparto automático sería una capa encima |
-| **C4** identidad del asesor | `asesor_id` nulo hasta que exista el 001 (S3) |
+| ~~**C4**~~ identidad del asesor | **Cerrada** con el 001 (D-24): `asesor_id` apunta a `usuario`, y el CRM lo llena al pasar al servidor (etapa 3) |
 | ~~**C5**~~ umbral de estancada | **Cerrada**: umbral por etapa 2/3/7/7/14 días, en tabla de parámetros y no en código |
 | **C6** notificación al cliente | El módulo no notifica. Si se decide que sí, se apoya en el motor de notificaciones del 009 |
 | ~~**C7**~~ enmienda constitucional | **Cerrada** en la Constitución v2.0.0 |

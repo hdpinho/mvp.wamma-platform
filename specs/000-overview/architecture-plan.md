@@ -10,13 +10,13 @@
 |---|---|---|
 | Web pública + panel interno | **React** (Vite + TypeScript) | Vitrina (catálogo) y centro de mando |
 | App móvil | **Flutter** | iOS + Android desde una sola base |
-| Backend / motor | **Spring Boot (Java 21)**, monolito modular | Cerebro: cotización, crédito, cuotas, cobranza |
+| Backend / motor | **Spring Boot 4.1 (Java 21)**, monolito modular | Cerebro: cotización, crédito, cuotas, cobranza |
 | Base de datos | **Supabase Cloud** (PostgreSQL administrado) | Almacén central, incluido el ledger. Portable a self-hosted |
 | Migraciones | **Flyway** | Esquema versionado; cambios de ledger append-only |
-| Caché y colas | **Redis** | Consultas frecuentes y tareas asíncronas (notificaciones) |
-| Archivos | **Object storage** | Fotos/videos de inspección y documentos |
+| Caché y colas | **Redis** — fuera del MVP | Se incorpora cuando una consulta o una cola lo justifique; hoy no hay ninguno desplegado |
+| Archivos | **Almacenamiento compatible con S3** | Fotos de vehículos y recaudos. En el MVP, Supabase Storage a través de su API S3 (decisión D-09): cambiar de proveedor es configuración |
 
-**Sobre Supabase:** se usa exclusivamente como **PostgreSQL administrado**. No se emplean sus servicios de Auth, Storage ni la API de datos (PostgREST); la autenticación, la autorización y el almacenamiento de archivos los maneja Spring Boot. Row Level Security queda **activo y sin políticas** en todas las tablas solo como barrera de fondo: deniega a todo rol que no sea el dueño del esquema o el de la aplicación, y los roles públicos de Supabase no tienen privilegios (`database-schema-design.md` §1.5). Es PostgreSQL estándar declarado en las migraciones, así que la portabilidad se mantiene: si se migra a Supabase self-hosted o a cualquier PostgreSQL, el cambio sigue siendo solo la cadena de conexión.
+**Sobre Supabase:** se usa exclusivamente como **PostgreSQL administrado**. No se emplean su Auth ni su API de datos (PostgREST): la autenticación y la autorización las maneja Spring Boot. Su Storage se usa solo a través de la API compatible con S3 (decisión D-09 de `decisiones-po.md`), para que cambiar de proveedor sea configuración. Row Level Security queda **activo y sin políticas** en todas las tablas solo como barrera de fondo: deniega a todo rol que no sea el dueño del esquema o el de la aplicación, y los roles públicos de Supabase no tienen privilegios (`database-schema-design.md` §1.5). Es PostgreSQL estándar declarado en las migraciones, así que la portabilidad se mantiene: si se migra a Supabase self-hosted o a cualquier PostgreSQL, el cambio sigue siendo solo la cadena de conexión.
 
 **Sobre Java/Spring Boot:** ecosistema maduro, amplio talento disponible, excelente soporte para seguridad (Spring Security), persistencia (Spring Data JPA) y testing. Ideal para el dominio financiero del proyecto.
 

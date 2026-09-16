@@ -1,0 +1,88 @@
+# Integración continua de WAMMA.
+# Tres comprobaciones independientes en cada push a main y en cada pull request:
+#   1. El backend compila y pasa sus pruebas.
+#   2. Las migraciones construyen el esquema desde cero sobre un PostgreSQL vacío
+#      (Principio VI: el entorno se puede reconstruir) y el esquema pasa sus pruebas.
+#   3. El frontend pasa el lint y compila.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend — compilación y pruebas
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: mvn -B verify
+
+  migraciones:
+    name: Migraciones — desde cero y pruebas del esquema
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: wamma
+          POSTGRES_USER: postgres
+          # Base efímera del runner, destruida al terminar: no es un secreto.
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      FLYWAY_URL: jdbc:postgresql://localhost:5432/wamma
+      FLYWAY_USER: postgres
+      FLYWAY_PASSWORD: postgres
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Aplicar todas las migraciones sobre una base vacía
+        run: mvn -B flyway:migrate flyway:validate
+      - name: Pruebas del esquema (en transacción revertida)
+        run: |
+          PGV=$(mvn -q help:evaluate -Dexpression=postgresql.version -DforceStdout)
+          mvn -q dependency:copy -Dartifact=org.postgresql:postgresql:$PGV -DoutputDirectory=target/tools
+          java -cp target/tools/postgresql-$PGV.jar tools/db/SchemaTestRunner.java pruebas tools/db/pruebas-esquema.sql
+
+  frontend:
+    name: Frontend — lint y build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend-web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build

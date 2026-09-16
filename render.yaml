@@ -1,5 +1,9 @@
-# Render Blueprint para WAMMA Platform
+# Render Blueprint para WAMMA Platform (plan gratuito, decisión del PO del 14/09/2026).
 # Más información: https://render.com/docs/blueprint-spec
+#
+# Desde la etapa 1 el servicio siempre usa base de datos (perfil supabase): el control de
+# accesos vive en ella. Los secretos (sync: false) se configuran en el Dashboard de Render,
+# nunca en este archivo. Al arrancar, Flyway aplica las migraciones pendientes.
 services:
   - type: web
     name: wamma-backend
@@ -9,15 +13,33 @@ services:
     plan: free
     healthCheckPath: /api/health
     envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: "supabase"
+      - key: WAMMA_CORS_ORIGINS
+        value: "https://wamma-mvp.vercel.app"
       - key: SUPABASE_DB_URL
-        sync: false # Configurar en Dashboard de Render (cadena jdbc:postgresql://...)
+        sync: false # Cadena jdbc:postgresql://... del pooler en modo sesión (puerto 5432)
       - key: SUPABASE_DB_USER
-        sync: false # Configurar en Dashboard de Render (ej. postgres)
+        sync: false
       - key: SUPABASE_DB_PASSWORD
-        sync: false # Configurar en Dashboard de Render
+        sync: false
       - key: FLYWAY_ENABLED
         value: "true"
-      - key: REDIS_HOST
-        value: "localhost"
-      - key: REDIS_PORT
-        value: "6379"
+      # Claves del módulo 001 (plan 001 §7): 32 bytes aleatorios en Base64, distintas entre sí.
+      # Si se pierden, los datos cifrados no se pueden recuperar: guardarlas también fuera de Render.
+      - key: WAMMA_CLAVE_CIFRADO
+        sync: false
+      - key: WAMMA_CLAVE_INDICE
+        sync: false
+      # Primer administrador (D-07): solo se usan si la base no tiene usuarios.
+      # Tras el primer ingreso, borrar WAMMA_ADMIN_CONTRASENA_INICIAL.
+      - key: WAMMA_ADMIN_USUARIO
+        sync: false
+      - key: WAMMA_ADMIN_NOMBRE
+        sync: false
+      - key: WAMMA_ADMIN_APELLIDO
+        sync: false
+      - key: WAMMA_ADMIN_CORREO
+        sync: false
+      - key: WAMMA_ADMIN_CONTRASENA_INICIAL
+        sync: false

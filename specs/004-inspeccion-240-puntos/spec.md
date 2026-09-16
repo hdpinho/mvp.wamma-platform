@@ -6,6 +6,8 @@
 **Depende de:** 001 (auditoría/roles)
 **Estado:** Draft para `/clarify`
 
+> **Etapa 2 del backend (septiembre 2026):** de este módulo solo se construye la **certificación simplificada**, que es lo que muestra la maqueta: el rol Inventario declara certificado el vehículo y registra sus imperfecciones sobre el diagrama. El checklist de 240 puntos, el OCR y los cruces legales siguen esperando sus preguntas abiertas. Ver `../005-catalogo-venta/plan.md`.
+
 > Spec del QUÉ y el POR QUÉ. CÓMO en `../000-overview/`. Principios en `../../.specify/memory/constitution.md`.
 
 ## 1. Objetivo

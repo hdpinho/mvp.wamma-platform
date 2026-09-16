@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(Set-Location \"C:\\\\Users\\\\hdpinho\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-hdpinho-mvp-wamma-platform\\\\78eb88f8-5167-412a-a911-033d270a1d79\\\\scratchpad\\\\driver\"; $env:BASE='https://wamma-mvp.vercel.app'; node recorrido-venta.js 2>$null | Select-String -Pattern 'FALLO|enlace personal|comprobaciones OK|pageerror|console.error')"
+      "PowerShell(Set-Location \"C:\\\\Users\\\\hdpinho\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-hdpinho-mvp-wamma-platform\\\\78eb88f8-5167-412a-a911-033d270a1d79\\\\scratchpad\\\\driver\"; $env:BASE='https://wamma-mvp.vercel.app'; node recorrido-venta.js 2>$null | Select-String -Pattern 'FALLO|enlace personal|comprobaciones OK|pageerror|console.error')",
+      "PowerShell($env:JAVA_HOME = 'C:\\\\Users\\\\hdpinho\\\\dev-tools\\\\jdk-21.0.12.1+1'; $s = 'C:\\\\Users\\\\hdpinho\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-hdpinho-mvp-wamma-platform\\\\78eb88f8-5167-412a-a911-033d270a1d79\\\\scratchpad'; & \"$env:JAVA_HOME\\\\bin\\\\java.exe\" -Dport=6543 -cp 'C:\\\\Users\\\\hdpinho\\\\.m2\\\\repository\\\\org\\\\postgresql\\\\postgresql\\\\42.7.4\\\\postgresql-42.7.4.jar' \"$s\\\\Inspect.java\" \"$s\\\\estado2.sql\")",
+      "PowerShell(git -C 'C:\\\\Users\\\\hdpinho\\\\mvp.wamma-platform' diff -- .claude/settings.json)",
+      "PowerShell(git -C 'C:\\\\Users\\\\hdpinho\\\\mvp.wamma-platform' diff --stat)",
+      "Read(//c/Users/hdpinho/.claude/projects/c--Users-hdpinho-mvp-wamma-platform/memory/**)"
     ]
   }
 }

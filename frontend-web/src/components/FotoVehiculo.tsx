@@ -101,23 +101,26 @@ export const FotoVehiculo: React.FC<FotoVehiculoProps> = ({
           display: 'block',
         }}
       />
-      <span
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: '18px 12px 6px',
-          color: 'var(--blanco)',
-          fontSize: '10px',
-          fontWeight: 700,
-          letterSpacing: '0.03em',
-          background: 'linear-gradient(to top, rgba(0,0,0,0.55), transparent)',
-          pointerEvents: 'none',
-        }}
-      >
-        Foto referencial del modelo
-      </span>
+      {/* El aviso solo corresponde a las fotos referenciales; las propias de WAMMA son de la unidad. */}
+      {vehiculo.fotos?.[0]?.credito && (
+        <span
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: '18px 12px 6px',
+            color: 'var(--blanco)',
+            fontSize: '10px',
+            fontWeight: 700,
+            letterSpacing: '0.03em',
+            background: 'linear-gradient(to top, rgba(0,0,0,0.55), transparent)',
+            pointerEvents: 'none',
+          }}
+        >
+          Foto referencial del modelo
+        </span>
+      )}
     </div>
   );
 };

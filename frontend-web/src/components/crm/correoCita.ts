@@ -55,7 +55,7 @@ export function correoConfirmacionCita(
     '',
     'VEHÍCULO',
     `${v.marca} ${v.modelo} ${v.version} (${v.anio})`,
-    `Precio: US$ ${v.precioUSD.toLocaleString('es-VE')}`,
+    `Precio: ${v.precioUSD.toLocaleString('es-VE')} €`,
     '',
     'FECHA Y HORARIO',
     `${capitalizar(fechaLarga(cita.diaPreferencia))}, ${HORARIOS[cita.franjaHoraria]}.`,

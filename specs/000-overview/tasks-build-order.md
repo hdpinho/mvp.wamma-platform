@@ -48,7 +48,7 @@ Un módulo de la Fase 1 está terminado cuando:
 4. El control de accesos (RBAC) aplica el **mínimo privilegio**.
 5. Las reglas de negocio críticas tienen **pruebas** (cálculo de cuotas, asientos del ledger, scoring).
 6. Si toca dinero: operaciones **idempotentes** y conciliables; montos con moneda + tasa BCV.
-7. La documentación técnica para el **expediente Sudeban** está actualizada.
+7. La documentación técnica y el material del **manual de usuario** (`docs/manual-usuario/`) están actualizados (decisión D-20). *(Antes: expediente Sudeban, que no aplica desde la Constitución v2.0.0.)*
 
 ## 4. Hitos del MVP (referencia)
 

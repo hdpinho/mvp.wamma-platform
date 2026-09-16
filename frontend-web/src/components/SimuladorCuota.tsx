@@ -11,7 +11,7 @@ import { PARAMETROS_FINANCIAMIENTO, calcularCuota } from '../mocks/financiamient
 
 /** Valores con los que el usuario dejó el simulador al pulsar el botón. */
 export interface DatosSimulacion {
-  precioUSD: number;
+  precio: number;
   inicialPct: number;
   cuotaInicialUSD: number;
   montoFinanciado: number;
@@ -21,7 +21,7 @@ export interface DatosSimulacion {
 
 interface SimuladorCuotaProps {
   /** Precio de partida. Si se omite, el usuario lo escribe. */
-  precioUSD?: number;
+  precio?: number;
   /** Permite editar el precio dentro del simulador (uso en Home). */
   precioEditable?: boolean;
   rateBCV?: number;
@@ -34,23 +34,23 @@ interface SimuladorCuotaProps {
   motivoDeshabilitado?: string;
 }
 
-const formatoUSD = (v: number) =>
-  new Intl.NumberFormat('en-US', {
+const formatoEUR = (v: number) =>
+  new Intl.NumberFormat('de-DE', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'EUR',
     maximumFractionDigits: 0,
   }).format(v);
 
 export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
-  precioUSD = 12000,
+  precio: precioInicial = 12000,
   precioEditable = false,
-  rateBCV = 36.5,
   onSolicitar,
   textoBoton = 'Solicitar financiamiento',
   botonDeshabilitado = false,
   motivoDeshabilitado,
 }) => {
-  const [precio, setPrecio] = useState(precioUSD);
+  // El precio de partida llega por propiedad; dentro del simulador puede ajustarse (C0).
+  const [precio, setPrecio] = useState(precioInicial);
   const [inicialPct, setInicialPct] = useState<number>(PARAMETROS_FINANCIAMIENTO.inicialPorcentaje);
   const [plazo, setPlazo] = useState<number>(PARAMETROS_FINANCIAMIENTO.plazoPorDefecto);
 
@@ -81,7 +81,7 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
 
       {precioEditable && (
         <label style={{ display: 'block' }}>
-          <span className="form-label">Precio del vehículo (USD)</span>
+          <span className="form-label">Precio del vehículo (EUR)</span>
           <input
             type="number"
             className="form-input"
@@ -107,7 +107,7 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
             Inicial
           </span>
           <strong>
-            {Math.round(inicialPct * 100)}% · {formatoUSD(inicial)}
+            {Math.round(inicialPct * 100)}% · {formatoEUR(inicial)}
           </strong>
         </div>
         <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
@@ -197,28 +197,10 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
           Cuota mensual estimada
         </div>
         <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1.2 }}>
-          {formatoUSD(cuota)}
+         {formatoEUR(cuota)}
         </div>
         <div style={{ fontSize: '12px', color: 'var(--texto-secundario)' }}>
-          Ref. {new Intl.NumberFormat('es-VE', { maximumFractionDigits: 0 }).format(cuota * rateBCV)}{' '}
-          Bs. · tasa BCV {rateBCV.toFixed(2)}
-        </div>
-        <div
-          style={{
-            marginTop: 'var(--space-md)',
-            paddingTop: 'var(--space-md)',
-            borderTop: '1px solid var(--naranja-200)',
-            fontSize: '12px',
-            color: 'var(--texto-secundario)',
-            display: 'grid',
-            gap: '2px',
-          }}
-        >
-          <span>Monto a financiar: {formatoUSD(montoFinanciado)}</span>
-          <span>
-            Tasa {(PARAMETROS_FINANCIAMIENTO.tasaMensual * 100).toFixed(1)}% mensual ·{' '}
-            {(PARAMETROS_FINANCIAMIENTO.tasaAnual * 100).toFixed(0)}% anual
-          </span>
+          Ref. Tasa Euro BCV
         </div>
       </div>
 
@@ -229,7 +211,7 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
           disabled={botonDeshabilitado}
           onClick={() =>
             onSolicitar({
-              precioUSD: precio,
+              precio: precio,
               inicialPct,
               cuotaInicialUSD: inicial,
               montoFinanciado,

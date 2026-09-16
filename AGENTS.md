@@ -16,7 +16,7 @@ Plataforma propia de **WAMMA by Token Pago POS**: venta, certificación y financ
 2. **Portabilidad de la infraestructura:** contenedores e infraestructura como código, sin atarse a un proveedor. La residencia de datos en Venezuela **ya no es exigencia** (enmienda v2.0.0).
 3. **El código es de WAMMA:** repos en organización WAMMA; nada en cuentas de terceros.
 4. **MVP primero:** se construye antes lo que permite operar y cobrar. La velocidad nunca pisa cumplimiento, seguridad ni integridad financiera.
-5. **Ledger sagrado:** partida doble, inmutable, multi-moneda USD/BCV, sin `float` para montos.
+5. **Ledger sagrado:** partida doble, inmutable, multi-moneda EUR/BCV (Constitución v3.0.0), sin `float` para montos.
 6. **Seguridad transversal:** cifrado en reposo y tránsito, 2FA para roles admin, bitácora de auditoría inmutable.
 7. **SDD estricto:** no hay código sin spec aprobada. `[NEEDS CLARIFICATION]` bloquea la implementación.
 
@@ -31,8 +31,8 @@ Plataforma propia de **WAMMA by Token Pago POS**: venta, certificación y financ
 
 ## Stack (definido; ver architecture-plan.md)
 
-- **Web / panel:** React · **Móvil:** Flutter · **Backend:** Spring Boot (Java 21, monolito modular)
-- **Datos:** Supabase Cloud (PostgreSQL administrado) · **Caché/colas:** Redis · **Archivos:** object storage
+- **Web / panel:** React · **Móvil:** Flutter · **Backend:** Spring Boot 4.1 (Java 21, monolito modular)
+- **Datos:** Supabase Cloud (PostgreSQL administrado) · **Caché/colas:** Redis, fuera del MVP · **Archivos:** almacenamiento compatible con S3 (Supabase Storage en el MVP)
 - **Migraciones:** Flyway · **Build:** Maven
 - **Infra:** proveedor a elegir por criterio de ingeniería y negocio. Exigidos: respaldo con **pruebas de restauración**, réplica de BD y capacidad de reconstruir el entorno desde cero
 
@@ -44,6 +44,8 @@ Plataforma propia de **WAMMA by Token Pago POS**: venta, certificación y financ
 - **Si un cambio viola la Constitución, detente** y explícalo; no lo ejecutes.
 - **Idioma:** documentación y mensajes de commit en español; identificadores de código en inglés técnico estándar.
 - **Verifica tu trabajo:** pruebas para reglas de negocio críticas (cálculo de cuotas, asientos del ledger, decisiones de scoring). El ledger y la cobranza requieren cobertura de pruebas alta.
+- **Decisiones del PO:** se registran en `specs/000-overview/decisiones-po.md` y se citan desde specs y planes.
+- **Manual de usuario:** cada etapa deja en `docs/manual-usuario/` lo necesario para el manual de los módulos que toca (decisión D-20): qué hace, quién lo usa, paso a paso, reglas y mensajes.
 - **Secretos:** nunca en el repositorio. Usa variables de entorno / gestor de secretos (en desarrollo local residen en `backend/.env`, protegido por `.gitignore`).
 
 ## Convenciones de código (resumen)

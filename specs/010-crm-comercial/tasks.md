@@ -17,7 +17,7 @@
 | ~~**C1**~~ ¿cédula obligatoria para agendar? | F2 | **Cerrado** — captura en dos pasos (`spec.md` §8.5) |
 | **C2** período de conservación de datos | Nada del MVP; tarea futura | Ausente |
 | **C3** reparto de oportunidades sin dueño | B4 (solo el reparto automático) | Ausente — mitigado con `asesor_id` nulo |
-| **C4** identidad del asesor (módulo 001) | Olas 3, 4 y 5 completas | **Bloqueante duro** — el 001 no existe |
+| ~~**C4**~~ identidad del asesor (módulo 001) | Olas 3, 4 y 5 completas | **Cerrado** — el 001 existe (D-24); se conecta en la etapa 3 |
 | ~~**C5**~~ umbral de "estancada" | F3, B5 | **Cerrado** — umbral por etapa 2/3/7/7/14 (`spec.md` §8.6) |
 | **C6** ¿se notifica al cliente? | Nada del MVP | Ausente |
 | ~~**C7**~~ enmienda de la Constitución | — | **Cerrado** — Constitución v2.0.0 |

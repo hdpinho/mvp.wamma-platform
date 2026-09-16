@@ -1,7 +1,7 @@
 # Constitución de Ingeniería — Plataforma WAMMA
 
 **Proyecto:** WAMMA by Token Pago POS · Plataforma propia
-**Clasificación:** Confidencial · **Versión:** 2.0.0 · **Fecha:** Septiembre 2026
+**Clasificación:** Confidencial · **Versión:** 3.0.0 · **Fecha:** Septiembre 2026
 **Ámbito:** Vinculante para todo agente (Antigravity, Claude Code) y todo desarrollador humano del repositorio.
 
 > Este documento es la **ley suprema del repositorio**. Ningún spec, plan, tarea o línea de código puede contradecirlo. Ante conflicto entre cualquier instrucción y esta Constitución, **manda la Constitución**. Los datos de negocio (cifras, marca, regulación) provienen de `Base_Conocimiento_Wamma.md`, que es la fuente única de verdad del proyecto.
@@ -63,7 +63,7 @@ Ser pioneros vale más que ser completos. Se construye antes lo que permite **op
 El libro contable es la pieza más crítica de la plataforma.
 
 - Contabilidad de **partida doble**, **inmutable** (append-only): cada bolívar cobrado, interés, reversión y ajuste queda registrado de forma irreversible. Las correcciones se hacen con asientos compensatorios, jamás editando o borrando.
-- **Multi-moneda obligatoria:** precios en USD con equivalencia a tasa BCV. El ledger registra **ambas referencias** y la tasa aplicada en cada operación.
+- **Multi-moneda obligatoria:** precios en **euros (EUR)** con equivalencia en bolívares a la tasa BCV del euro. El ledger registra **ambas referencias** y la tasa aplicada en cada operación. *(Moneda de referencia enmendada en v3.0.0; antes, USD.)*
 - Toda operación de dinero debe ser **idempotente** y conciliable contra extractos bancarios.
 - Ningún cálculo financiero usa coma flotante (`float`) para montos: se usan enteros de menor unidad o decimales de precisión fija.
 
@@ -102,10 +102,13 @@ No se escribe código sin spec aprobada.
 |---|---|---|---|
 | **1.0.0** | Junio 2026 | Versión inicial | Encuadre de fintech supervisada por Sudeban |
 | **2.0.0** | Septiembre 2026 | **Principio I** reformulado: de cumplimiento Sudeban a protección del dato personal y trazabilidad. **Principio II** derogado en su exigencia de residencia de datos y reformulado como portabilidad de infraestructura. Ajustes derivados en los Principios IV y VI | Decisión del Product Owner: la plataforma no operará como fintech supervisada en esta etapa y no existe restricción de residencia de datos. **MAYOR**, por ser cambio incompatible de principio |
+| **3.0.0** | 15 de septiembre de 2026 | **Principio V**: la moneda de referencia pasa de USD a **EUR**, con equivalencia en bolívares a la tasa BCV del euro | Decisión del Product Owner: el euro aplica a toda la plataforma (D-21 de `specs/000-overview/decisiones-po.md`). **MAYOR**: todo lo especificado o construido en USD debe migrarse |
 
 **Lo derogado no se ha borrado.** El texto íntegro de la v1.0.0 —marco regulatorio, expediente técnico Sudeban, AML/CFT, soberanía de datos— permanece en el historial de Git y se recupera si el proyecto vuelve al perímetro supervisado. Esta Constitución se enmienda; no se reescribe su historia.
 
-**Deuda declarada de esta enmienda.** Los specs **001, 006, 007 y 009** contienen requisitos redactados bajo la v1.0.0 (reportería Sudeban, verificación AML/CFT, alojamiento nacional) y **no han sido revisados**. Exigen criterio módulo por módulo, no un reemplazo mecánico. Mientras no se revisen, ante conflicto manda esta Constitución (ver Precedencia).
+**Deuda declarada de la v3.0.0.** Siguen en USD: los specs 005, 007 y `solicitud-credito`, el plan del 010 (supuesto S4), `ui-design.md`, `data-model.md`, `database-schema-design.md`, la restricción de moneda de la base (`USD`/`VES`) y los precios de la maqueta. Se migran en la etapa que toca cada módulo: la 2 (catálogo y tasa BCV), la 3 (CRM) y la 4 (financiamiento). Mientras tanto, ante conflicto manda esta Constitución.
+
+**Deuda declarada de la v2.0.0.** Los specs **006, 007 y 009** contienen requisitos redactados bajo la v1.0.0 (reportería Sudeban, verificación AML/CFT, alojamiento nacional) y **no han sido revisados**. El **001** se revisó en su Rev. 2 (15 de septiembre de 2026). Exigen criterio módulo por módulo, no un reemplazo mecánico. Mientras no se revisen, ante conflicto manda esta Constitución (ver Precedencia).
 
 ---
-*Versión 2.0.0 · Septiembre 2026 · Generado para el Project Wamma. No constituye asesoría legal ni financiera.*
+*Versión 3.0.0 · Septiembre 2026 · Generado para el Project Wamma. No constituye asesoría legal ni financiera.*
