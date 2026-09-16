@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useVehiculos } from '../../state/vehiculosContexto';
 import { Boton } from '../../components/Boton';
 import { PARAMETROS_FINANCIAMIENTO, calcularCuota, generarAmortizacion } from '../../mocks/financiamiento';
@@ -6,6 +6,27 @@ import { PARAMETROS_FINANCIAMIENTO, calcularCuota, generarAmortizacion } from '.
 interface O6FinanciamientoBackofficeProps {
   rateBCV: number;
 }
+
+const formatoEUR = (v: number) =>
+  new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  }).format(Number.isFinite(v) ? v : 0);
+
+const formatoEURDecimal = (v: number) =>
+  new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(v) ? v : 0);
+
+const formatoBs = (v: number) =>
+  new Intl.NumberFormat('es-VE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(v) ? v : 0) + ' Bs.';
 
 export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficeProps> = ({
   rateBCV,
@@ -15,9 +36,17 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
   const [vehiculoSeleccionadoId, setVehiculoSeleccionadoId] = useState<string>(
     vehiculos[0]?.id || '',
   );
-  const [precioPersonalizado, setPrecioPersonalizado] = useState<number>(0);
+  const [precioPersonalizado, setPrecioPersonalizado] = useState<number>(8000);
   const [nombreCliente, setNombreCliente] = useState<string>('');
   const [telefonoCliente, setTelefonoCliente] = useState<string>('');
+
+  // Sincronizar selección inicial cuando los vehículos cargan asíncronamente desde el backend
+  useEffect(() => {
+    if (!vehiculoSeleccionadoId && vehiculos.length > 0) {
+      setVehiculoSeleccionadoId(vehiculos[0].id);
+      setPrecioPersonalizado(vehiculos[0].precio);
+    }
+  }, [vehiculos, vehiculoSeleccionadoId]);
 
   // La inicial arranca en el mínimo vigente (20 %, decisión del PO).
   const [porcentajeInicial, setPorcentajeInicial] = useState<number>(
@@ -26,41 +55,45 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
   const [plazoMeses, setPlazoMeses] = useState<number>(18);
   const [tasaMensualPct, setTasaMensualPct] = useState<number>(4.0);
 
-  // Análisis de capacidad
-  const [ingresoMensualUSD, setIngresoMensualUSD] = useState<number>(1500);
-  const [gastosMensualesUSD, setGastosMensualesUSD] = useState<number>(800);
+  // Análisis de capacidad en EUR
+  const [ingresoMensualEUR, setIngresoMensualEUR] = useState<number>(1500);
+  const [gastosMensualesEUR, setGastosMensualesEUR] = useState<number>(800);
 
   const [copiado, setCopiado] = useState(false);
 
   const vehiculo = vehiculos.find((v) => v.id === vehiculoSeleccionadoId);
   const precio =
     vehiculoSeleccionadoId === 'personalizado'
-      ? precioPersonalizado
-      : vehiculo?.precio || 8000;
+      ? (Number.isFinite(precioPersonalizado) && precioPersonalizado > 0 ? precioPersonalizado : 8000)
+      : (vehiculo?.precio || 8000);
 
-  const inicialUSD = Math.round((precio * porcentajeInicial) / 100);
-  const montoFinanciado = Math.max(0, precio - inicialUSD);
+  const inicialEUR = Math.round((precio * porcentajeInicial) / 100);
+  const montoFinanciado = Math.max(0, precio - inicialEUR);
 
-  // Cuota sistema francés
-  const cuotaMensualUSD = useMemo(() => {
+  // Tasa mensual efectiva
+  const tasaMensualRatio =
+    Number.isFinite(tasaMensualPct) && tasaMensualPct >= 0
+      ? tasaMensualPct / 100
+      : PARAMETROS_FINANCIAMIENTO.tasaMensual;
+
+  // Cuota sistema francés calculada con la tasa parametrizada
+  const cuotaMensualEUR = useMemo(() => {
     if (montoFinanciado <= 0) return 0;
-    return calcularCuota(montoFinanciado, plazoMeses);
-  }, [montoFinanciado, plazoMeses]);
+    return calcularCuota(montoFinanciado, plazoMeses, tasaMensualRatio);
+  }, [montoFinanciado, plazoMeses, tasaMensualRatio]);
 
   const tablaAmortizacion = useMemo(() => {
     if (montoFinanciado <= 0) return [];
-    return generarAmortizacion(montoFinanciado, plazoMeses);
-  }, [montoFinanciado, plazoMeses]);
+    return generarAmortizacion(montoFinanciado, plazoMeses, tasaMensualRatio);
+  }, [montoFinanciado, plazoMeses, tasaMensualRatio]);
 
   const totalIntereses = tablaAmortizacion.reduce((acc, row) => acc + row.interes, 0);
   const totalPagado = montoFinanciado + totalIntereses;
 
-  // Ratios de capacidad
-  // Decisión del PO: la capacidad es el 30 % del ingreso mensual; los gastos se
-  // registran como referencia, pero no restan. Misma regla que el núcleo Go.
-  const capacidadPagoDisponible = ingresoMensualUSD * PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago;
+  // Ratios de capacidad (30% del ingreso según Constitución WAMMA)
+  const capacidadPagoDisponible = (ingresoMensualEUR || 0) * PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago;
   const ratioCuotaIngreso =
-    ingresoMensualUSD > 0 ? (cuotaMensualUSD / ingresoMensualUSD) * 100 : 0;
+    ingresoMensualEUR > 0 ? (cuotaMensualEUR / ingresoMensualEUR) * 100 : 0;
 
   const copiarPropuestaWhatsApp = () => {
     const vehiculoTitulo =
@@ -71,20 +104,21 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
     const texto = `*PROPUESTA DE FINANCIAMIENTO WAMMA* 🚗
 ${nombreCliente ? `*Cliente:* ${nombreCliente}\n` : ''}
 *Vehículo:* ${vehiculoTitulo}
-*Precio de Venta:* $${precio.toLocaleString()} USD (Ref. ${(precio * rateBCV).toLocaleString('es-VE', { maximumFractionDigits: 0 })} Bs.)
+*Precio de Venta:* ${formatoEUR(precio)} (Ref. ${formatoBs(precio * rateBCV)})
 ----------------------------------
-*Inicial (${porcentajeInicial}%):* $${inicialUSD.toLocaleString()} USD
-*Monto Financiado:* $${montoFinanciado.toLocaleString()} USD
+*Inicial (${porcentajeInicial}%):* ${formatoEUR(inicialEUR)}
+*Monto Financiado:* ${formatoEUR(montoFinanciado)}
 *Plazo:* ${plazoMeses} meses
-*Cuota Mensual Fija:* *$${cuotaMensualUSD.toFixed(2)} USD* (Ref. ${(cuotaMensualUSD * rateBCV).toFixed(2)} Bs.)
+*Tasa Mensual:* ${tasaMensualPct}%
+*Cuota Mensual Fija:* *${formatoEURDecimal(cuotaMensualEUR)}* (Ref. ${formatoBs(cuotaMensualEUR * rateBCV)})
 ----------------------------------
-*Tasa Oficial BCV Aplicada:* ${rateBCV.toFixed(2)} Bs/USD
+*Tasa Oficial BCV Aplicada:* ${rateBCV.toFixed(2)} Bs/EUR
 *Requisitos Básicos:*
 - Cédula de Identidad y RIF vigente
 - Constancia de trabajo o certificación de ingresos
 - 3 últimos estados de cuenta bancarios
 
-_Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
+_Propuesta emitida por WAMMA by Token Pago POS._`;
 
     navigator.clipboard.writeText(texto);
     setCopiado(true);
@@ -99,7 +133,7 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
             Cotizador y Estructurador de Financiamiento WAMMA
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--texto-secundario)', margin: '4px 0 0' }}>
-            Herramienta interna para estructurar planes de financiamiento, generar amortizaciones exactas y enviar propuestas a clientes.
+            Herramienta interna para estructurar planes de financiamiento, generar amortizaciones exactas y enviar propuestas a clientes en Euros y Bolívares (BCV).
           </p>
         </div>
         <Boton variant="primary" onClick={copiarPropuestaWhatsApp}>
@@ -125,9 +159,12 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
                   }
                 }}
               >
+                {vehiculos.length === 0 && (
+                  <option value="">Cargando inventario...</option>
+                )}
                 {vehiculos.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.marca} {v.modelo} {v.version} ({v.anio}) — ${v.precio.toLocaleString()} USD
+                    {v.marca} {v.modelo} {v.version} ({v.anio}) — {formatoEUR(v.precio)}
                   </option>
                 ))}
                 <option value="personalizado">-- Ingresar Precio Manual --</option>
@@ -136,7 +173,7 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
 
             {vehiculoSeleccionadoId === 'personalizado' && (
               <div className="campo-item">
-                <label>Precio del Vehículo (USD)</label>
+                <label>Precio del Vehículo (EUR)</label>
                 <input
                   type="number"
                   min="500"
@@ -176,7 +213,7 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <label>Inicial Aportada ({porcentajeInicial}%)</label>
                 <span style={{ fontWeight: 700, color: 'var(--naranja-600)' }}>
-                  ${inicialUSD.toLocaleString()} USD
+                  {formatoEUR(inicialEUR)}
                 </span>
               </div>
               <input
@@ -210,6 +247,8 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
                 <input
                   type="number"
                   step="0.1"
+                  min="0"
+                  max="20"
                   value={tasaMensualPct}
                   onChange={(e) => setTasaMensualPct(Number(e.target.value))}
                 />
@@ -219,24 +258,24 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
             <div className="resumen-financiamiento-caja">
               <div className="fila-resumen">
                 <span>Monto financiado neto:</span>
-                <strong>${montoFinanciado.toLocaleString()} USD</strong>
+                <strong>{formatoEUR(montoFinanciado)}</strong>
               </div>
               <div className="fila-resumen">
                 <span>Total intereses estimados:</span>
-                <strong>${totalIntereses.toFixed(2)} USD</strong>
+                <strong>{formatoEURDecimal(totalIntereses)}</strong>
               </div>
               <div className="fila-resumen">
                 <span>Total a pagar por el cliente:</span>
-                <strong>${totalPagado.toFixed(2)} USD</strong>
+                <strong>{formatoEURDecimal(totalPagado)}</strong>
               </div>
               <div className="fila-resumen cuota-destacada">
                 <span>Cuota Mensual Fija:</span>
                 <span className="monto-cuota-grande">
-                  ${cuotaMensualUSD.toFixed(2)} USD
+                  {formatoEURDecimal(cuotaMensualEUR)}
                 </span>
               </div>
               <div style={{ textAlign: 'right', fontSize: '11px', color: 'var(--texto-mudo)' }}>
-                Ref. {(cuotaMensualUSD * rateBCV).toLocaleString('es-VE', { maximumFractionDigits: 2 })} Bs. (Tasa BCV {rateBCV.toFixed(2)})
+                Ref. {formatoBs(cuotaMensualEUR * rateBCV)} (Tasa BCV {rateBCV.toFixed(2)} Bs/EUR)
               </div>
             </div>
           </div>
@@ -245,21 +284,23 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
             <h2 className="panel-titulo">3. Evaluación de Capacidad del Cliente</h2>
             <div className="grid-2-col">
               <div className="campo-item">
-                <label>Ingreso Mensual (USD)</label>
+                <label>Ingreso Mensual (EUR)</label>
                 <input
                   type="number"
                   step="50"
-                  value={ingresoMensualUSD}
-                  onChange={(e) => setIngresoMensualUSD(Number(e.target.value))}
+                  min="0"
+                  value={ingresoMensualEUR}
+                  onChange={(e) => setIngresoMensualEUR(Number(e.target.value))}
                 />
               </div>
               <div className="campo-item">
-                <label>Gastos Fijos (USD)</label>
+                <label>Gastos Fijos (EUR)</label>
                 <input
                   type="number"
                   step="50"
-                  value={gastosMensualesUSD}
-                  onChange={(e) => setGastosMensualesUSD(Number(e.target.value))}
+                  min="0"
+                  value={gastosMensualesEUR}
+                  onChange={(e) => setGastosMensualesEUR(Number(e.target.value))}
                 />
               </div>
             </div>
@@ -269,7 +310,7 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
                 <span>
                   Capacidad de pago ({Math.round(PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago * 100)} % del ingreso):
                 </span>
-                <strong>${Math.round(capacidadPagoDisponible).toLocaleString()} USD</strong>
+                <strong>{formatoEUR(capacidadPagoDisponible)}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginTop: '6px' }}>
                 <span>Ratio Cuota / Ingreso:</span>
@@ -283,7 +324,7 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
                           : '#C0392B',
                   }}
                 >
-                  {ratioCuotaIngreso.toFixed(1)}%{' '}
+                  {Number.isFinite(ratioCuotaIngreso) ? ratioCuotaIngreso.toFixed(1) : '0.0'}%{' '}
                   {ratioCuotaIngreso <= 30
                     ? '(Óptimo)'
                     : ratioCuotaIngreso <= 40
@@ -306,7 +347,7 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
                 Tabla de Amortización (Sistema Francés)
               </h2>
               <span style={{ fontSize: '12px', color: 'var(--texto-mudo)' }}>
-                {plazoMeses} cuotas fijas
+                {plazoMeses} cuotas fijas · {tasaMensualPct}% mensual
               </span>
             </div>
 
@@ -315,10 +356,10 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
                 <thead>
                   <tr>
                     <th>Mes</th>
-                    <th>Cuota USD</th>
-                    <th>Capital USD</th>
-                    <th>Interés USD</th>
-                    <th>Saldo USD</th>
+                    <th>Cuota EUR</th>
+                    <th>Capital</th>
+                    <th>Interés</th>
+                    <th>Saldo EUR</th>
                     <th>Ref. Bs</th>
                   </tr>
                 </thead>
@@ -326,12 +367,12 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
                   {tablaAmortizacion.map((fila) => (
                     <tr key={fila.numero}>
                       <td style={{ fontWeight: 700 }}>#{fila.numero}</td>
-                      <td style={{ fontWeight: 600 }}>${fila.monto.toFixed(2)}</td>
-                      <td style={{ color: '#0F6E56' }}>${fila.capital.toFixed(2)}</td>
-                      <td style={{ color: 'var(--naranja-600)' }}>${fila.interes.toFixed(2)}</td>
-                      <td style={{ fontWeight: 600 }}>${fila.saldo.toFixed(2)}</td>
-                      <td style={{ fontSize: '11px', color: 'var(--texto-mudo)' }}>
-                        {(fila.monto * rateBCV).toLocaleString('es-VE', { maximumFractionDigits: 0 })}
+                      <td style={{ fontWeight: 600 }}>{formatoEURDecimal(fila.monto)}</td>
+                      <td style={{ color: '#0F6E56' }}>{formatoEURDecimal(fila.capital)}</td>
+                      <td style={{ color: 'var(--naranja-600)' }}>{formatoEURDecimal(fila.interes)}</td>
+                      <td style={{ fontWeight: 600 }}>{formatoEURDecimal(fila.saldo)}</td>
+                      <td style={{ fontSize: '11px', color: 'var(--texto-mudo)', whiteSpace: 'nowrap' }}>
+                        {formatoBs(fila.monto * rateBCV)}
                       </td>
                     </tr>
                   ))}
@@ -344,7 +385,7 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
 
       <style>{`
         .financiamiento-admin-contenedor {
-          max-width: 1200px;
+          max-width: 1280px;
           margin: 0 auto;
         }
         .grid-financiamiento-admin {
@@ -353,7 +394,7 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
           gap: var(--space-xl);
           align-items: start;
         }
-        @media (max-width: 980px) {
+        @media (max-width: 1024px) {
           .grid-financiamiento-admin {
             grid-template-columns: 1fr;
           }
@@ -425,20 +466,22 @@ _Propuesta emitida por Corporación Token Pago POS / WAMMA._`;
           color: var(--naranja-600);
         }
         .tabla-amortizacion-wrapper {
-          max-height: 520px;
+          max-height: 540px;
+          overflow-x: auto;
           overflow-y: auto;
           border: 1px solid var(--borde-claro);
           border-radius: var(--radius-md);
         }
         .tabla-amortizacion {
           width: 100%;
+          min-width: 580px;
           border-collapse: collapse;
           font-size: 12px;
           text-align: right;
         }
         .tabla-amortizacion th,
         .tabla-amortizacion td {
-          padding: 8px 10px;
+          padding: 9px 12px;
           border-bottom: 1px solid var(--borde-claro);
         }
         .tabla-amortizacion th {
