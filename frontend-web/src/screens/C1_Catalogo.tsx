@@ -95,7 +95,9 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
 
   const [marcas, setMarcas] = useState<string[]>([]);
   const [transmisiones, setTransmisiones] = useState<string[]>([]);
-  const [precioMax, setPrecioMax] = useState('');
+  const [precioMaxManual, setPrecioMaxManual] = useState<string | null>(null);
+  const precioMax = precioMaxManual !== null ? precioMaxManual : (params.get('precioMax') ?? '');
+  const setPrecioMax = (v: string) => setPrecioMaxManual(v);
   const [cuotaMax, setCuotaMax] = useState('');
   const [rangoIngreso, setRangoIngreso] = useState('');
   const [anioMin, setAnioMin] = useState('');

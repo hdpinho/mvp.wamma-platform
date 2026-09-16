@@ -1,15 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { Boton } from './Boton';
-import { NotaSimulada } from './NotaSimulada';
-import { PARAMETROS_FINANCIAMIENTO, calcularCuota } from '../mocks/financiamiento';
+import {
+  calcularCuota,
+  formatoUSD,
+  formatoVES,
+  NOTA_BLOQUEO_VEHICULO,
+} from '../services/financiamientoMotor';
+import { useParametrosFinanciamiento } from '../services/parametrosFinanciamiento';
 
-/**
- * Simulador de cuota. Sin lógica de negocio real: el cálculo es el sistema
- * francés con los parámetros simulados de `mocks/financiamiento.ts`.
- * El motor real vive en los módulos 006 y 007, aún no construidos.
- */
-
-/** Valores con los que el usuario dejó el simulador al pulsar el botón. */
 export interface DatosSimulacion {
   precio: number;
   inicialPct: number;
@@ -20,48 +18,112 @@ export interface DatosSimulacion {
 }
 
 interface SimuladorCuotaProps {
-  /** Precio de partida. Si se omite, el usuario lo escribe. */
+  /** Nombre del vehículo mostrado en el encabezado. */
+  nombreVehiculo?: string;
+  /** Precio de venta en USD. */
   precio?: number;
-  /** Permite editar el precio dentro del simulador (uso en Home). */
+  /** Permite editar el precio dentro del simulador (ej. en Home o cotizador abierto). */
   precioEditable?: boolean;
+  /** Tasa oficial BCV para conversión a Bolívares. */
   rateBCV?: number;
-  /** Recibe la simulación actual para arrastrarla a la solicitud (C5). */
+  /** Acción principal al pulsar «Agendar». */
+  onAgendar?: () => void;
+  /** Compatibilidad: recibe los datos completos de la simulación. */
   onSolicitar?: (datos: DatosSimulacion) => void;
+  /** Texto personalizado para el botón de acción (por defecto «Agendar»). */
   textoBoton?: string;
-  /** Desactiva el botón, p. ej. cuando el vehículo ya tiene una cita en curso. */
+  /** Desactiva el botón de agendar (ej. vehículo vendido o con cita en curso). */
   botonDeshabilitado?: boolean;
-  /** Explica por qué el botón está desactivado. */
+  /** Motivo por el cual el botón está deshabilitado. */
   motivoDeshabilitado?: string;
 }
 
-const formatoEUR = (v: number) =>
-  new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(Number.isFinite(v) ? v : 0);
-
 export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
-  precio: precioInicial = 12000,
+  nombreVehiculo,
+  precio: precioInicial = 15400,
   precioEditable = false,
+  rateBCV,
+  onAgendar,
   onSolicitar,
-  textoBoton = 'Solicitar financiamiento',
+  textoBoton = 'Agendar',
   botonDeshabilitado = false,
   motivoDeshabilitado,
 }) => {
-  // El precio de partida llega por propiedad; dentro del simulador puede ajustarse (C0).
-  const [precio, setPrecio] = useState(precioInicial);
-  const [inicialPct, setInicialPct] = useState<number>(PARAMETROS_FINANCIAMIENTO.inicialPorcentaje);
-  const [plazo, setPlazo] = useState<number>(PARAMETROS_FINANCIAMIENTO.plazoPorDefecto);
+  const { parametros, error } = useParametrosFinanciamiento();
 
-  const { inicial, montoFinanciado, cuota } = useMemo(() => {
-    const ini = precio * inicialPct;
-    const financiado = precio - ini;
-    return { inicial: ini, montoFinanciado: financiado, cuota: calcularCuota(financiado, plazo) };
-  }, [precio, inicialPct, plazo]);
+  const [precioEditado, setPrecioEditado] = useState<number | null>(null);
+  const precio = precioEditado ?? (Number.isFinite(precioInicial) && precioInicial > 0 ? precioInicial : 15400);
+
+  // Inicial por defecto 20% (0.20)
+  const [inicialPct, setInicialPct] = useState<number>(0.20);
+  const [detalleAbierto, setDetalleAbierto] = useState<boolean>(false);
+
+  // Si fallan los parámetros en Supabase/backend, no se calculan cuotas de respaldo
+  const calculoDisponible = Boolean(parametros && !error);
+
+  const opcionesInicial = parametros?.opcionesInicial || [0.20, 0.30, 0.40];
+  const plazoMeses = parametros?.plazoMeses || 24;
+
+  const {
+    montoInicial,
+    montoFinanciado,
+    cuota,
+    totalIntereses,
+    costoTotal,
+    cuotaDefecto20,
+    inicialDefecto20,
+  } = useMemo(() => {
+    if (!calculoDisponible || !parametros || precio <= 0) {
+      return {
+        montoInicial: 0,
+        montoFinanciado: 0,
+        cuota: 0,
+        totalIntereses: 0,
+        costoTotal: 0,
+        cuotaDefecto20: 0,
+        inicialDefecto20: 0,
+      };
+    }
+
+    const mInicial = precio * inicialPct;
+    const mFinanciado = precio - mInicial;
+    const cuotaCalculada = calcularCuota(precio, inicialPct, parametros);
+
+    const ini20 = precio * 0.20;
+    const cuota20 = calcularCuota(precio, 0.20, parametros);
+
+    const cTotal = cuotaCalculada * plazoMeses;
+    const tIntereses = Math.max(0, cTotal - mFinanciado);
+
+    return {
+      montoInicial: mInicial,
+      montoFinanciado: mFinanciado,
+      cuota: cuotaCalculada,
+      totalIntereses: tIntereses,
+      costoTotal: cTotal,
+      cuotaDefecto20: cuota20,
+      inicialDefecto20: ini20,
+    };
+  }, [calculoDisponible, parametros, precio, inicialPct, plazoMeses]);
+
+  const handleAccion = () => {
+    if (onAgendar) {
+      onAgendar();
+    } else if (onSolicitar) {
+      onSolicitar({
+        precio,
+        inicialPct,
+        cuotaInicialUSD: montoInicial,
+        montoFinanciado,
+        plazo: plazoMeses,
+        cuota,
+      });
+    }
+  };
 
   return (
     <div
+      className="simulador-cuota-tarjeta"
       style={{
         backgroundColor: 'var(--blanco)',
         border: '1px solid var(--borde-claro)',
@@ -70,170 +132,332 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
         display: 'flex',
         flexDirection: 'column',
         gap: 'var(--space-lg)',
+        boxShadow: '0 2px 12px rgba(43, 43, 43, 0.04)',
       }}
     >
+      {/* Encabezado con el nombre del vehículo */}
+      {nombreVehiculo && (
+        <div style={{ borderBottom: '1px solid var(--borde-claro)', paddingBottom: 'var(--space-md)' }}>
+          <span
+            style={{
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              fontWeight: 700,
+              color: 'var(--texto-mudo)',
+            }}
+          >
+            Plan de Financiamiento
+          </span>
+          <h2 style={{ fontSize: '18px', fontWeight: 700, margin: '4px 0 0', color: 'var(--carbon)' }}>
+            {nombreVehiculo}
+          </h2>
+        </div>
+      )}
+
+      {/* Resumen de cabecera: "$X inicial" y "$Y × 24 meses" (opción 20% por defecto) */}
+      {calculoDisponible && (
+        <div
+          style={{
+            backgroundColor: 'var(--superficie)',
+            borderRadius: 'var(--radius-md)',
+            padding: '12px 16px',
+            border: '1px solid var(--borde-claro)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+              fontSize: '15px',
+              fontWeight: 700,
+              color: 'var(--carbon)',
+            }}
+          >
+            <span>{formatoUSD(inicialDefecto20)} inicial</span>
+            <span style={{ color: 'var(--naranja-600)', fontSize: '17px' }}>
+              {formatoUSD(cuotaDefecto20)} × {plazoMeses} meses
+            </span>
+          </div>
+
+          {rateBCV && rateBCV > 0 && (
+            <div
+              style={{
+                fontSize: '11px',
+                color: 'var(--texto-mudo)',
+                marginTop: '4px',
+                display: 'flex',
+                justifyContent: 'space-between',
+              }}
+            >
+              <span>Ref. {formatoVES(inicialDefecto20 * rateBCV)}</span>
+              <span>Ref. {formatoVES(cuotaDefecto20 * rateBCV)} /mes</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Botón principal «Agendar» con nota de bloqueo */}
       <div>
-        <h3 style={{ fontSize: '18px' }}>Simula tu cuota</h3>
-        <p style={{ fontSize: '13px', color: 'var(--texto-secundario)', marginTop: '2px' }}>
-          Ajusta la inicial y el plazo para ver cuánto pagarías al mes.
-        </p>
+        <Boton
+          variant="primary"
+          fullWidth
+          disabled={botonDeshabilitado || !calculoDisponible}
+          onClick={handleAccion}
+        >
+          {textoBoton}
+        </Boton>
+
+        {botonDeshabilitado && motivoDeshabilitado ? (
+          <p
+            style={{
+              fontSize: '12px',
+              color: 'var(--texto-secundario)',
+              margin: '8px 0 0',
+              textAlign: 'center',
+              lineHeight: 1.4,
+            }}
+          >
+            {motivoDeshabilitado}
+          </p>
+        ) : (
+          <p
+            style={{
+              fontSize: '11px',
+              color: 'var(--texto-mudo)',
+              margin: '8px 0 0',
+              textAlign: 'center',
+              lineHeight: 1.35,
+            }}
+          >
+            {NOTA_BLOQUEO_VEHICULO}
+          </p>
+        )}
       </div>
 
+      {/* Selector de precio editable si aplica */}
       {precioEditable && (
         <label style={{ display: 'block' }}>
-          <span className="form-label">Precio del vehículo (EUR)</span>
+          <span className="form-label" style={{ fontSize: '12px', fontWeight: 600 }}>
+            Precio del vehículo (USD)
+          </span>
           <input
             type="number"
             className="form-input"
             min={1000}
             step={100}
             value={precio}
-            onChange={(e) => setPrecio(Math.max(0, Number(e.target.value)))}
+            onChange={(e) => setPrecioEditado(Math.max(0, Number(e.target.value)))}
           />
         </label>
       )}
 
-      {/* Inicial */}
-      <div>
+      {/* Estado: Cálculo no disponible (Requisito B.5) */}
+      {!calculoDisponible && (
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: '13px',
-            marginBottom: 'var(--space-sm)',
+            backgroundColor: '#FFF7ED',
+            border: '1px solid #FDBA74',
+            borderRadius: 'var(--radius-md)',
+            padding: 'var(--space-md)',
+            textAlign: 'center',
           }}
         >
-          <span className="form-label" style={{ margin: 0 }}>
-            Inicial
-          </span>
-          <strong>
-            {Math.round(inicialPct * 100)}% · {formatoEUR(inicial)}
-          </strong>
+          <div style={{ color: 'var(--naranja-700)', fontWeight: 700, fontSize: '13px' }}>
+            ⚠️ Cálculo no disponible
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', margin: '4px 0 0', lineHeight: 1.4 }}>
+            No pudimos sincronizar los parámetros de financiamiento aprobados. Por seguridad comercial,
+            no se presentan cálculos estimados sin validación oficial.
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
-          {PARAMETROS_FINANCIAMIENTO.inicialesDisponibles.map((pct) => (
-            <button
-              key={pct}
-              type="button"
-              onClick={() => setInicialPct(pct)}
-              style={{
-                flex: '1 1 48px',
-                padding: '8px',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '13px',
-                fontWeight: inicialPct === pct ? 700 : 400,
-                cursor: 'pointer',
-                borderRadius: 'var(--radius-sm)',
-                border: `1px solid ${inicialPct === pct ? 'var(--naranja-500)' : 'var(--borde)'}`,
-                backgroundColor: inicialPct === pct ? 'var(--naranja-50)' : 'var(--blanco)',
-                color: inicialPct === pct ? 'var(--naranja-700)' : 'var(--texto-secundario)',
-              }}
-            >
-              {Math.round(pct * 100)}%
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Plazo */}
-      <div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: '13px',
-            marginBottom: 'var(--space-sm)',
-          }}
-        >
-          <span className="form-label" style={{ margin: 0 }}>
-            Plazo
-          </span>
-          <strong>{plazo} meses</strong>
-        </div>
-        <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
-          {PARAMETROS_FINANCIAMIENTO.plazosMeses.map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setPlazo(m)}
-              style={{
-                flex: '1 1 60px',
-                padding: '8px',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '13px',
-                fontWeight: plazo === m ? 700 : 400,
-                cursor: 'pointer',
-                borderRadius: 'var(--radius-sm)',
-                border: `1px solid ${plazo === m ? 'var(--naranja-500)' : 'var(--borde)'}`,
-                backgroundColor: plazo === m ? 'var(--naranja-50)' : 'var(--blanco)',
-                color: plazo === m ? 'var(--naranja-700)' : 'var(--texto-secundario)',
-              }}
-            >
-              {m}m
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Resultado */}
-      <div
-        style={{
-          backgroundColor: 'var(--naranja-50)',
-          border: '1px solid var(--naranja-200)',
-          borderRadius: 'var(--radius-md)',
-          padding: 'var(--space-lg)',
-          textAlign: 'center',
-        }}
-      >
-        <div
-          style={{
-            fontSize: '11px',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            color: 'var(--naranja-700)',
-          }}
-        >
-          Cuota mensual estimada
-        </div>
-        <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1.2 }}>
-         {formatoEUR(cuota)}
-        </div>
-        <div style={{ fontSize: '12px', color: 'var(--texto-secundario)' }}>
-          Ref. Tasa Euro BCV
-        </div>
-      </div>
-
-      {onSolicitar && (
-        <Boton
-          variant="primary"
-          fullWidth
-          disabled={botonDeshabilitado}
-          onClick={() =>
-            onSolicitar({
-              precio: precio,
-              inicialPct,
-              cuotaInicialUSD: inicial,
-              montoFinanciado,
-              plazo,
-              cuota,
-            })
-          }
-        >
-          {textoBoton}
-        </Boton>
       )}
 
-      {onSolicitar && botonDeshabilitado && motivoDeshabilitado && (
-        <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', margin: 0, textAlign: 'center', lineHeight: 1.4 }}>
-          {motivoDeshabilitado}
-        </p>
-      )}
+      {/* Sección «Simula tu cuota» */}
+      {calculoDisponible && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          <div>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--carbon)' }}>
+              Simula tu cuota
+            </h3>
+            <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', margin: '2px 0 0' }}>
+              Ajusta la inicial para ver cuánto pagarías al mes
+            </p>
+          </div>
 
-      <NotaSimulada>
-        Tasas y plazos aún no confirmados por WAMMA. Sujeto a aprobación crediticia; no constituye
-        una oferta.
-      </NotaSimulada>
+          {/* Selector de tres opciones de inicial: 20%, 30%, 40% */}
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '12px',
+                marginBottom: '6px',
+              }}
+            >
+              <span style={{ fontWeight: 600, color: 'var(--texto-secundario)' }}>Inicial</span>
+              <strong style={{ color: 'var(--carbon)' }}>
+                {Math.round(inicialPct * 100)}% · {formatoUSD(montoInicial)}
+              </strong>
+            </div>
+
+            <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+              {opcionesInicial.map((pct) => {
+                const seleccionado = inicialPct === pct;
+                return (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => setInicialPct(pct)}
+                    style={{
+                      flex: 1,
+                      padding: '10px 8px',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: '13px',
+                      fontWeight: seleccionado ? 700 : 500,
+                      cursor: 'pointer',
+                      borderRadius: 'var(--radius-sm)',
+                      border: `1px solid ${seleccionado ? 'var(--naranja-500)' : 'var(--borde)'}`,
+                      backgroundColor: seleccionado ? 'var(--naranja-50)' : 'var(--blanco)',
+                      color: seleccionado ? 'var(--naranja-700)' : 'var(--texto-secundario)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {Math.round(pct * 100)}%
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Plazo mostrado como texto fijo: "Plazo: 24 meses" */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--superficie)',
+              border: '1px solid var(--borde-claro)',
+              fontSize: '12px',
+            }}
+          >
+            <span style={{ color: 'var(--texto-secundario)', fontWeight: 500 }}>Plazo: 24 meses</span>
+            <span style={{ color: 'var(--texto-mudo)', fontSize: '11px' }}>Cuotas mensuales fijas</span>
+          </div>
+
+          {/* Recuadro de resultado: Etiqueta debe decir solo "Cuota" */}
+          <div
+            style={{
+              backgroundColor: 'var(--naranja-50)',
+              border: '1px solid var(--naranja-200)',
+              borderRadius: 'var(--radius-md)',
+              padding: 'var(--space-lg)',
+              textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color: 'var(--naranja-700)',
+              }}
+            >
+              Cuota
+            </div>
+            <div
+              style={{
+                fontSize: '32px',
+                fontWeight: 800,
+                lineHeight: 1.15,
+                color: 'var(--carbon)',
+                margin: '4px 0',
+              }}
+            >
+              {formatoUSD(cuota)}
+            </div>
+
+            {rateBCV && rateBCV > 0 && (
+              <div style={{ fontSize: '12px', color: 'var(--texto-secundario)', marginTop: '2px' }}>
+                Ref. {formatoVES(cuota * rateBCV)} a tasa oficial BCV
+              </div>
+            )}
+          </div>
+
+          {/* Lo que hoy aparece debajo de la cuota se mueve al desplegable "Ver detalle" */}
+          <div style={{ borderTop: '1px dashed var(--borde-claro)', paddingTop: 'var(--space-sm)' }}>
+            <button
+              type="button"
+              onClick={() => setDetalleAbierto(!detalleAbierto)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: '4px 0',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: 'var(--naranja-600)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>{detalleAbierto ? '▾' : '▸'} Ver detalle de la operación</span>
+              <span style={{ fontSize: '10px', color: 'var(--texto-mudo)', fontWeight: 400 }}>
+                (pendiente validación legal)
+              </span>
+            </button>
+
+            {detalleAbierto && (
+              <div
+                style={{
+                  marginTop: 'var(--space-sm)',
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--superficie)',
+                  border: '1px solid var(--borde-claro)',
+                  fontSize: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--texto-secundario)' }}>Monto financiado:</span>
+                  <strong>{formatoUSD(montoFinanciado)}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--texto-secundario)' }}>Tasa mensual aplicada:</span>
+                  <strong>4.0% (48% anual)</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--texto-secundario)' }}>Total intereses estimados:</span>
+                  <strong>{formatoUSD(totalIntereses)}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--borde-claro)', paddingTop: '6px' }}>
+                  <span style={{ color: 'var(--texto-secundario)' }}>Total a pagar (24 meses):</span>
+                  <strong style={{ color: 'var(--naranja-700)' }}>{formatoUSD(costoTotal)}</strong>
+                </div>
+                <div
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--texto-mudo)',
+                    marginTop: '4px',
+                    lineHeight: 1.3,
+                  }}
+                >
+                  * Cifras y desglose financiero sujetos a validación de términos por asesoría legal.
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

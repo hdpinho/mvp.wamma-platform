@@ -461,8 +461,10 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
             (specs/010-crm-comercial/spec.md §8.8).
           */}
           <SimuladorCuota
+            nombreVehiculo={`${vehiculo.marca} ${vehiculo.modelo} ${vehiculo.version}`}
             precio={vehiculo.precio}
             rateBCV={rateBCV}
+            onAgendar={() => abrirAgendarCita(true)}
             onSolicitar={() => abrirAgendarCita(true)}
             botonDeshabilitado={
               vehiculo.estadoDisponibilidad === 'cita_agendada' || vehiculo.estadoDisponibilidad === 'vendido'

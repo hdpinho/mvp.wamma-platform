@@ -43,6 +43,7 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
   // Sincronizar selección inicial cuando los vehículos cargan asíncronamente desde el backend
   useEffect(() => {
     if (!vehiculoSeleccionadoId && vehiculos.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVehiculoSeleccionadoId(vehiculos[0].id);
       setPrecioPersonalizado(vehiculos[0].precio);
     }
