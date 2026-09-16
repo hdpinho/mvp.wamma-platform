@@ -1,76 +1,82 @@
 /**
- * Parámetros de financiamiento — DATOS SIMULADOS.
+ * Parámetros y adaptadores de financiamiento para compatibilidad hacia atrás.
  *
- * Reusa las cifras que ya trae `mocks/credito.ts` (4% mensual / 48% anual / 12 meses)
- * para que el catálogo, la ficha y el cotizador muestren lo mismo.
- *
- * `[NEEDS CLARIFICATION]` La tasa y los plazos NO están confirmados como las
- * condiciones reales de WAMMA: provienen de la generación inicial de la maqueta.
- * Antes de cualquier uso comercial deben validarse contra el módulo 006 (motor
- * de riesgo) y el 007 (pagos y ledger). La inicial mínima y la regla de
- * capacidad de pago sí son decisión del Product Owner (septiembre 2026).
- *
- * Principio V de la Constitución: en producción los montos NO se calculan con
- * coma flotante. Aquí se usa `number` únicamente porque es una maqueta visual
- * sin lógica de negocio; el backend en Go usa precisión fija.
+ * Todas las fórmulas matemáticas han sido unificadas en `services/financiamientoMotor.ts`.
+ * Este archivo delega estrictamente en dicho motor para evitar divergencia de cálculos.
  */
 
+import {
+  PARAMETROS_APROBADOS,
+  calcularFactor,
+  calcularCuota as motorCalcularCuota,
+  calcularCuotaMaxima,
+  calcularPrecioMaximo,
+  calcularIngresoMinimo,
+  simularOpciones,
+  formatoUSD,
+  formatoVES,
+  NOTA_BLOQUEO_VEHICULO,
+} from '../services/financiamientoMotor';
+
+export {
+  PARAMETROS_APROBADOS,
+  calcularFactor,
+  calcularCuotaMaxima,
+  calcularPrecioMaximo,
+  calcularIngresoMinimo,
+  simularOpciones,
+  formatoUSD,
+  formatoVES,
+  NOTA_BLOQUEO_VEHICULO,
+};
+
 export const PARAMETROS_FINANCIAMIENTO = {
-  tasaMensual: 0.04,
-  tasaAnual: 0.48,
-  plazosMeses: [6, 12, 18, 24],
-  plazoPorDefecto: 12,
-  /** Inicial mínima y por defecto sobre el precio del vehículo. */
-  inicialPorcentaje: 0.2,
-  inicialesDisponibles: [0.2, 0.3, 0.4, 0.5, 0.6],
-  /**
-   * Capacidad de pago = este porcentaje del ingreso mensual total. Los egresos
-   * se siguen declarando, pero no restan. Mismo valor que usa el núcleo Go
-   * (`internal/creditapp/calc`).
-   */
-  porcentajeCapacidadPago: 0.3,
+  tasaMensual: PARAMETROS_APROBADOS.tasaMensual,
+  tasaAnual: PARAMETROS_APROBADOS.tasaMensual * 12,
+  plazosMeses: [24],
+  plazoPorDefecto: PARAMETROS_APROBADOS.plazoMeses,
+  /** Inicial mínima aprobada: 20% */
+  inicialPorcentaje: PARAMETROS_APROBADOS.inicialMinima,
+  /** Opciones de inicial aprobadas: 20%, 30%, 40% */
+  inicialesDisponibles: PARAMETROS_APROBADOS.opcionesInicial,
+  /** Capacidad de pago máxima aprobada: 30% del ingreso mensual */
+  porcentajeCapacidadPago: PARAMETROS_APROBADOS.ratioCuotaIngreso,
 } as const;
 
 /** Nota legal que acompaña toda cuota mostrada en la interfaz. */
 export const NOTA_CUOTA =
-  'Cuota estimada con datos simulados, sujeta a aprobación crediticia. No constituye una oferta.';
+  'Cuota fija en dólares bajo sistema francés. Referencia en bolívares calculada a tasa oficial BCV. Sujeto a evaluación crediticia.';
 
 /**
- * Cuota fija mensual (sistema francés).
- *
- *   cuota = M · i / (1 − (1 + i)^−n)
- *
- * @param montoFinanciado monto a financiar en USD
- * @param plazoMeses      número de cuotas
- * @param tasaMensual     tasa de interés mensual en tanto por uno
+ * Cuota fija mensual delegada en el motor unificado de financiamiento.
+ * Conserva la firma (montoFinanciado, plazo, tasa) para componentes internos del backoffice.
  */
 export function calcularCuota(
   montoFinanciado: number,
-  plazoMeses: number = PARAMETROS_FINANCIAMIENTO.plazoPorDefecto,
-  tasaMensual: number = PARAMETROS_FINANCIAMIENTO.tasaMensual,
+  plazoMeses: number = PARAMETROS_APROBADOS.plazoMeses,
+  tasaMensual: number = PARAMETROS_APROBADOS.tasaMensual,
 ): number {
-  if (montoFinanciado <= 0 || plazoMeses <= 0) return 0;
-  if (tasaMensual === 0) return montoFinanciado / plazoMeses;
-  return (montoFinanciado * tasaMensual) / (1 - Math.pow(1 + tasaMensual, -plazoMeses));
+  if (montoFinanciado <= 0 || plazoMeses <= 0 || tasaMensual <= 0) return 0;
+  const factor = calcularFactor(tasaMensual, plazoMeses);
+  return montoFinanciado * factor;
 }
 
 /**
- * Cuota "desde" que se muestra en las tarjetas del catálogo: la más baja posible,
- * es decir con la inicial más alta y el plazo más largo disponibles.
+ * Cuota "desde" que se muestra en las tarjetas del catálogo:
+ * Calculada con la opción de inicial máxima (40%) y el plazo fijo de 24 meses.
  */
 export function cuotaDesde(precio: number): number {
-  const inicialMaxima = Math.max(...PARAMETROS_FINANCIAMIENTO.inicialesDisponibles);
-  const plazoMaximo = Math.max(...PARAMETROS_FINANCIAMIENTO.plazosMeses);
-  return calcularCuota(precio * (1 - inicialMaxima), plazoMaximo);
+  return motorCalcularCuota(precio, 0.40, PARAMETROS_APROBADOS);
 }
 
-/** Genera la tabla de amortización de un crédito simulado. */
+/** Genera la tabla de amortización con el factor francés del motor unificado. */
 export function generarAmortizacion(
   montoFinanciado: number,
-  plazoMeses: number,
-  tasaMensual: number = PARAMETROS_FINANCIAMIENTO.tasaMensual,
+  plazoMeses: number = PARAMETROS_APROBADOS.plazoMeses,
+  tasaMensual: number = PARAMETROS_APROBADOS.tasaMensual,
 ) {
-  const cuota = calcularCuota(montoFinanciado, plazoMeses, tasaMensual);
+  const factor = calcularFactor(tasaMensual, plazoMeses);
+  const cuota = montoFinanciado * factor;
   let saldo = montoFinanciado;
 
   return Array.from({ length: plazoMeses }, (_, i) => {
