@@ -140,3 +140,59 @@ test('14. Parámetros aprobados y formateo de monedas', () => {
   // Formato VES: 2 decimales
   assert.ok(formatoVES(1234.5).includes('Bs.'));
 });
+
+test('15. Matriz de ejemplos de capacidad de ingreso (inicial 20%)', () => {
+  // $800 -> Cuota máx $240 -> Precio máx $4,574
+  assert.equal(formatoUSD(calcularCuotaMaxima(800)), '$240');
+  assert.equal(formatoUSD(calcularPrecioMaximo(800, 0.20)), '$4,574');
+
+  // $1,000 -> Cuota máx $300 -> Precio máx $5,718
+  assert.equal(formatoUSD(calcularCuotaMaxima(1000)), '$300');
+  assert.equal(formatoUSD(calcularPrecioMaximo(1000, 0.20)), '$5,718');
+
+  // $1,500 -> Cuota máx $450 -> Precio máx $8,576
+  assert.equal(formatoUSD(calcularCuotaMaxima(1500)), '$450');
+  assert.equal(formatoUSD(calcularPrecioMaximo(1500, 0.20)), '$8,576');
+
+  // $2,000 -> Cuota máx $600 -> Precio máx $11,435
+  assert.equal(formatoUSD(calcularCuotaMaxima(2000)), '$600');
+  assert.equal(formatoUSD(calcularPrecioMaximo(2000, 0.20)), '$11,435');
+
+  // $2,500 -> Cuota máx $750 -> Precio máx $14,294
+  assert.equal(formatoUSD(calcularCuotaMaxima(2500)), '$750');
+  assert.equal(formatoUSD(calcularPrecioMaximo(2500, 0.20)), '$14,294');
+});
+
+test('16. Matriz de ingreso mínimo según inventario (inicial 20%)', () => {
+  // $6,000 -> Cuota $315 -> Ingreso mín $1,049
+  assert.equal(formatoUSD(calcularCuota(6000, 0.20)), '$315');
+  assert.equal(formatoUSD(calcularIngresoMinimo(6000, 0.20)), '$1,049');
+
+  // $8,500 -> Cuota $446 -> Ingreso mín $1,487
+  assert.equal(formatoUSD(calcularCuota(8500, 0.20)), '$446');
+  assert.equal(formatoUSD(calcularIngresoMinimo(8500, 0.20)), '$1,487');
+
+  // $12,000 -> Cuota $630 -> Ingreso mín $2,099
+  assert.equal(formatoUSD(calcularCuota(12000, 0.20)), '$630');
+  assert.equal(formatoUSD(calcularIngresoMinimo(12000, 0.20)), '$2,099');
+
+  // $15,400 -> Cuota $808 -> Ingreso mín $2,693
+  assert.equal(formatoUSD(calcularCuota(15400, 0.20)), '$808');
+  assert.equal(formatoUSD(calcularIngresoMinimo(15400, 0.20)), '$2,693');
+});
+
+test('17. Multiplicadores de precio máximo según inicial', () => {
+  const factor = calcularFactor(0.04, 24);
+
+  // Inicial 20%: 0.30 / factor / 0.80 ≈ 5.71761 (5.72)
+  const mult20 = 0.30 / factor / 0.80;
+  assertAproximado(mult20, 5.72, 'Multiplicador 20%');
+
+  // Inicial 30%: 0.30 / factor / 0.70 ≈ 6.53441 (6.53)
+  const mult30 = 0.30 / factor / 0.70;
+  assertAproximado(mult30, 6.53, 'Multiplicador 30%');
+
+  // Inicial 40%: 0.30 / factor / 0.60 ≈ 7.62348 (7.62)
+  const mult40 = 0.30 / factor / 0.60;
+  assertAproximado(mult40, 7.62, 'Multiplicador 40%');
+});

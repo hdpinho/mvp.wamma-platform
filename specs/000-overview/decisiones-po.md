@@ -38,14 +38,15 @@
 | D-22 | Fotos | Las toma un fotógrafo de WAMMA y son del vehículo real que se vende. WAMMA es titular de los derechos | Precisa D-10 | 004, 005 |
 | D-23 | Sede | Una sola sede, denominada **Distrito Capital** | Precisa D-11 | 004, 010 |
 | D-25 | Etapa 2: inventario, catálogo y tasa BCV | **Aprobados** el spec 005 Rev. 2, su plan y sus tareas, con las opciones recomendadas por ingeniería:<ul><li>Fotos de demostración: las 16 actuales, marcadas como referenciales y con su crédito. Se publican con una foto, por excepción, hasta tener las del fotógrafo (E9-A).</li><li>De 5 a 10 fotos para publicar (E10).</li><li>Se puede publicar sin certificar, con aviso y sin sello (E11).</li><li>Precios de demostración: las mismas cifras, en euros (E12).</li><li>VIN obligatorio (E4).</li><li>Servidor dormido: copia local del catálogo en el navegador; sin consulta periódica por ahora (E14).</li><li>Los archivos que otra sesión está pasando a euros se toman cuando esa sesión termine (E15).</li><li>Se trabaja en local: sin despliegue ni commit hasta nuevo aviso.</li></ul> | Cierra P-005.1 a P-005.4 | 004, 005, 009 |
-| D-24 | Módulo 001 | **Aprobados** el spec Rev. 2, el plan y las tareas:<ul><li>2FA para todo el backoffice y sesión con token opaco.</li><li>Sesión: 30 min de inactividad y 12 h como máximo. Contraseña de 12 caracteres como mínimo. Bloqueo tras 5 intentos, durante 15 min.</li><li>10 códigos de recuperación, y restablecimiento por el administrador.</li><li>Pantallas **Usuarios** y **Bitácora**.</li><li>Matriz de permisos de `001/plan.md` §9: el administrador no opera sin rol operativo; el auditor ve el expediente de crédito; la tasa BCV la registran el administrador y el analista de crédito.</li><li>PostgreSQL embebido para las pruebas locales.</li></ul> | Cierra P1-001 y P2-001 | 001 |
+| D-26 | Parámetros oficiales de financiamiento | **Aprobados los parámetros comerciales para el MVP:**<ul><li>Tasa: 4.0 % mensual fija (48 % anual).</li><li>Sistema: francés (cuotas fijas).</li><li>Plazo: fijo en 24 meses (sin selector de plazos en vitrina).</li><li>Opciones de inicial: 20 %, 30 %, 40 % (inicial mínima: 20 %).</li><li>Relación cuota/ingreso máxima: 30 % del ingreso mensual comprobable.</li><li>Multiplicadores sobre el ingreso mensual: $\times 5.72$ (con 20 % inicial), $\times 6.53$ (30 % inicial) y $\times 7.62$ (40 % inicial).</li><li>Motor de cálculo único en `financiamientoMotor.ts`.</li><li>Parámetros en tabla Supabase `parametros_financiamiento` (V0015) con RLS y salvaguarda ("cálculo no disponible" si falla la sincronización).</li><li>Calculadora de capacidad con navegación persistida a catálogo (`/catalogo?precioMax=...`) y estado sin resultados pedagógico con enlace a prospectos CRM (Módulo 010).</li></ul> | Cierra D-14 | 005, 010, Financiamiento |
 
 ## Pendientes derivados
 
 | Tema | Pregunta | Bloquea |
 |---|---|---|
 | Sede (D-23) | Dirección de la sede, para la ficha del vehículo y la confirmación de citas | Nada crítico; etapa 2 |
-| Parámetros (D-14) | Confirmar los valores iniciales que proponga ingeniería | Etapa 4 |
+| Bloqueo (D-26) | Redacción legal final y plazo de reserva temporal al agendar cita | Vitrina / CRM |
+| Detalle legal (D-26) | Validación con asesoría legal del desglose de costo total e intereses | Vitrina / Backoffice |
 
 ---
 *WAMMA · Confidencial · No constituye asesoría legal ni financiera.*
