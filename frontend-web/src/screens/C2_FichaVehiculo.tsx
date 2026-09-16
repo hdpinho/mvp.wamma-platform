@@ -450,14 +450,6 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
                 >
                   Agendar cita
                 </Boton>
-                <Boton
-                  variant="secondary"
-                  fullWidth
-                  onClick={() => navigate('/financiamiento')}
-                  style={{ marginTop: 'var(--space-sm)' }}
-                >
-                  🏦 Banco
-                </Boton>
               </div>
             )}
           </div>
