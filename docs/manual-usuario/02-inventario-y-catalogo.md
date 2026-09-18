@@ -104,7 +104,7 @@ Desde el inventario la cambia el rol Inventario; en el día a día la mueve el C
 
 | Pantalla | Qué ofrece |
 |---|---|
-| Inicio | Portada directa y minimalista con Hero de búsqueda y video de portada, 3 accesos directos prioritarios («Explora la vitrina», «Inspección 240 puntos» y «Financiamiento directo») y pie de página corporativo `PiePagina` (D-34, D-35). Toda la exploración de vehículos se concentra en la Vitrina |
+| Inicio | Portada directa y minimalista con Hero de video, mensaje institucional, barra de búsqueda rápida y pie de página corporativo `PiePagina` (D-34, D-36). La navegación al catálogo y financiamiento se canaliza desde la barra de navegación y los enlaces del pie de página |
 | Vitrina (catálogo) | Solo los vehículos **publicados** y no vendidos. Filtros específicos por **Cuota mensual**, **Rango de ingresos**, **Marca** (Ford, Chevrolet, Chery, Hyundai, Toyota), **Transmisión** y **Año** (D-28) |
 | Ficha del vehículo | Galería estandarizada de fotos de estudio (D-32), especificaciones técnicas, sello de **Inspección 240 puntos**, registro de imperfecciones sobre el diagrama, plan de financiamiento detallado y botón principal **Agendar cita** (D-29, D-30) |
 | Favoritos | Los que el visitante marcó con el corazón. Se guardan en su navegador: no requieren cuenta |

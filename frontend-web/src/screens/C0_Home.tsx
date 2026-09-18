@@ -6,43 +6,6 @@ interface C0HomeProps {
   rateBCV?: number;
 }
 
-/** Los tres pilares para la compra de vehículos publicados. */
-const ACCESOS = [
-  {
-    titulo: 'Explora la vitrina',
-    detalle: 'Inventario con inspección Estándar WAMMA listo para entrega inmediata.',
-    a: '/catalogo',
-    icono: (
-      <>
-        <circle cx="11" cy="11" r="7" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </>
-    ),
-  },
-  {
-    titulo: 'Inspección 240 puntos',
-    detalle: 'Inspección exhaustiva mecánica, legal y estética garantizada.',
-    a: '/catalogo',
-    icono: (
-      <>
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        <polyline points="9 12 11 14 15 10" />
-      </>
-    ),
-  },
-  {
-    titulo: 'Financiamiento directo',
-    detalle: 'Simula tu cuota en EUR. El crédito se solicita después de tu visita.',
-    a: '/financiamiento',
-    icono: (
-      <>
-        <rect x="2" y="5" width="20" height="14" rx="2" />
-        <line x1="2" y1="10" x2="22" y2="10" />
-      </>
-    ),
-  },
-];
-
 export const C0_Home: React.FC<C0HomeProps> = () => {
   const navigate = useNavigate();
   const [busqueda, setBusqueda] = useState('');
@@ -226,67 +189,6 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
           }
         `}</style>
       </section>
-
-      {/* ── Tres accesos ─────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 'var(--space-lg)',
-          marginBottom: 'var(--space-xxxl)',
-        }}
-      >
-        {ACCESOS.map((acceso) => (
-          <button
-            key={acceso.titulo}
-            type="button"
-            onClick={() => navigate(acceso.a)}
-            style={{
-              textAlign: 'left',
-              cursor: 'pointer',
-              backgroundColor: 'var(--blanco)',
-              border: '1px solid var(--borde-claro)',
-              borderRadius: 'var(--radius-md)',
-              padding: 'var(--space-xl)',
-              fontFamily: 'var(--font-sans)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 'var(--space-sm)',
-            }}
-          >
-            <span
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--naranja-50)',
-                color: 'var(--naranja-500)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                {acceso.icono}
-              </svg>
-            </span>
-            <span style={{ fontSize: '17px', fontWeight: 700 }}>{acceso.titulo}</span>
-            <span style={{ fontSize: '13px', color: 'var(--texto-secundario)' }}>
-              {acceso.detalle}
-            </span>
-          </button>
-        ))}
-      </div>
     </div>
   );
 };
