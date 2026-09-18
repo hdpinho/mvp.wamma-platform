@@ -140,72 +140,50 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
           {vehiculo.carroceria}
         </p>
 
-        {/* Precio y cuota */}
+        {/* Cuota mensual financiada */}
         <div style={{ marginTop: 'auto', paddingTop: 'var(--space-md)' }}>
-          <div style={{ fontSize: '20px', fontWeight: 700, lineHeight: 1.2 }}>
-            {formatoEUR(precioNum)}
+          <div style={{ fontSize: '11px', color: 'var(--texto-mudo)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+            Cuota mensual
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--texto-mudo)' }}>
-            Ref. Tasa Euro BCV
-          </div>
-
-          <div
-            style={{
-              marginTop: 'var(--space-sm)',
-              paddingTop: 'var(--space-sm)',
-              borderTop: '1px dashed var(--borde-claro)',
-              fontSize: '13px',
-              fontWeight: 700,
-              color: 'var(--naranja-700)',
-            }}
-          >
+          <div style={{ fontSize: '20px', fontWeight: 800, lineHeight: 1.2, color: 'var(--naranja-700)' }}>
             Desde {formatoEUR(cuota)} /mes*
           </div>
         </div>
 
-        {/* Pie: certificación y sede */}
+        {/* Pie: Inspección 240 puntos */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 'var(--space-sm)',
             marginTop: 'var(--space-md)',
             paddingTop: 'var(--space-md)',
             borderTop: '1px solid var(--borde-claro)',
-            fontSize: '11px',
-            color: 'var(--texto-mudo)',
+            fontSize: '12px',
+            color: 'var(--naranja-700)',
+            fontWeight: 700,
           }}
         >
-          {vehiculo.certificado ? (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                color: 'var(--naranja-700)',
-                fontWeight: 700,
-              }}
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              aria-hidden="true"
             >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                aria-hidden="true"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              Certificado 240 pts
-            </span>
-          ) : (
-            <span>Sin certificar</span>
-          )}
-          {/* Todo el inventario está en la Gran Caracas: se muestra la zona, no la ciudad */}
-          <span style={{ textAlign: 'right' }}>{vehiculo.sede.split(' - ')[1] ?? vehiculo.sede}</span>
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Inspección 240 puntos
+          </span>
         </div>
       </div>
     </article>

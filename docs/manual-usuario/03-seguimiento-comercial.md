@@ -5,8 +5,9 @@
 ## Agendar una cita (sitio público)
 
 Desde la ficha del vehículo, **Agendar cita**:
-1. El visitante indica nombre y WhatsApp (obligatorios), correo (opcional), el día que prefiere y la franja (mañana o tarde), y si piensa pagar de contado o financiado.
-2. Al enviar, el vehículo queda reservado y se crea una oportunidad en la etapa **Nuevo**.
+1. El visitante indica nombre y WhatsApp (obligatorios), correo (opcional), la fecha de visita y horario preferido (mañana o tarde), y su rango de ingresos mensuales (opcional).
+2. **Modalidad exclusiva de financiamiento (D-30):** Se eliminó la opción de pago de contado del formulario público. Toda cita queda automáticamente registrada bajo la modalidad **Financiamiento WAMMA**.
+3. Al enviar, el vehículo queda reservado temporalmente y se crea una oportunidad en la etapa **Nuevo**.
 
 No se pide la cédula en este paso: se solicita al confirmar la cita, cuando el cliente ya está comprometido (§8.5 del spec).
 

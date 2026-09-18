@@ -44,3 +44,6 @@ desktop.ini
 
 # Nota: SÍ se versionan AGENTS.md, CLAUDE.md, .agents/ (reglas y workflows),
 # .specify/ y .claude/commands/ — son parte del proyecto y del flujo SDD.
+
+.vercel
+.env*

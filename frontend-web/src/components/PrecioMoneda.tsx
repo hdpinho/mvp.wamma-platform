@@ -6,9 +6,6 @@ import React from 'react';
  */
 interface PrecioMonedaProps {
   monto: number;
-  /** Bolívares por euro. */
-  tasaBcv?: number | null;
-  mostrarEquivalencia?: boolean;
 }
 
 const formatoEUR = (valor: number) =>
@@ -19,25 +16,12 @@ const formatoEUR = (valor: number) =>
     maximumFractionDigits: 0,
   }).format(Number.isFinite(valor) ? valor : 0);
 
-const formatoBs = (valor: number) => {
-  const seguro = Number.isFinite(valor) ? valor : 0;
-  return `${new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(seguro)} Bs.`;
-};
-
 export const PrecioMoneda: React.FC<PrecioMonedaProps> = ({
   monto,
-  tasaBcv,
-  mostrarEquivalencia = true,
 }) => (
   <div style={{ display: 'inline-flex', flexDirection: 'column' }}>
     <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--texto-primario)' }}>
       {formatoEUR(monto)}
     </span>
-    {mostrarEquivalencia && tasaBcv ? (
-      <span style={{ fontSize: '11px', color: 'var(--texto-secundario)', marginTop: '2px' }}>
-        Ref. {formatoBs(monto * tasaBcv)}{' '}
-        <span style={{ color: 'var(--texto-mudo)' }}>· tasa BCV {tasaBcv.toFixed(2)}</span>
-      </span>
-    ) : null}
   </div>
 );

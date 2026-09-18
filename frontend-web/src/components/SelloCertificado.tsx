@@ -31,7 +31,7 @@ export const SelloCertificado: React.FC = () => {
       >
         <polyline points="18 15 12 9 6 15" />
       </svg>
-      Certificado · 240 Puntos
+      Inspección 240 puntos
     </div>
   );
 };

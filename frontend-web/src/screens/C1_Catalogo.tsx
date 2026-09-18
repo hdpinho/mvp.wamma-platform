@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useVehiculos } from '../state/vehiculosContexto';
-import { CARROCERIAS } from '../types/vehiculo';
-import type { Carroceria } from '../types/vehiculo';
+
 import { TarjetaVehiculo } from '../components/TarjetaVehiculo';
 import { ChipFiltro } from '../components/ChipFiltro';
 import { Estado } from '../components/Estado';
@@ -17,16 +16,17 @@ type Orden = 'relevancia' | 'precio-asc' | 'precio-desc' | 'km-asc' | 'anio-desc
 
 const ORDENES: { valor: Orden; etiqueta: string }[] = [
   { valor: 'relevancia', etiqueta: 'Más relevantes' },
-  { valor: 'precio-asc', etiqueta: 'Menor precio' },
-  { valor: 'precio-desc', etiqueta: 'Mayor precio' },
+  { valor: 'precio-asc', etiqueta: 'Menor cuota mensual' },
+  { valor: 'precio-desc', etiqueta: 'Mayor cuota mensual' },
   { valor: 'km-asc', etiqueta: 'Menos kilómetros' },
   { valor: 'anio-desc', etiqueta: 'Más nuevos' },
 ];
 
+const MARCAS_PERMITIDAS = ['Ford', 'Chevrolet', 'Chery', 'Hyundai', 'Toyota'];
+
 interface RangoIngreso {
   id: string;
   etiqueta: string;
-  subtitulo: string;
   cuotaMin?: number;
   cuotaMax?: number;
   chip: string;
@@ -37,21 +37,18 @@ const RANGOS_INGRESO: RangoIngreso[] = [
   {
     id: '1000-1300',
     etiqueta: '€1.000 – €1.300 / mes',
-    subtitulo: 'Cuota máx. €390',
     cuotaMax: 390,
     chip: 'Ingreso €1.000 – €1.300',
   },
   {
     id: '1301-2000',
     etiqueta: '€1.301 – €2.000 / mes',
-    subtitulo: 'Cuota máx. €600',
     cuotaMax: 600,
     chip: 'Ingreso €1.301 – €2.000',
   },
   {
     id: '2001+',
     etiqueta: 'Más de €2.000 / mes',
-    subtitulo: 'Cuota desde €601',
     cuotaMin: 601,
     chip: 'Ingreso > €2.000',
   },
@@ -86,30 +83,15 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
   const [params] = useSearchParams();
   const { vehiculos } = useVehiculos();
 
-  // Filtros sembrados desde el Home (?q= y ?carroceria=)
+  // Filtro sembrado desde el Home (?q=) o por cuota máxima (?cuotaMax=)
   const [busqueda, setBusqueda] = useState(params.get('q') ?? '');
-  const [carrocerias, setCarrocerias] = useState<Carroceria[]>(() => {
-    const inicial = params.get('carroceria') as Carroceria | null;
-    return inicial && CARROCERIAS.includes(inicial) ? [inicial] : [];
-  });
-
   const [marcas, setMarcas] = useState<string[]>([]);
   const [transmisiones, setTransmisiones] = useState<string[]>([]);
-  const [precioMaxManual, setPrecioMaxManual] = useState<string | null>(null);
-  const precioMax = precioMaxManual !== null ? precioMaxManual : (params.get('precioMax') ?? '');
-  const setPrecioMax = (v: string) => setPrecioMaxManual(v);
-  const [cuotaMax, setCuotaMax] = useState('');
+  const [cuotaMax, setCuotaMax] = useState(params.get('cuotaMax') ?? '');
   const [rangoIngreso, setRangoIngreso] = useState('');
   const [anioMin, setAnioMin] = useState('');
-  const [kmMax, setKmMax] = useState('');
-  const [soloCertificados, setSoloCertificados] = useState(false);
   const [orden, setOrden] = useState<Orden>('relevancia');
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
-
-  const marcasDisponibles = useMemo(
-    () => Array.from(new Set(vehiculos.map((v) => v.marca))).sort(),
-    [vehiculos],
-  );
 
   const resultados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
@@ -118,9 +100,7 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
       const nombre = `${v.marca} ${v.modelo} ${v.version}`.toLowerCase();
       if (texto && !nombre.includes(texto)) return false;
       if (marcas.length && !marcas.includes(v.marca)) return false;
-      if (carrocerias.length && !carrocerias.includes(v.carroceria)) return false;
       if (transmisiones.length && !transmisiones.includes(v.transmision)) return false;
-      if (precioMax && v.precio > Number(precioMax)) return false;
       const cuota = cuotaDesde(v.precio);
       const rangoObj = RANGOS_INGRESO.find((r) => r.id === rangoIngreso);
       if (rangoObj) {
@@ -130,8 +110,6 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
         return false;
       }
       if (anioMin && v.anio < Number(anioMin)) return false;
-      if (kmMax && v.kilometraje > Number(kmMax)) return false;
-      if (soloCertificados && !v.certificado) return false;
       return true;
     });
 
@@ -150,11 +128,9 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
         ordenados.sort((a, b) => b.anio - a.anio);
         break;
       default:
-        // Relevancia: primero los certificados, luego los etiquetados.
+        // Relevancia: primero los que tienen etiqueta especial
         ordenados.sort(
-          (a, b) =>
-            Number(b.certificado) - Number(a.certificado) ||
-            Number(Boolean(b.etiqueta)) - Number(Boolean(a.etiqueta)),
+          (a, b) => Number(Boolean(b.etiqueta)) - Number(Boolean(a.etiqueta)),
         );
     }
     return ordenados;
@@ -162,40 +138,28 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
     vehiculos,
     busqueda,
     marcas,
-    carrocerias,
     transmisiones,
-    precioMax,
     cuotaMax,
     rangoIngreso,
     anioMin,
-    kmMax,
-    soloCertificados,
     orden,
   ]);
 
   const limpiarTodo = () => {
     setBusqueda('');
     setMarcas([]);
-    setCarrocerias([]);
     setTransmisiones([]);
-    setPrecioMax('');
     setCuotaMax('');
     setRangoIngreso('');
     setAnioMin('');
-    setKmMax('');
-    setSoloCertificados(false);
   };
 
   const filtrosActivos =
     marcas.length +
-    carrocerias.length +
     transmisiones.length +
-    (precioMax ? 1 : 0) +
     (cuotaMax ? 1 : 0) +
     (rangoIngreso ? 1 : 0) +
-    (anioMin ? 1 : 0) +
-    (kmMax ? 1 : 0) +
-    (soloCertificados ? 1 : 0);
+    (anioMin ? 1 : 0);
 
   return (
     <div>
@@ -279,15 +243,6 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
               onClick={() => setMarcas((p) => alternar(p, m))}
             />
           ))}
-          {carrocerias.map((c) => (
-            <ChipFiltro
-              key={`c-${c}`}
-              etiqueta={c}
-              activo
-              removible
-              onClick={() => setCarrocerias((p) => alternar(p, c))}
-            />
-          ))}
           {transmisiones.map((t) => (
             <ChipFiltro
               key={`t-${t}`}
@@ -297,14 +252,6 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
               onClick={() => setTransmisiones((p) => alternar(p, t))}
             />
           ))}
-          {precioMax && (
-            <ChipFiltro
-              etiqueta={`Hasta €${Number(precioMax).toLocaleString('de-DE')}`}
-              activo
-              removible
-              onClick={() => setPrecioMax('')}
-            />
-          )}
           {rangoIngreso && (
             <ChipFiltro
               etiqueta={RANGOS_INGRESO.find((r) => r.id === rangoIngreso)?.chip ?? ''}
@@ -327,22 +274,6 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
               activo
               removible
               onClick={() => setAnioMin('')}
-            />
-          )}
-          {kmMax && (
-            <ChipFiltro
-              etiqueta={`Hasta ${Number(kmMax).toLocaleString('es-VE')} km`}
-              activo
-              removible
-              onClick={() => setKmMax('')}
-            />
-          )}
-          {soloCertificados && (
-            <ChipFiltro
-              etiqueta="Solo certificados"
-              activo
-              removible
-              onClick={() => setSoloCertificados(false)}
             />
           )}
           <button
@@ -424,11 +355,10 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
                       className={`btn-rango-ingreso ${activo ? 'activo' : ''}`}
                       style={{
                         display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-start',
+                        alignItems: 'center',
                         width: '100%',
                         boxSizing: 'border-box',
-                        padding: '8px 12px',
+                        padding: '10px 12px',
                         borderRadius: 'var(--radius-sm)',
                         fontFamily: 'var(--font-sans)',
                         cursor: 'pointer',
@@ -443,55 +373,20 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
                       <span style={{ fontSize: '13px', fontWeight: activo ? 700 : 600, lineHeight: 1.3 }}>
                         {rango.etiqueta}
                       </span>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 400,
-                          color: activo ? 'rgba(255, 255, 255, 0.92)' : 'var(--texto-mudo)',
-                          marginTop: '2px',
-                        }}
-                      >
-                        {rango.subtitulo}
-                      </span>
                     </button>
                   );
                 })}
               </div>
             </GrupoFiltro>
 
-            <GrupoFiltro titulo="Precio máximo (EUR)">
-              <input
-                type="number"
-                className="form-input"
-                placeholder="Sin límite"
-                min={0}
-                step={500}
-                value={precioMax}
-                onChange={(e) => setPrecioMax(e.target.value)}
-              />
-            </GrupoFiltro>
-
             <GrupoFiltro titulo="Marca">
               <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
-                {marcasDisponibles.map((m) => (
+                {MARCAS_PERMITIDAS.map((m) => (
                   <ChipFiltro
                     key={m}
                     etiqueta={m}
                     activo={marcas.includes(m)}
                     onClick={() => setMarcas((p) => alternar(p, m))}
-                  />
-                ))}
-              </div>
-            </GrupoFiltro>
-
-            <GrupoFiltro titulo="Carrocería">
-              <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
-                {CARROCERIAS.map((c) => (
-                  <ChipFiltro
-                    key={c}
-                    etiqueta={c}
-                    activo={carrocerias.includes(c)}
-                    onClick={() => setCarrocerias((p) => alternar(p, c))}
                   />
                 ))}
               </div>
@@ -510,48 +405,17 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
               </div>
             </GrupoFiltro>
 
-
-
-            <GrupoFiltro titulo="Año y kilometraje">
-              <div style={{ display: 'grid', gap: 'var(--space-md)' }}>
-                <input
-                  type="number"
-                  className="form-input"
-                  placeholder="Año desde"
-                  min={2000}
-                  max={2026}
-                  value={anioMin}
-                  onChange={(e) => setAnioMin(e.target.value)}
-                />
-                <input
-                  type="number"
-                  className="form-input"
-                  placeholder="Km máximo"
-                  min={0}
-                  step={5000}
-                  value={kmMax}
-                  onChange={(e) => setKmMax(e.target.value)}
-                />
-              </div>
-            </GrupoFiltro>
-
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--space-sm)',
-                fontSize: '14px',
-                cursor: 'pointer',
-              }}
-            >
+            <GrupoFiltro titulo="Año">
               <input
-                type="checkbox"
-                checked={soloCertificados}
-                onChange={(e) => setSoloCertificados(e.target.checked)}
-                style={{ accentColor: 'var(--naranja-500)', width: '16px', height: '16px' }}
+                type="number"
+                className="form-input"
+                placeholder="Año desde"
+                min={2000}
+                max={2026}
+                value={anioMin}
+                onChange={(e) => setAnioMin(e.target.value)}
               />
-              Solo certificados 240 puntos
-            </label>
+            </GrupoFiltro>
           </div>
         </aside>
 

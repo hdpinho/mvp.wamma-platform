@@ -100,6 +100,17 @@ const imperfeccionDesdeApi = (imperfeccion: ImperfeccionApi): Imperfeccion => ({
   y: imperfeccion.y,
 });
 
+const precioValido = (id: string, precioOriginal: unknown): number => {
+  if (typeof precioOriginal === 'number' && Number.isFinite(precioOriginal) && precioOriginal > 0) {
+    return precioOriginal;
+  }
+  const ref = mockVehiculos.find((m) => m.id === id);
+  if (ref && typeof ref.precio === 'number' && Number.isFinite(ref.precio) && ref.precio > 0) {
+    return ref.precio;
+  }
+  return 8900;
+};
+
 const comun = (v: VehiculoVitrina | VehiculoInventario) => ({
   id: v.codigo,
   vin: v.vin,
@@ -107,7 +118,7 @@ const comun = (v: VehiculoVitrina | VehiculoInventario) => ({
   modelo: v.modelo,
   version: v.version ?? '',
   anio: v.anio,
-  precio: v.precio,
+  precio: precioValido(v.codigo, v.precio),
   kilometraje: v.kilometraje,
   transmision: transmisionDesdeApi(v.transmision),
   combustible: combustibleDesdeApi(v.combustible),
@@ -141,6 +152,7 @@ const desdeMaqueta = (v: VehiculoMaqueta): VehiculoData => {
   const credito = creditosFotos[v.id];
   return {
     ...v,
+    precio: precioValido(v.id, v.precio),
     estadoDisponibilidad: v.estadoDisponibilidad ?? 'disponible',
     fotos: v.foto
       ? [
@@ -346,22 +358,28 @@ export const ProveedorVehiculos: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const guardarVehiculo = useCallback(
     async (vehiculo: VehiculoData, nuevasImperfecciones?: Imperfeccion[]) => {
-      const lista = nuevasImperfecciones ?? vehiculo.imperfecciones ?? [];
+      const vehiculoSaneado: VehiculoData = {
+        ...vehiculo,
+        precio: precioValido(vehiculo.id, vehiculo.precio),
+      };
+      const lista = nuevasImperfecciones ?? vehiculoSaneado.imperfecciones ?? [];
       if (conServidor) {
-        const entrada = aEntrada(vehiculo, lista);
-        const guardado = vehiculo.actualizadoEn
-          ? await actualizarVehiculo(vehiculo.id, entrada)
+        const entrada = aEntrada(vehiculoSaneado, lista);
+        const guardado = vehiculoSaneado.actualizadoEn
+          ? await actualizarVehiculo(vehiculoSaneado.id, entrada)
           : await crearVehiculo(entrada);
         return reemplazar(guardado);
       }
       setVehiculos((prev) => {
-        const existe = prev.some((v) => v.id === vehiculo.id);
-        return existe ? prev.map((v) => (v.id === vehiculo.id ? vehiculo : v)) : [vehiculo, ...prev];
+        const existe = prev.some((v) => v.id === vehiculoSaneado.id);
+        return existe
+          ? prev.map((v) => (v.id === vehiculoSaneado.id ? vehiculoSaneado : v))
+          : [vehiculoSaneado, ...prev];
       });
       if (nuevasImperfecciones) {
-        setImperfecciones((prev) => ({ ...prev, [vehiculo.id]: nuevasImperfecciones }));
+        setImperfecciones((prev) => ({ ...prev, [vehiculoSaneado.id]: nuevasImperfecciones }));
       }
-      return vehiculo;
+      return vehiculoSaneado;
     },
     [conServidor, reemplazar],
   );

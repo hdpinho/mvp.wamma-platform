@@ -2,11 +2,18 @@
 
 **Quién lo usa:** visitantes (simulador y solicitud), asesores (cotizador) y el analista de crédito (bandeja). **Estado:** flujos de la maqueta. En la etapa 4 el cálculo pasa al servidor y se construyen la pantalla de parámetros y la bandeja de crédito.
 
-## Simulador de cuota (sitio público)
+## Calculadora de capacidad y financiamiento (sitio público)
 
-En la ficha del vehículo y en la página de financiamiento. El visitante elige la inicial (desde el 20 %) y el plazo, y ve la cuota mensual estimada. Con su ingreso mensual, el simulador indica si la cuota cabe en su capacidad de pago: **el 30 % del ingreso** (decisión del PO). Los gastos se registran como referencia, pero no la reducen.
+Disponible en la sección **/financiamiento** y en la ficha de cada vehículo (D-31):
+- **Recorrido en 3 pasos:**
+  1. **Calcula tu capacidad:** Ingresa tus ingresos mensuales para saber qué cuota máxima puedes asumir y qué vehículos califican.
+  2. **Elige tu vehículo y agenda tu cita:** Desde la vitrina agenda tu cita para conocer tu próximo vehículo.
+  3. **Completa tu solicitud:** Tras la cita, el asesor te orientará sobre la formalización de tu financiamiento.
+- **Regla de capacidad responsable:** Cuota máxima permitida de hasta el **30 % del ingreso mensual comprobable** (D-26).
+- **Parámetros aprobados:** Tasa fija mensual de 4.0 % (48 % anual), plazo fijo a 24 meses (sistema francés de cuota fija) e iniciales configuradas al 20 %, 30 % o 40 % del valor del vehículo.
+- **Moneda:** Todas las cifras, simulaciones y cuotas se expresan estrictamente en euros (`EUR` / `€`), sin montos en bolívares de cara al usuario en vitrina pública (D-27). Al ingresar el ingreso mensual, el sistema muestra cuántos autos del inventario califican y ofrece el botón para verlos filtrados en la vitrina.
 
-Es una estimación: no es una oferta de crédito.
+Es una estimación informativa orientada a la capacidad de pago; la aprobación formal se realiza tras la cita y evaluación crediticia.
 
 ## Cotizador de crédito (backoffice)
 

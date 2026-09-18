@@ -18,7 +18,7 @@ export const WAMMA_VERSION = {
   fecha: 'Septiembre 2026',
   nombre: 'WAMMA by Token Pago POS',
   descripcion:
-    'Plataforma propia de venta, certificación de 240 puntos y financiamiento de vehículos usados en Venezuela.',
+    'Plataforma propia de venta, inspección de 240 puntos bajo Estándar WAMMA y financiamiento de vehículos usados en Venezuela.',
   componentes: {
     frontend: {
       nombre: 'Frontend Web',
@@ -47,8 +47,8 @@ export const WAMMA_VERSION = {
       etiqueta: 'Versión actual en despliegue',
       fecha: 'Septiembre 2026',
       hitos: [
-        'Multi-moneda oficial en Euros (EUR) con equivalencia en bolívares a tasa oficial BCV dinámica.',
-        'Vitrina virtual con filtros de rango de ingresos, cuota mensual, carrocería y marca.',
+        'Precios y cuotas oficiales en Euros (EUR).',
+        'Vitrina virtual con filtros de rango de ingresos, cuota mensual y marca.',
         'Soporte completo para cargar y previsualizar de 1 a 10 fotos por vehículo con galería y miniaturas interactivas.',
         'Simulador y cotizador de crédito con capacidad de pago basada en el 30 % del ingreso mensual.',
         'Módulo CRM con embudo comercial, gestión de personas, registro de visitas y asignación de financiamiento.',

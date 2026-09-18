@@ -45,7 +45,7 @@ export const PARAMETROS_FINANCIAMIENTO = {
 
 /** Nota legal que acompaña toda cuota mostrada en la interfaz. */
 export const NOTA_CUOTA =
-  'Cuota fija en dólares bajo sistema francés. Referencia en bolívares calculada a tasa oficial BCV. Sujeto a evaluación crediticia.';
+  'Cuota fija en euros bajo sistema francés. Sujeto a evaluación crediticia.';
 
 /**
  * Cuota fija mensual delegada en el motor unificado de financiamiento.

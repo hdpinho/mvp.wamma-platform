@@ -304,10 +304,9 @@ const FormularioVehiculo: React.FC<{ vehiculo?: VehiculoData }> = ({ vehiculo })
                   ? 'Pausado'
                   : 'Borrador'}
             </span>
-            {publicacion.estado === 'publicado' && publicacion.tasaBcv && (
+            {publicacion.estado === 'publicado' && publicacion.fechaTasa && (
               <span className="nota-publicacion">
-                Precio fijado a {publicacion.tasaBcv.toLocaleString('es-VE')} Bs. por euro
-                {publicacion.fechaTasa && ` (${publicacion.fechaTasa})`}.
+                Publicado ({publicacion.fechaTasa}).
               </span>
             )}
             {falta.length > 0 && (
@@ -487,9 +486,9 @@ const FormularioVehiculo: React.FC<{ vehiculo?: VehiculoData }> = ({ vehiculo })
                   onChange={(e) => setCertificado(e.target.checked)}
                   style={{ width: '18px', height: '18px', accentColor: 'var(--naranja-500)' }}
                 />
-                <span style={{ fontWeight: 600, fontSize: '13px' }}>Certificado WAMMA</span>
+                <span style={{ fontWeight: 600, fontSize: '13px' }}>Estándar WAMMA (Inspección superada)</span>
               </label>
-              <span className="ayuda-campo">Sin certificar, la ficha lo dice y no muestra el sello.</span>
+              <span className="ayuda-campo">Todos los vehículos publicados deben superar la inspección de 240 puntos.</span>
             </div>
           </div>
 

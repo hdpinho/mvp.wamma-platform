@@ -6,7 +6,7 @@ import { NotaSimulada } from '../components/NotaSimulada';
 import { FotoVehiculo } from '../components/FotoVehiculo';
 import { useVehiculos } from '../state/vehiculosContexto';
 import { esTokenFinanciamientoValido } from '../types/crm';
-import { PARAMETROS_FINANCIAMIENTO, calcularCuota } from '../mocks/financiamiento';
+import { PARAMETROS_FINANCIAMIENTO, calcularCuota, cuotaDesde } from '../mocks/financiamiento';
 import {
   BANCOS,
   CONDICIONES_VIVIENDA,
@@ -50,8 +50,8 @@ import {
  * el navegador solo guarda un token opaco (nunca datos personales).
  */
 
-const formatoUSD = (v: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
+const formatoEUR = (v: number) =>
+  new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
 
 const aNumero = (v: string) => {
   const n = Number(v);
@@ -306,14 +306,14 @@ const FilaTotal: React.FC<{ etiqueta: string; valor: number; destacado?: boolean
         color: negativo ? 'var(--peligro-texto)' : 'var(--texto-primario)',
       }}
     >
-      {formatoUSD(valor)}
+      {formatoEUR(valor)}
     </strong>
   </div>
 );
 
 // ── Pantalla ─────────────────────────────────────────────────────────
 
-export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) => {
+export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _rateBCV }) => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   // Del inventario vivo y no de los mocks: así también aparecen los vehículos
@@ -399,7 +399,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
       } else if (financiero.precio > 0 && financiero.inicial < financiero.inicialMinima) {
         e.inicialAportado = `La inicial mínima es el ${Math.round(
           PARAMETROS_FINANCIAMIENTO.inicialPorcentaje * 100,
-        )} % del precio: ${formatoUSD(financiero.inicialMinima)}`;
+        )} % del precio: ${formatoEUR(financiero.inicialMinima)}`;
       }
     }
 
@@ -738,7 +738,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
                   </strong>
                   <span style={{ color: 'var(--texto-secundario)' }}>{vehiculo.version}</span>
                   <span style={{ color: 'var(--texto-secundario)' }}>
-                    Precio {formatoUSD(vehiculo.precio)}
+                    Cuota desde {formatoEUR(cuotaDesde(vehiculo.precio))} /mes
                   </span>
                 </div>
               </div>
@@ -752,7 +752,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
                   { value: '', label: 'Aún no he elegido vehículo' },
                   ...vehiculos.map((v) => ({
                     value: v.id,
-                    label: `${v.marca} ${v.modelo} ${v.anio} — ${formatoUSD(v.precio)}`,
+                    label: `${v.marca} ${v.modelo} ${v.anio} — Desde ${formatoEUR(cuotaDesde(v.precio))} /mes`,
                   })),
                 ]}
               />
@@ -761,7 +761,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
             <Rejilla>
               {!vehiculo && (
                 <Campo
-                  label="Monto solicitado (USD)"
+                  label="Monto solicitado (EUR)"
                   type="number"
                   value={datos.montoSolicitado}
                   onChange={(e) => set('montoSolicitado', e.target.value)}
@@ -769,7 +769,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
                 />
               )}
               <Campo
-                label="Inicial aportado (USD)"
+                label="Inicial aportado (EUR)"
                 type="number"
                 value={datos.inicialAportado}
                 onChange={(e) => set('inicialAportado', e.target.value)}
@@ -805,10 +805,10 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
                 Cuota estimada
               </div>
               <div style={{ fontSize: '30px', fontWeight: 700, lineHeight: 1.2 }}>
-                {formatoUSD(financiero.cuota)}
+                {formatoEUR(financiero.cuota)}
               </div>
               <div style={{ fontSize: '12px', color: 'var(--texto-secundario)' }}>
-                A financiar {formatoUSD(financiero.aFinanciar)} · tasa BCV {rateBCV.toFixed(2)}
+                A financiar {formatoEUR(financiero.aFinanciar)}
               </div>
             </div>
 
@@ -1001,8 +1001,8 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
           <>
             <Bloque titulo="Ingresos mensuales">
               <Rejilla>
-                <Campo label="Sueldo o ingreso mensual (USD) *" type="number" value={datos.sueldoMensual} onChange={(e) => set('sueldoMensual', e.target.value)} error={errores.sueldoMensual} />
-                <Campo label="Otros ingresos comprobables (USD)" type="number" value={datos.otrosIngresos} onChange={(e) => set('otrosIngresos', e.target.value)} />
+                <Campo label="Sueldo o ingreso mensual (EUR) *" type="number" value={datos.sueldoMensual} onChange={(e) => set('sueldoMensual', e.target.value)} error={errores.sueldoMensual} />
+                <Campo label="Otros ingresos comprobables (EUR)" type="number" value={datos.otrosIngresos} onChange={(e) => set('otrosIngresos', e.target.value)} />
               </Rejilla>
               {aNumero(datos.otrosIngresos) > 0 && (
                 <Campo label="Concepto de otros ingresos *" value={datos.conceptoOtrosIngresos} onChange={(e) => set('conceptoOtrosIngresos', e.target.value)} error={errores.conceptoOtrosIngresos} />
@@ -1053,7 +1053,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV }) 
                   marginBottom: 'var(--space-lg)',
                 }}
               >
-                La cuota estimada de {formatoUSD(financiero.cuota)} supera tu capacidad de pago: el{' '}
+                La cuota estimada de {formatoEUR(financiero.cuota)} supera tu capacidad de pago: el{' '}
                 {Math.round(PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago * 100)} % de tu ingreso mensual.
                 Puedes continuar: un analista revisará tu caso y podrá proponerte otro plazo o
                 una inicial mayor.

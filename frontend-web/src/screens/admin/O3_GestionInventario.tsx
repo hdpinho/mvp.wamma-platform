@@ -19,16 +19,13 @@ const mensajeDe = (e: unknown) => (e instanceof ErrorApi ? e.detalle || e.titulo
 const formatoEUR = (valor: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Number.isFinite(valor) ? valor : 0);
 
-const formatoBs = (valor: number) => { const s = Number.isFinite(valor) ? valor : 0; return `${s.toLocaleString('es-VE', { maximumFractionDigits: 0 })} Bs.`; };
-
-export const O3_GestionInventario: React.FC<O3GestionInventarioProps> = ({ rateBCV }) => {
+export const O3_GestionInventario: React.FC<O3GestionInventarioProps> = ({ rateBCV: _rateBCV }) => {
   const navigate = useNavigate();
   const {
     vehiculos,
     origen,
     cargando,
     error: errorCarga,
-    tasa,
     recargar,
     cambiarEstadoVehiculo,
     eliminarVehiculo,
@@ -133,7 +130,6 @@ export const O3_GestionInventario: React.FC<O3GestionInventarioProps> = ({ rateB
               : conServidor
                 ? 'Los vehículos viven en el servidor: lo que publiques aquí es lo que ve el cliente en la vitrina.'
                 : 'Modo maqueta: el inventario vive solo en este navegador.'}
-            {tasa && ` Tasa BCV del euro: ${formatoBs(tasa.valor)} (${tasa.fecha}).`}
           </p>
         </div>
         {puedeGestionar && (
@@ -244,7 +240,6 @@ export const O3_GestionInventario: React.FC<O3GestionInventarioProps> = ({ rateB
                 const imperfecciones = obtenerImperfecciones(v.id);
                 const minimas = v.fotosMinimas ?? 5;
                 const cuantasFotos = v.fotos?.length ?? 0;
-                const precioBs = v.precioVes ?? v.precio * rateBCV;
                 const publicacion = v.publicacion;
                 const falta = v.faltaParaPublicar ?? [];
 
@@ -277,7 +272,6 @@ export const O3_GestionInventario: React.FC<O3GestionInventarioProps> = ({ rateB
 
                     <td>
                       <div style={{ fontWeight: 700, fontSize: '14px' }}>{formatoEUR(v.precio)}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--texto-mudo)' }}>Ref. {formatoBs(precioBs)}</div>
                     </td>
 
                     <td>

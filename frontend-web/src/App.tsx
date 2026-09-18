@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import './App.css';
-import { apiConfigurada } from './api/cliente';
 import { BarraNavegacion } from './components/BarraNavegacion';
+import { PiePagina } from './components/PiePagina';
 import { ProveedorFavoritos } from './state/favoritos';
 import { ProveedorVehiculos } from './state/vehiculos';
 import { useVehiculos } from './state/vehiculosContexto';
@@ -158,9 +158,10 @@ function AppRutas({ rateBCV }: { rateBCV: number }) {
           </Route>
         </Routes>
       </main>
+      {!esAdmin && <PiePagina />}
     </div>
   );
-}
+};
 
 /**
  * Con servidor, la tasa BCV del euro es la que registra el backoffice (D-13). Sin servidor,
@@ -168,73 +169,10 @@ function AppRutas({ rateBCV }: { rateBCV: number }) {
  */
 function Contenido() {
   const { tasa } = useVehiculos();
-  const [tasaSimulada, setTasaSimulada] = useState(36.5);
+  const [tasaSimulada] = useState(36.5);
   const tasaVigente = tasa?.valor ?? tasaSimulada;
 
-  return (
-    <>
-      <AppRutas rateBCV={tasaVigente} />
-      {!apiConfigurada && <PanelTasaDemo rateBCV={tasaSimulada} setRateBCV={setTasaSimulada} />}
-    </>
-  );
-}
-
-/** Simulador de la tasa BCV de la maqueta (flota abajo a la derecha). */
-function PanelTasaDemo({ rateBCV, setRateBCV }: { rateBCV: number; setRateBCV: (tasa: number) => void }) {
-  const location = useLocation();
-  const [demoCollapsed, setDemoCollapsed] = useState(false);
-
-  // En el ingreso al backoffice no aporta nada y tapa el formulario.
-  if (location.pathname === '/admin/ingresar') return null;
-
-  return (
-    <div className={`demo-control-panel ${demoCollapsed ? 'collapsed' : ''}`}>
-      {demoCollapsed ? (
-        <div
-          onClick={() => setDemoCollapsed(false)}
-          style={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}
-          title="Abrir simulador BCV"
-        >
-          ⚙️
-        </div>
-      ) : (
-        <>
-          <div className="demo-header" onClick={() => setDemoCollapsed(true)}>
-            <span>🛠️ Tasa Euro BCV</span>
-            <span>▼</span>
-          </div>
-          <div className="demo-body">
-            <div className="demo-section-title">Ajuste Dinámico Tasa Euro BCV</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
-                <span>Tasa EUR/Bs:</span>
-                <span style={{ color: 'var(--naranja-600)' }}>{rateBCV.toFixed(2)} Bs.</span>
-              </div>
-              <input
-                type="range"
-                min="35.00"
-                max="60.00"
-                step="0.10"
-                value={rateBCV}
-                onChange={(e) => setRateBCV(parseFloat(e.target.value))}
-                style={{ width: '100%', accentColor: 'var(--naranja-500)', cursor: 'pointer' }}
-              />
-              <div style={{ fontSize: '11px', color: 'var(--texto-mudo)', lineHeight: 1.3 }}>
-                Ajusta la tasa para ver reflejada la conversión Tasa Euro BCV en la vitrina, las cuotas y el cotizador.
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
+  return <AppRutas rateBCV={tasaVigente} />;
 }
 
 function App() {

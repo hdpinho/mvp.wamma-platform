@@ -104,16 +104,17 @@ Desde el inventario la cambia el rol Inventario; en el día a día la mueve el C
 
 | Pantalla | Qué ofrece |
 |---|---|
-| Inicio | Presentación de WAMMA y acceso a la vitrina |
-| Vitrina (catálogo) | Solo los vehículos **publicados** y no vendidos, con filtros y su etiqueta comercial sobre la foto |
-| Ficha del vehículo | Galería de fotos, datos técnicos, certificación, imperfecciones sobre el diagrama, simulador de cuota y los botones **Agendar cita** y **Solicitar financiamiento** |
+| Inicio | Portada directa y minimalista con Hero de búsqueda y video de portada, 3 accesos directos prioritarios («Explora la vitrina», «Inspección 240 puntos» y «Financiamiento directo») y pie de página corporativo `PiePagina` (D-34, D-35). Toda la exploración de vehículos se concentra en la Vitrina |
+| Vitrina (catálogo) | Solo los vehículos **publicados** y no vendidos. Filtros específicos por **Cuota mensual**, **Rango de ingresos**, **Marca** (Ford, Chevrolet, Chery, Hyundai, Toyota), **Transmisión** y **Año** (D-28) |
+| Ficha del vehículo | Galería estandarizada de fotos de estudio (D-32), especificaciones técnicas, sello de **Inspección 240 puntos**, registro de imperfecciones sobre el diagrama, plan de financiamiento detallado y botón principal **Agendar cita** (D-29, D-30) |
 | Favoritos | Los que el visitante marcó con el corazón. Se guardan en su navegador: no requieren cuenta |
 
 ![Vitrina publicada](capturas/02-inventario/10-vitrina-publicada.png)
 ![Ficha pública con su galería](capturas/02-inventario/11-ficha-publica.png)
 
-- **Precios:** en euros, con la referencia en bolívares calculada a la tasa BCV vigente. Ejemplo: 12.500 € · Ref. 572.500 Bs.
-- Las fotos de los vehículos de ejemplo son **referenciales del modelo**, no de la unidad, y la ficha lo indica junto con el crédito de su autor. Las fotos propias de WAMMA no llevan ese aviso.
+- **Precios y Cuotas (D-27):** En el sitio público **no se muestra el precio total de contado**. La vitrina y fichas se expresan exclusivamente mediante la **Cuota mensual estimada** en euros (`Desde €... /mes*`). Se eliminaron las referencias en bolívares (`Bs.`) y el ajuste dinámico manual de tasa euro del sitio público.
+- **Terminología (D-29):** Se utiliza estrictamente **«Inspección 240 puntos»** o **«Estándar WAMMA»** (todo el inventario en vitrina ha superado la inspección, por lo que no existe filtro de "solo certificados"). La sede física tampoco se expone al cliente en la ficha pública.
+- **Línea fotográfica (D-32):** Fotografías homogéneas de estudio con fondo de ciclorama neutro e iluminación uniforme a 3/4.
 - La vitrina se guarda en caché **un minuto**: un cambio recién hecho puede tardar ese tiempo en verse en el sitio público.
 
 ![La vitrina no muestra nada hasta que alguien publica](capturas/02-inventario/01-vitrina-vacia.png)

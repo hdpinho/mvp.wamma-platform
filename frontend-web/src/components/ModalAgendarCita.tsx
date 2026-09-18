@@ -3,6 +3,7 @@ import type { VehiculoData } from '../types/vehiculo';
 import { useCRM, CORREO_NOTIFICACIONES_WAMMA } from '../state/crmContexto';
 import { Boton } from './Boton';
 import { validarMovil, validarCorreo } from '../validacion/venezuela';
+import { cuotaDesde } from '../mocks/financiamiento';
 
 interface ModalAgendarCitaProps {
   vehiculo: VehiculoData;
@@ -15,7 +16,7 @@ interface ModalAgendarCitaProps {
 export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
   vehiculo,
   // rateBCV ya no se usa: eliminados los montos en Bs
-  interesFinanciamientoInicial = false,
+  interesFinanciamientoInicial: _interesFinanciamientoInicial = false,
   onCerrar,
   onExito,
 }) => {
@@ -32,9 +33,7 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
   const [diaPreferencia, setDiaPreferencia] = useState(fechaDefecto);
 
   const [franjaHoraria, setFranjaHoraria] = useState<'Mañana' | 'Tarde'>('Mañana');
-  const [metodoPago, setMetodoPago] = useState<'Contado' | 'Financiamiento'>(
-    interesFinanciamientoInicial ? 'Financiamiento' : 'Contado',
-  );
+  const [metodoPago] = useState<'Contado' | 'Financiamiento'>('Financiamiento');
   const [rangoIngresos, setRangoIngresos] = useState('');
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [citaConfirmada, setCitaConfirmada] = useState<boolean>(false);
@@ -113,8 +112,7 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
               {citaConfirmada ? '¡Cita Agendada Exitosamente!' : 'Agendar Cita para Ver el Vehículo'}
             </h2>
             <p style={{ fontSize: '13px', color: 'var(--texto-secundario)', margin: '4px 0 0' }}>
-              {vehiculo.marca} {vehiculo.modelo} {vehiculo.version} ({vehiculo.anio}) · Sede:{' '}
-              {vehiculo.sede}
+              {vehiculo.marca} {vehiculo.modelo} {vehiculo.version} ({vehiculo.anio})
             </p>
           </div>
           <button
@@ -129,11 +127,11 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
 
         {/* Resumen visual del vehículo */}
         <div className="modal-vehiculo-resumen">
-          <div style={{ fontWeight: 700, fontSize: '15px' }}>
-            {formatoEUR(vehiculo.precio)}
+          <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--naranja-700)' }}>
+            Cuota desde {formatoEUR(cuotaDesde(vehiculo.precio))} /mes
           </div>
           <div style={{ fontSize: '12px', color: 'var(--naranja-600)', fontWeight: 600 }}>
-            {vehiculo.certificado ? '✓ Certificado 240 Puntos' : 'Inspeccionado WAMMA'}
+            ✓ Inspección 240 puntos
           </div>
         </div>
 
@@ -218,47 +216,18 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
             </div>
 
             <div className="form-group">
-              <label>Modalidad de compra prevista:</label>
-              <div style={{ display: 'flex', gap: 'var(--space-md)', marginTop: '6px' }}>
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="metodoPago"
-                    value="Contado"
-                    checked={metodoPago === 'Contado'}
-                    onChange={() => setMetodoPago('Contado')}
-                  />
-                  <span>Pago de Contado</span>
-                </label>
-
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="metodoPago"
-                    value="Financiamiento"
-                    checked={metodoPago === 'Financiamiento'}
-                    onChange={() => setMetodoPago('Financiamiento')}
-                  />
-                  <span>Financiamiento WAMMA</span>
-                </label>
-              </div>
+              <label htmlFor="rangoIngresos">Rango de ingresos mensuales (opcional)</label>
+              <select
+                id="rangoIngresos"
+                value={rangoIngresos}
+                onChange={(e) => setRangoIngresos(e.target.value)}
+              >
+                <option value="">Selecciona tu rango</option>
+                <option value="1000-1300">€1.000 – €1.300 / mes</option>
+                <option value="1301-2000">€1.301 – €2.000 / mes</option>
+                <option value="2001+">Más de €2.000 / mes</option>
+              </select>
             </div>
-
-            {metodoPago === 'Financiamiento' && (
-              <div className="form-group">
-                <label htmlFor="rangoIngresos">Rango de ingresos mensuales *</label>
-                <select
-                  id="rangoIngresos"
-                  value={rangoIngresos}
-                  onChange={(e) => setRangoIngresos(e.target.value)}
-                >
-                  <option value="">Selecciona tu rango</option>
-                  <option value="1000-1300">€1.000 – €1.300 (cuota máx. €390)</option>
-                  <option value="1301-2000">€1.301 – €2.000 (cuota máx. €600)</option>
-                  <option value="2001+">€2.001 en adelante (601 en adelante)</option>
-                </select>
-              </div>
-            )}
 
             <div className="alerta-reserva">
               ℹ️ Al agendar esta cita, el vehículo quedará reservado temporalmente y el botón de agendar

@@ -173,3 +173,13 @@ export function formatoVES(valor: number): string {
     }).format(valor) + ' Bs.'
   );
 }
+
+/**
+ * Formateo estándar de montos en Euros (EUR): sin decimales, redondeo matemático al mostrar.
+ */
+export function formatoEUR(valor: number): string {
+  if (!Number.isFinite(valor)) return '€0';
+  const entero = Math.round(valor);
+  return '€' + entero.toLocaleString('de-DE');
+}
+

@@ -4,7 +4,6 @@ import { FotoVehiculo } from '../components/FotoVehiculo';
 import { BotonFavorito } from '../components/BotonFavorito';
 import { SelloCertificado } from '../components/SelloCertificado';
 import { SimuladorCuota } from '../components/SimuladorCuota';
-import { Boton } from '../components/Boton';
 import { Estado } from '../components/Estado';
 import { TarjetaVehiculo } from '../components/TarjetaVehiculo';
 import { Seccion } from '../components/Seccion';
@@ -26,13 +25,6 @@ const AREAS_INSPECCION = [
   { area: 'Interior y confort', puntos: 30 },
   { area: 'Documentación legal', puntos: 25 },
 ];
-
-const formatoEUR = (v: number) =>
-  new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(Number.isFinite(v) ? v : 0);
 
 export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) => {
   const { id } = useParams<{ id: string }>();
@@ -59,8 +51,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
   const fotos = vehiculo.fotos ?? [];
   const foto = fotos[Math.min(fotoActiva, Math.max(fotos.length - 1, 0))];
   const credito = foto?.credito;
-  const precioNum = Number.isFinite(vehiculo.precio) ? vehiculo.precio : 0;
-  const precioVes = vehiculo.precioVes ?? (rateBCV && precioNum ? precioNum * rateBCV : null);
+
 
   /**
    * Abre el modal para agendar cita para este vehículo.
@@ -96,7 +87,6 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
     ['Carrocería', vehiculo.carroceria],
     ['Tracción', vehiculo.traccion],
     ['Puestos', String(vehiculo.puestos)],
-    ['Sede', vehiculo.sede],
     ['VIN', vehiculo.vin],
   ];
 
@@ -300,69 +290,60 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
               }}
             >
               <h2 style={{ fontSize: '18px' }}>Inspección de 240 puntos</h2>
-              {vehiculo.certificado && <SelloCertificado />}
+              <SelloCertificado />
             </div>
 
-            {vehiculo.certificado ? (
-              <>
-                <div style={{ display: 'grid', gap: 'var(--space-md)' }}>
-                  {AREAS_INSPECCION.map(({ area, puntos }) => (
-                    <div
-                      key={area}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 'var(--space-md)',
-                        paddingBottom: 'var(--space-md)',
-                        borderBottom: '1px solid var(--borde-claro)',
-                        fontSize: '14px',
-                      }}
-                    >
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="var(--exito-texto)"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          aria-hidden="true"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        {area}
-                      </span>
-                      <span style={{ color: 'var(--texto-mudo)', fontSize: '13px' }}>
-                        {puntos} puntos
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <p
+            <div style={{ display: 'grid', gap: 'var(--space-md)' }}>
+              {AREAS_INSPECCION.map(({ area, puntos }) => (
+                <div
+                  key={area}
                   style={{
-                    marginTop: 'var(--space-lg)',
-                    fontSize: '13px',
-                    color: 'var(--texto-secundario)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 'var(--space-md)',
+                    paddingBottom: 'var(--space-md)',
+                    borderBottom: '1px solid var(--borde-claro)',
+                    fontSize: '14px',
                   }}
                 >
-                  Documentación verificada contra registro de robo y deudas pendientes.
-                </p>
-              </>
-            ) : (
-              <p style={{ fontSize: '14px', color: 'var(--texto-secundario)' }}>
-                Este vehículo aún no ha completado la certificación de 240 puntos. Se publica sin
-                sello de certificación.
-              </p>
-            )}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--exito-texto)"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      aria-hidden="true"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    {area}
+                  </span>
+                  <span style={{ color: 'var(--texto-mudo)', fontSize: '13px' }}>
+                    {puntos} puntos
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p
+              style={{
+                marginTop: 'var(--space-lg)',
+                fontSize: '13px',
+                color: 'var(--texto-secundario)',
+              }}
+            >
+              Documentación verificada contra registro de robo y deudas pendientes.
+            </p>
           </div>
 
           {/* Hallazgos cosméticos declarados por la inspección (módulo 004) */}
           <Imperfecciones vehiculo={vehiculo} listaImperfecciones={imperfecciones} />
         </div>
 
-        {/* ── Columna derecha: precio y acción ───────────────── */}
+        {/* ── Columna derecha: disponibilidad y simulador de cuotas ── */}
         <aside className="ficha-lateral">
           <div
             style={{
@@ -373,25 +354,14 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
               marginBottom: 'var(--space-lg)',
             }}
           >
-            <h1 style={{ fontSize: '22px', lineHeight: 1.25 }}>
+            <h1 style={{ fontSize: '22px', lineHeight: 1.25, margin: 0 }}>
               {vehiculo.marca} {vehiculo.modelo}
             </h1>
-            <p style={{ fontSize: '14px', color: 'var(--texto-secundario)' }}>
+            <p style={{ fontSize: '14px', color: 'var(--texto-secundario)', margin: '4px 0 0' }}>
               {vehiculo.version} · {vehiculo.anio}
             </p>
 
-            <div style={{ margin: 'var(--space-lg) 0' }}>
-              <div style={{ fontSize: '32px', fontWeight: 700, lineHeight: 1.15 }}>
-                {formatoEUR(precioNum)}
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--texto-mudo)' }}>
-                {precioVes
-                  ? `Ref. ${precioVes.toLocaleString('es-VE', { maximumFractionDigits: 0 })} Bs. a la tasa BCV del euro`
-                  : 'Ref. Tasa Euro BCV'}
-              </div>
-            </div>
-
-            {vehiculo.estadoDisponibilidad === 'cita_agendada' ? (
+            {vehiculo.estadoDisponibilidad === 'cita_agendada' && (
               <div
                 style={{
                   backgroundColor: 'var(--naranja-50)',
@@ -399,7 +369,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
                   borderRadius: 'var(--radius-md)',
                   padding: 'var(--space-md)',
                   textAlign: 'center',
-                  marginBottom: 'var(--space-md)',
+                  marginTop: 'var(--space-md)',
                 }}
               >
                 <div
@@ -417,16 +387,13 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
                     fontSize: '12px',
                     color: 'var(--texto-secundario)',
                     lineHeight: 1.4,
-                    marginBottom: 'var(--space-sm)',
                   }}
                 >
                   Este vehículo ya tiene una cita agendada. El agendamiento está desactivado para otros usuarios.
                 </div>
-                <Boton variant="secondary" fullWidth disabled>
-                  Vehículo Reservado Temporalmente
-                </Boton>
               </div>
-            ) : vehiculo.estadoDisponibilidad === 'vendido' ? (
+            )}
+            {vehiculo.estadoDisponibilidad === 'vendido' && (
               <div
                 style={{
                   backgroundColor: 'var(--superficie)',
@@ -436,34 +403,18 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
                   textAlign: 'center',
                   color: 'var(--texto-mudo)',
                   fontWeight: 700,
-                  marginBottom: 'var(--space-md)',
+                  marginTop: 'var(--space-md)',
                 }}
               >
                 Vehículo Vendido
               </div>
-            ) : (
-              <div style={{ marginBottom: 'var(--space-md)' }}>
-                <Boton
-                  variant="primary"
-                  fullWidth
-                  onClick={() => abrirAgendarCita(false)}
-                >
-                  Agendar cita
-                </Boton>
-              </div>
             )}
           </div>
 
-          {/*
-            Con una cita en curso, «Solicitar financiamiento» también se desactiva:
-            antes reabría el formulario de agendar y el mismo auto se podía
-            reservar dos veces. Quien agendó recibe luego un enlace personal
-            (specs/010-crm-comercial/spec.md §8.8).
-          */}
           <SimuladorCuota
-            nombreVehiculo={`${vehiculo.marca} ${vehiculo.modelo} ${vehiculo.version}`}
             precio={vehiculo.precio}
             rateBCV={rateBCV}
+            textoBoton="Agendar cita"
             onAgendar={() => abrirAgendarCita(true)}
             onSolicitar={() => abrirAgendarCita(true)}
             botonDeshabilitado={
@@ -483,7 +434,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
         <div style={{ marginTop: 'var(--space-xxxl)' }}>
           <Seccion
             titulo="Otros vehículos parecidos"
-            bajada={`Más opciones de carrocería ${vehiculo.carroceria.toLowerCase()}.`}
+            bajada="Más opciones recomendadas para ti."
           >
             <div
               style={{

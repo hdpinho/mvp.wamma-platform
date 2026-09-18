@@ -1,21 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useVehiculos } from '../state/vehiculosContexto';
-import { CARROCERIAS } from '../types/vehiculo';
-import { TarjetaVehiculo } from '../components/TarjetaVehiculo';
-import { Seccion } from '../components/Seccion';
-import { SimuladorCuota } from '../components/SimuladorCuota';
 import { Boton } from '../components/Boton';
 
 interface C0HomeProps {
-  rateBCV: number;
+  rateBCV?: number;
 }
 
 /** Los tres pilares para la compra de vehículos publicados. */
 const ACCESOS = [
   {
     titulo: 'Explora la vitrina',
-    detalle: 'Inventario real certificado listo para entrega inmediata.',
+    detalle: 'Inventario con inspección Estándar WAMMA listo para entrega inmediata.',
     a: '/catalogo',
     icono: (
       <>
@@ -25,7 +20,7 @@ const ACCESOS = [
     ),
   },
   {
-    titulo: 'Certificación 240 puntos',
+    titulo: 'Inspección 240 puntos',
     detalle: 'Inspección exhaustiva mecánica, legal y estética garantizada.',
     a: '/catalogo',
     icono: (
@@ -48,25 +43,8 @@ const ACCESOS = [
   },
 ];
 
-/** Pasos del recorrido de compra de vehículos publicados. */
-const PASOS = [
-  {
-    titulo: 'Encuentra tu vehículo',
-    detalle: 'Explora la vitrina y filtra por precio, cuota mensual o marca.',
-  },
-  {
-    titulo: 'Agenda tu cita',
-    detalle: 'Selecciona tu auto, reserva tu visita y recibe confirmación rápida por WhatsApp.',
-  },
-  {
-    titulo: 'Recibe tu vehículo garantizado',
-    detalle: 'Paga de contado o financiado y retira tu vehículo con garantía WAMMA.',
-  },
-];
-
-export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
+export const C0_Home: React.FC<C0HomeProps> = () => {
   const navigate = useNavigate();
-  const { vehiculos } = useVehiculos();
   const [busqueda, setBusqueda] = useState('');
 
   /** Respeta la preferencia del sistema de reducir animaciones. */
@@ -76,8 +54,6 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
       window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     [],
   );
-
-  const destacados = vehiculos.filter((v) => v.certificado).slice(0, 4);
 
   const buscar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,7 +120,7 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
               textShadow: '0 2px 12px rgba(0,0,0,0.35)',
             }}
           >
-            Certificado, financiado y tuyo hoy mismo. Encuéntralo aquí.
+            Inspeccionado, financiado y tuyo hoy mismo. Encuéntralo aquí.
           </h1>
           <p
             style={{
@@ -156,7 +132,7 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
               textShadow: '0 1px 8px rgba(0,0,0,0.4)',
             }}
           >
-            Compra y financia vehículos usados certificados en Venezuela. Todo bajo un mismo
+            Compra y financia vehículos usados con Estándar WAMMA en Venezuela. Todo bajo un mismo
             techo.
           </p>
 
@@ -311,187 +287,6 @@ export const C0_Home: React.FC<C0HomeProps> = ({ rateBCV }) => {
           </button>
         ))}
       </div>
-
-      {/* ── Explora por carrocería ───────────────────────────── */}
-      <Seccion
-        titulo="Explora por tipo"
-        bajada="Encuentra el vehículo que se ajusta a tu día a día."
-        enlace={{ texto: 'Ver toda la vitrina', a: '/catalogo' }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-            gap: 'var(--space-md)',
-          }}
-        >
-          {CARROCERIAS.filter((tipo) =>
-            vehiculos.some((v) => v.carroceria === tipo),
-          ).map((tipo) => {
-            const cantidad = vehiculos.filter((v) => v.carroceria === tipo).length;
-            return (
-              <button
-                key={tipo}
-                type="button"
-                onClick={() => navigate(`/catalogo?carroceria=${encodeURIComponent(tipo)}`)}
-                style={{
-                  cursor: 'pointer',
-                  backgroundColor: 'var(--blanco)',
-                  border: '1px solid var(--borde-claro)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: 'var(--space-lg)',
-                  fontFamily: 'var(--font-sans)',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: '15px', fontWeight: 700 }}>{tipo}</div>
-                <div style={{ fontSize: '12px', color: 'var(--texto-mudo)' }}>
-                  {cantidad} {cantidad === 1 ? 'unidad' : 'unidades'}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </Seccion>
-
-      {/* ── Destacados ───────────────────────────────────────── */}
-      <Seccion
-        titulo="Certificados y listos para entrega"
-        bajada="Cada unidad supera la inspección de 240 puntos y la validación legal de sus documentos."
-        enlace={{ texto: 'Ver todos', a: '/catalogo' }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-            gap: 'var(--space-lg)',
-          }}
-        >
-          {destacados.map((veh) => (
-            <TarjetaVehiculo
-              key={veh.id}
-              vehiculo={veh}
-              rateBCV={rateBCV}
-              onSelect={(id) => navigate(`/vehiculo/${id}`)}
-            />
-          ))}
-        </div>
-      </Seccion>
-
-      {/* ── Proceso en 3 pasos ───────────────────────────────── */}
-      <Seccion titulo="Cómo funciona" bajada="Tres pasos desde la vitrina hasta las llaves.">
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: 'var(--space-lg)',
-          }}
-        >
-          {PASOS.map((paso, i) => (
-            <div
-              key={paso.titulo}
-              style={{
-                backgroundColor: 'var(--blanco)',
-                border: '1px solid var(--borde-claro)',
-                borderRadius: 'var(--radius-md)',
-                padding: 'var(--space-xl)',
-              }}
-            >
-              <div
-                style={{
-                  width: '34px',
-                  height: '34px',
-                  borderRadius: 'var(--radius-pill)',
-                  backgroundColor: 'var(--naranja-500)',
-                  color: 'var(--blanco)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                  marginBottom: 'var(--space-md)',
-                }}
-              >
-                {i + 1}
-              </div>
-              <h3 style={{ fontSize: '16px', marginBottom: 'var(--space-xs)' }}>{paso.titulo}</h3>
-              <p style={{ fontSize: '13px', color: 'var(--texto-secundario)' }}>{paso.detalle}</p>
-            </div>
-          ))}
-        </div>
-      </Seccion>
-
-      {/* ── Financiamiento ───────────────────────────────────── */}
-      <Seccion
-        titulo="Paga tu próximo vehículo a cuotas"
-        bajada="Financiamiento propio de WAMMA. Calcula tu cuota antes de solicitar."
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: 'var(--space-xl)',
-            alignItems: 'start',
-          }}
-        >
-          <SimuladorCuota
-            precioEditable
-            rateBCV={rateBCV}
-            textoBoton="Ver vehículos de la vitrina"
-            onSolicitar={() => navigate('/catalogo')}
-          />
-
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 'var(--space-lg)',
-              padding: 'var(--space-xl)',
-              backgroundColor: 'var(--blanco)',
-              border: '1px solid var(--borde-claro)',
-              borderRadius: 'var(--radius-lg)',
-            }}
-          >
-            <h3 style={{ fontSize: '18px' }}>Financiamiento bajo el mismo techo</h3>
-            <p style={{ fontSize: '14px', color: 'var(--texto-secundario)' }}>
-              WAMMA evalúa, aprueba y cobra su propio crédito. No dependes de un banco externo para
-              llevarte el carro.
-            </p>
-            <ul
-              style={{
-                listStyle: 'none',
-                display: 'grid',
-                gap: 'var(--space-md)',
-                fontSize: '14px',
-                color: 'var(--texto-secundario)',
-              }}
-            >
-              {[
-                'Precios en EUR con referencia a Tasa Euro BCV.',
-                'Cuotas fijas con tabla de amortización visible desde el primer día.',
-                'Aprobación ágil y directa sobre el inventario del catálogo.',
-              ].map((item) => (
-                <li key={item} style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="var(--naranja-500)"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    style={{ flexShrink: 0, marginTop: '2px' }}
-                    aria-hidden="true"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </Seccion>
-
     </div>
   );
 };

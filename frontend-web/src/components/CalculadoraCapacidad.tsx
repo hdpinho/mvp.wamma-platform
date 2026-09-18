@@ -3,24 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { Boton } from './Boton';
 import {
   calcularCuotaMaxima,
-  calcularPrecioMaximo,
-  formatoUSD,
+  formatoEUR,
 } from '../services/financiamientoMotor';
+import { cuotaDesde } from '../mocks/financiamiento';
 import { useParametrosFinanciamiento } from '../services/parametrosFinanciamiento';
 import { useVehiculos } from '../state/vehiculosContexto';
-import { ModalAgendarCita } from './ModalAgendarCita';
 
 interface CalculadoraCapacidadProps {
   rateBCV?: number;
 }
 
-export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rateBCV = 0 }) => {
+export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rateBCV: _rateBCV = 0 }) => {
   const navigate = useNavigate();
   const { vehiculos } = useVehiculos();
   const { parametros, error } = useParametrosFinanciamiento();
 
   const [ingresoInput, setIngresoInput] = useState<string>('1000');
-  const [modalContactoAbierto, setModalContactoAbierto] = useState<boolean>(false);
 
   const calculoDisponible = Boolean(parametros && !error);
 
@@ -30,53 +28,34 @@ export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rate
   // Validación y mensaje de error claro
   const mensajeError = useMemo(() => {
     if (ingresoInput.trim() === '') {
-      return 'Por favor ingresa tu ingreso mensual en dólares (USD).';
+      return 'Por favor ingresa tu ingreso mensual en euros (€).';
     }
     if (!Number.isFinite(ingresoNum) || ingresoNum <= 0) {
-      return 'El ingreso mensual debe ser un número positivo mayor a $0.';
+      return 'El ingreso mensual debe ser un número positivo mayor a €0.';
     }
     return null;
   }, [ingresoInput, ingresoNum]);
 
-  // Cálculos del motor unificado
-  const { cuotaMaxima, precioMax20, precioMax30, precioMax40 } = useMemo(() => {
+  // Cálculo de cuota máxima según el 30% de capacidad de endeudamiento
+  const cuotaMaxima = useMemo(() => {
     if (!calculoDisponible || !parametros || !ingresoValido) {
-      return { cuotaMaxima: 0, precioMax20: 0, precioMax30: 0, precioMax40: 0 };
+      return 0;
     }
-
-    const cMax = calcularCuotaMaxima(ingresoNum, parametros);
-    const pMax20 = calcularPrecioMaximo(ingresoNum, 0.20, parametros);
-    const pMax30 = calcularPrecioMaximo(ingresoNum, 0.30, parametros);
-    const pMax40 = calcularPrecioMaximo(ingresoNum, 0.40, parametros);
-
-    return {
-      cuotaMaxima: cMax,
-      precioMax20: pMax20,
-      precioMax30: pMax30,
-      precioMax40: pMax40,
-    };
+    return calcularCuotaMaxima(ingresoNum, parametros);
   }, [calculoDisponible, parametros, ingresoNum, ingresoValido]);
 
-  // Vehículos en inventario que califican con cada nivel de inicial
-  const { califican20, califican30, califican40 } = useMemo(() => {
-    if (!ingresoValido) return { califican20: 0, califican30: 0, califican40: 0 };
-
+  // Vehículos en inventario cuya cuota mensual califica dentro de la cuota máxima
+  const califican = useMemo(() => {
+    if (!ingresoValido || cuotaMaxima <= 0) return 0;
     const disponibles = vehiculos.filter((v) => v.estadoDisponibilidad !== 'vendido');
-    return {
-      califican20: disponibles.filter((v) => v.precio <= precioMax20).length,
-      califican30: disponibles.filter((v) => v.precio <= precioMax30).length,
-      califican40: disponibles.filter((v) => v.precio <= precioMax40).length,
-    };
-  }, [vehiculos, ingresoValido, precioMax20, precioMax30, precioMax40]);
+    return disponibles.filter((v) => cuotaDesde(v.precio) <= cuotaMaxima).length;
+  }, [vehiculos, ingresoValido, cuotaMaxima]);
 
-  const navegarACatalogoFiltrado = (precioMax: number) => {
-    const redondeado = Math.round(precioMax);
-    navigate(`/catalogo?precioMax=${redondeado}`);
+  const navegarACatalogoFiltrado = (cuota: number) => {
+    const redondeado = Math.round(cuota);
+    navigate(`/catalogo?cuotaMax=${redondeado}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  // Vehículo de muestra para el modal de contacto si no hay vehículo específico
-  const vehiculoReferencia = vehiculos[0];
 
   return (
     <div
@@ -108,7 +87,7 @@ export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rate
           Calcula tu cuota mensual máxima según tus ingresos
         </h2>
         <p style={{ fontSize: '13px', color: 'var(--texto-secundario)', margin: '4px 0 0' }}>
-          Conoce tu límite de endeudamiento responsable (30% de tu ingreso mensual) y filtra los vehículos a tu alcance.
+          Conoce tu límite de endeudamiento responsable y filtra los vehículos a tu alcance.
         </p>
       </div>
 
@@ -127,7 +106,7 @@ export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rate
             ⚠️ Cálculo no disponible
           </div>
           <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', margin: '4px 0 0' }}>
-            No se pudieron obtener los parámetros de crédito vigentes desde Supabase. Los cálculos automáticos están inhabilitados.
+            No se pudieron obtener los parámetros de crédito vigentes. Los cálculos automáticos están inhabilitados.
           </p>
         </div>
       )}
@@ -138,7 +117,7 @@ export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rate
           <div>
             <label style={{ display: 'block' }}>
               <span className="form-label" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--carbon)' }}>
-                Ingreso mensual en USD
+                Ingreso mensual en EUR
               </span>
               <div style={{ position: 'relative', marginTop: '6px' }}>
                 <span
@@ -152,7 +131,7 @@ export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rate
                     fontSize: '15px',
                   }}
                 >
-                  $
+                  €
                 </span>
                 <input
                   type="number"
@@ -183,24 +162,7 @@ export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rate
             )}
           </div>
 
-          {/* Texto fijo: Plazo: 24 meses */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '10px 14px',
-              backgroundColor: 'var(--superficie)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--borde-claro)',
-              fontSize: '13px',
-            }}
-          >
-            <span style={{ fontWeight: 600, color: 'var(--carbon)' }}>Plazo: 24 meses</span>
-            <span style={{ color: 'var(--texto-mudo)', fontSize: '12px' }}>Cuotas fijas · Amortización francesa</span>
-          </div>
-
-          {/* Resultados de capacidad */}
+          {/* Resultados de capacidad: Cuota mensual máxima */}
           {ingresoValido && (
             <div
               style={{
@@ -225,23 +187,9 @@ export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rate
                 >
                   Cuota mensual máxima
                 </span>
-                <span style={{ fontSize: '24px', fontWeight: 800, color: 'var(--carbon)' }}>
-                  {formatoUSD(cuotaMaxima)}
+                <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--carbon)' }}>
+                  {formatoEUR(cuotaMaxima)} /mes
                 </span>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingTop: '8px',
-                  borderTop: '1px dashed var(--naranja-200)',
-                  fontSize: '13px',
-                }}
-              >
-                <span style={{ color: 'var(--texto-secundario)' }}>Precio máximo de vehículo (20% inicial):</span>
-                <strong style={{ color: 'var(--carbon)', fontSize: '15px' }}>{formatoUSD(precioMax20)}</strong>
               </div>
             </div>
           )}
@@ -252,159 +200,14 @@ export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rate
               <Boton
                 variant="primary"
                 fullWidth
-                onClick={() => navegarACatalogoFiltrado(precioMax20)}
+                onClick={() => navegarACatalogoFiltrado(cuotaMaxima)}
               >
-                Ver vehículos con estas cuotas ({califican20} disponibles)
+                Ver vehículos con estas cuotas ({califican} disponibles)
               </Boton>
             </div>
           )}
 
-          {/* Estado sin resultados cuando ningún vehículo califica con 20% inicial */}
-          {ingresoValido && califican20 === 0 && (
-            <div
-              style={{
-                backgroundColor: 'var(--superficie)',
-                border: '1px solid var(--borde-claro)',
-                borderRadius: 'var(--radius-md)',
-                padding: 'var(--space-lg)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--space-md)',
-              }}
-            >
-              <div>
-                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--carbon)' }}>
-                  💡 Subir la inicial amplía tus opciones
-                </h4>
-                <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--texto-secundario)', lineHeight: 1.4 }}>
-                  Con una inicial del 20% ningún vehículo del inventario actual tiene un precio menor a {formatoUSD(precioMax20)}.
-                  Sin embargo, al aportar un porcentaje mayor de inicial, el valor del vehículo al que puedes aspirar se incrementa manteniendo tu cuota máxima:
-                </p>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-sm)' }}>
-                <div
-                  style={{
-                    padding: '10px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--borde)',
-                    backgroundColor: 'var(--blanco)',
-                  }}
-                >
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--texto-mudo)' }}>Con 30% inicial</div>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--carbon)', margin: '2px 0' }}>
-                    Hasta {formatoUSD(precioMax30)}
-                  </div>
-                  <div style={{ fontSize: '11px', color: califican30 > 0 ? 'var(--naranja-600)' : 'var(--texto-mudo)' }}>
-                    {califican30} {califican30 === 1 ? 'vehículo califica' : 'vehículos califican'}
-                  </div>
-                  {califican30 > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => navegarACatalogoFiltrado(precioMax30)}
-                      style={{
-                        marginTop: '8px',
-                        width: '100%',
-                        padding: '6px',
-                        background: 'none',
-                        border: '1px solid var(--naranja-500)',
-                        borderRadius: 'var(--radius-sm)',
-                        color: 'var(--naranja-600)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Ver ({califican30})
-                    </button>
-                  )}
-                </div>
-
-                <div
-                  style={{
-                    padding: '10px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--borde)',
-                    backgroundColor: 'var(--blanco)',
-                  }}
-                >
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--texto-mudo)' }}>Con 40% inicial</div>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--carbon)', margin: '2px 0' }}>
-                    Hasta {formatoUSD(precioMax40)}
-                  </div>
-                  <div style={{ fontSize: '11px', color: califican40 > 0 ? 'var(--naranja-600)' : 'var(--texto-mudo)' }}>
-                    {califican40} {califican40 === 1 ? 'vehículo califica' : 'vehículos califican'}
-                  </div>
-                  {califican40 > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => navegarACatalogoFiltrado(precioMax40)}
-                      style={{
-                        marginTop: '8px',
-                        width: '100%',
-                        padding: '6px',
-                        background: 'none',
-                        border: '1px solid var(--naranja-500)',
-                        borderRadius: 'var(--radius-sm)',
-                        color: 'var(--naranja-600)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Ver ({califican40})
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Enlace al flujo de captura de prospectos del Módulo 010 (CRM) */}
-              <div style={{ borderTop: '1px dashed var(--borde-claro)', paddingTop: 'var(--space-sm)' }}>
-                <p style={{ fontSize: '11px', color: 'var(--texto-secundario)', margin: '0 0 8px', lineHeight: 1.3 }}>
-                  ¿Necesitas una estructura de financiamiento a tu medida? Nuestros analistas de crédito pueden evaluar tu caso.
-                </p>
-                {vehiculoReferencia ? (
-                  <Boton
-                    variant="secondary"
-                    fullWidth
-                    onClick={() => setModalContactoAbierto(true)}
-                  >
-                    Hablar con un Asesor de Crédito WAMMA
-                  </Boton>
-                ) : (
-                  <a
-                    href="https://wa.me/584140000000?text=Hola%20WAMMA,%20deseo%20asesor%C3%ADa%20para%20un%20plan%20de%20financiamiento"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'block',
-                      textAlign: 'center',
-                      padding: '10px',
-                      backgroundColor: 'var(--carbon)',
-                      color: 'var(--blanco)',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      textDecoration: 'none',
-                    }}
-                  >
-                    Contactar a un Asesor por WhatsApp
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
         </>
-      )}
-
-      {/* Modal de Agendamiento / Captura de Prospecto CRM */}
-      {modalContactoAbierto && vehiculoReferencia && (
-        <ModalAgendarCita
-          vehiculo={vehiculoReferencia}
-          rateBCV={rateBCV}
-          interesFinanciamientoInicial={true}
-          onCerrar={() => setModalContactoAbierto(false)}
-        />
       )}
     </div>
   );

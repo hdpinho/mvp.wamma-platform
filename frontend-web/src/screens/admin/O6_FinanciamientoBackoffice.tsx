@@ -22,14 +22,8 @@ const formatoEURDecimal = (v: number) =>
     maximumFractionDigits: 2,
   }).format(Number.isFinite(v) ? v : 0);
 
-const formatoBs = (v: number) =>
-  new Intl.NumberFormat('es-VE', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number.isFinite(v) ? v : 0) + ' Bs.';
-
 export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficeProps> = ({
-  rateBCV,
+  rateBCV: _rateBCV,
 }) => {
   const { vehiculos } = useVehiculos();
 
@@ -105,15 +99,14 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
     const texto = `*PROPUESTA DE FINANCIAMIENTO WAMMA* 🚗
 ${nombreCliente ? `*Cliente:* ${nombreCliente}\n` : ''}
 *Vehículo:* ${vehiculoTitulo}
-*Precio de Venta:* ${formatoEUR(precio)} (Ref. ${formatoBs(precio * rateBCV)})
+*Precio de Venta:* ${formatoEUR(precio)}
 ----------------------------------
 *Inicial (${porcentajeInicial}%):* ${formatoEUR(inicialEUR)}
 *Monto Financiado:* ${formatoEUR(montoFinanciado)}
 *Plazo:* ${plazoMeses} meses
 *Tasa Mensual:* ${tasaMensualPct}%
-*Cuota Mensual Fija:* *${formatoEURDecimal(cuotaMensualEUR)}* (Ref. ${formatoBs(cuotaMensualEUR * rateBCV)})
+*Cuota Mensual Fija:* *${formatoEURDecimal(cuotaMensualEUR)}*
 ----------------------------------
-*Tasa Oficial BCV Aplicada:* ${rateBCV.toFixed(2)} Bs/EUR
 *Requisitos Básicos:*
 - Cédula de Identidad y RIF vigente
 - Constancia de trabajo o certificación de ingresos
@@ -275,9 +268,6 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
                   {formatoEURDecimal(cuotaMensualEUR)}
                 </span>
               </div>
-              <div style={{ textAlign: 'right', fontSize: '11px', color: 'var(--texto-mudo)' }}>
-                Ref. {formatoBs(cuotaMensualEUR * rateBCV)} (Tasa BCV {rateBCV.toFixed(2)} Bs/EUR)
-              </div>
             </div>
           </div>
 
@@ -361,7 +351,6 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
                     <th>Capital</th>
                     <th>Interés</th>
                     <th>Saldo EUR</th>
-                    <th>Ref. Bs</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -372,9 +361,6 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
                       <td style={{ color: '#0F6E56' }}>{formatoEURDecimal(fila.capital)}</td>
                       <td style={{ color: 'var(--naranja-600)' }}>{formatoEURDecimal(fila.interes)}</td>
                       <td style={{ fontWeight: 600 }}>{formatoEURDecimal(fila.saldo)}</td>
-                      <td style={{ fontSize: '11px', color: 'var(--texto-mudo)', whiteSpace: 'nowrap' }}>
-                        {formatoBs(fila.monto * rateBCV)}
-                      </td>
                     </tr>
                   ))}
                 </tbody>
