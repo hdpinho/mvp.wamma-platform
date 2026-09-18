@@ -126,13 +126,6 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
             >
               Financiamiento
             </button>
-            <button
-              type="button"
-              onClick={() => navigate('/catalogo')}
-              className="pildora-kavak"
-            >
-              Inspección 240 pts
-            </button>
           </div>
         </div>
 
