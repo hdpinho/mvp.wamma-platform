@@ -32,10 +32,9 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
           el video no llega a cargar o el visitante pidió menos movimiento.
         */}
         <picture>
-          <source media="(max-width: 640px)" srcSet="/hero/carro-playa-movil.webp" />
           <img
-            src="/hero/carro-playa.webp"
-            alt=""
+            src="/hero/portada-poster.webp"
+            alt="Vehículos inspeccionados WAMMA"
             aria-hidden="true"
             /* Es la primera imagen visible: se carga con prioridad, no en diferido */
             fetchPriority="high"
@@ -54,7 +53,7 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
           <video
             className="hero-video"
             src="/video/portada-wamma.mp4"
-            poster="/hero/carro-playa.webp"
+            poster="/hero/portada-poster.webp"
             autoPlay
             muted
             loop
