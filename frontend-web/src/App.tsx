@@ -36,14 +36,15 @@ import { O7_FichaPersona } from './screens/admin/O7_FichaPersona';
 function AppRutas({ rateBCV }: { rateBCV: number }) {
   const location = useLocation();
   const esAdmin = location.pathname.startsWith('/admin');
+  const esHome = location.pathname === '/';
 
   return (
-    <div className={`app-container ${esAdmin ? 'app-container-admin' : ''}`}>
+    <div className={`app-container ${esAdmin ? 'app-container-admin' : ''} ${esHome ? 'app-container-home' : ''}`}>
       {/* Navigation Header solo para la vista pública */}
       {!esAdmin && <BarraNavegacion />}
 
       {/* Main Content Area */}
-      <main className={esAdmin ? 'main-content-admin' : 'main-content'}>
+      <main className={esAdmin ? 'main-content-admin' : esHome ? 'main-content-home' : 'main-content'}>
         <Routes>
           {/* Rutas Públicas */}
           <Route path="/" element={<C0_Home rateBCV={rateBCV} />} />

@@ -112,6 +112,13 @@ h1, h2, h3, h4, h5, h6 {
   padding: var(--space-lg);
 }
 
+.main-content-home {
+  flex: 1;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 /* Custom UI Utility classes */
 .card {
   background-color: var(--blanco);
