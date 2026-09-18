@@ -165,9 +165,12 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
           .hero-velo {
             position: absolute;
             inset: 0;
-            background:
-              radial-gradient(ellipse at center, rgba(16, 12, 10, 0.40) 0%, rgba(16, 12, 10, 0.72) 100%),
-              linear-gradient(180deg, rgba(12, 9, 7, 0.35) 0%, rgba(12, 9, 7, 0.55) 50%, rgba(12, 9, 7, 0.88) 100%);
+            background: linear-gradient(
+              180deg,
+              rgba(14, 11, 9, 0.12) 0%,
+              rgba(14, 11, 9, 0.26) 45%,
+              rgba(14, 11, 9, 0.62) 100%
+            );
           }
           .hero-contenido {
             position: relative;
@@ -186,17 +189,18 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
             font-weight: 800;
             line-height: 1.12;
             margin-bottom: var(--space-md);
-            text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+            text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85), 0 0 28px rgba(0, 0, 0, 0.6);
             letter-spacing: -0.02em;
           }
           .hero-bajada {
             color: var(--blanco);
-            opacity: 0.95;
+            opacity: 0.98;
             font-size: clamp(16px, 1.6vw, 20px);
             line-height: 1.45;
             margin-bottom: var(--space-xl);
             max-width: 620px;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85), 0 0 20px rgba(0, 0, 0, 0.5);
+            font-weight: 500;
           }
           .buscador-hero-kavak {
             width: 100%;
