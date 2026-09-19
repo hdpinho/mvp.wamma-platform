@@ -23,8 +23,15 @@ services:
         sync: false
       - key: SUPABASE_DB_PASSWORD
         sync: false
+      # Solo aquí vale true: fuera de Render, migrar exige activarlo a propósito.
       - key: FLYWAY_ENABLED
         value: "true"
+      # Flyway migra con el dueño del esquema; la aplicación entra con wamma_app, que no
+      # tiene DDL (V0009 §3). Ya no caen a SUPABASE_DB_*: se declaran siempre.
+      - key: FLYWAY_DB_USER
+        sync: false
+      - key: FLYWAY_DB_PASSWORD
+        sync: false
       # Claves del módulo 001 (plan 001 §7): 32 bytes aleatorios en Base64, distintas entre sí.
       # Si se pierden, los datos cifrados no se pueden recuperar: guardarlas también fuera de Render.
       - key: WAMMA_CLAVE_CIFRADO
@@ -42,4 +49,25 @@ services:
       - key: WAMMA_ADMIN_CORREO
         sync: false
       - key: WAMMA_ADMIN_CONTRASENA_INICIAL
+        sync: false
+      # Almacén de fotos. No es secreto y su valor es el comportamiento buscado en
+      # producción: declararlo aquí evita depender de un valor por defecto del código.
+      - key: WAMMA_FOTOS_ALMACEN
+        value: "s3"
+      # Fotos de la vitrina (D-09). El perfil supabase las manda a un almacén compatible
+      # con S3 —hoy Supabase Storage—, así que sin estas cinco el servidor no arranca.
+      # Cambiar de proveedor es cambiar el endpoint, la región y las claves.
+      - key: WAMMA_S3_ENDPOINT
+        sync: false
+      - key: WAMMA_S3_REGION
+        sync: false
+      - key: WAMMA_S3_BUCKET
+        sync: false
+      - key: WAMMA_S3_ACCESS_KEY
+        sync: false
+      - key: WAMMA_S3_SECRET_KEY
+        sync: false
+      # Base pública de las URL de foto. Antes caía a localhost y el servicio arrancaba
+      # en verde sirviendo direcciones inservibles; ahora es obligatoria.
+      - key: WAMMA_FOTOS_URL_PUBLICA
         sync: false
