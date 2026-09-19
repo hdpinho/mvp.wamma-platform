@@ -1,7 +1,7 @@
 # 011 · Endurecimiento de entornos, acceso a datos y desacople del proveedor
 
 **Proyecto:** WAMMA · Plataforma propia · **Fase 1 (MVP)**
-**Clasificación:** Confidencial · **Rev.: 2** · **Septiembre 2026**
+**Clasificación:** Confidencial · **Rev.: 3** · **Septiembre 2026**
 **Pilar Kavak:** — (transversal: habilita los demás)
 **Depende de:** 001 (roles, sesiones, bitácora), 005 (vitrina y parámetros de financiamiento)
 **Estado:** **Aprobado** por el Product Owner el 19 de septiembre de 2026, con los ajustes de la Rev. 2 (D-40 a D-43).
@@ -10,6 +10,8 @@
 > Principios en `../../.specify/memory/constitution.md`.
 >
 > **Nota de formato:** por pedido expreso del PO, cada corrección incluye aquí sus *archivos afectados*, *riesgo* y *cómo se prueba*. Es detalle que normalmente vive en `plan.md`; se adelanta para que la aprobación se dé con el costo y el riesgo a la vista.
+>
+> **Rev. 3:** la prueba universal de `GRANT` de §6.6, ya implementada, desmiente la sospecha de §6.1 sobre tablas sin permisos. Se corrige el texto en vez de dejarlo como estaba.
 >
 > **Rev. 2 (aprobación):** resuelve D-40 (retardo sin retener hilos), parte la migración única en **V0016, V0017 y V0018**, añade la convención de migraciones de §6.6, y fija la condición de V0018 sobre datos existentes.
 
@@ -79,7 +81,9 @@ Ya está resuelto en el esquema y conviene dejarlo explícito, porque es la preg
 
 Hay dos cosas que verificar antes de activarlo:
 
-- **`GRANT` efectivo sobre tablas creadas después de V0009.** V0009 fija `ALTER DEFAULT PRIVILEGES` (`V0009:75-76`), pero esos privilegios por defecto solo aplican a lo que cree **el mismo rol** que ejecutó el `ALTER`. `parametros_financiamiento` (V0015) y las tablas de V0013–V0014 nacieron después. **V0016** debe re-otorgar explícitamente sobre todas las tablas del esquema, en vez de confiar en el mecanismo por defecto.
+- **`GRANT` efectivo sobre tablas creadas después de V0009.** ~~Las tablas de V0013–V0015 nacieron después del `ALTER DEFAULT PRIVILEGES` y podrían no tener permisos.~~ **Comprobado y desmentido (Rev. 3).** La prueba universal de §6.6, corrida sobre un esquema reconstruido desde cero, pasa: todas las tablas tienen `SELECT`/`INSERT` para `wamma_app`. El motivo es que `ALTER DEFAULT PRIVILEGES` sí alcanza lo creado después **por el mismo rol**, y todas las migraciones corren con el mismo usuario. El re-`GRANT` de **V0016** se mantiene como seguro barato —protege el día que una migración corra con otro rol— pero **no es una reparación**: no hay nada roto que arreglar. Lo que sí cierra el agujero hacia adelante es la prueba, no la migración.
+
+  La verificación se hizo sobre un esquema reconstruido desde cero, no contra la base de Supabase. Si allí alguna migración se aplicó alguna vez a mano con otro rol, el resultado podría diferir; el re-`GRANT` de V0016 cubre también ese caso.
 - **`REVOKE` *append-only*.** `wamma_app` no tiene `UPDATE`/`DELETE` sobre `auditoria_evento`, `asiento`, `linea_asiento`, `interaccion`, `etapa_historial`, `fusion_persona` ni `movimiento_inventario` (`V0009:85-88`). Si algún punto del backend intenta actualizar una de ellas, hoy funciona (es el dueño) y **dejará de funcionar**. Hay que confirmarlo por prueba, no por lectura.
 
 > **Riesgo de portabilidad, a registrar:** `CREATE ROLE ... BYPASSRLS` exige que quien lo ejecuta tenga a su vez `BYPASSRLS` o sea superusuario. En Supabase funcionó. En **RDS/Aurora no está garantizado**, porque `rds_superuser` no lo incluye. Alternativa, si el destino lo rechaza: política permisiva explícita por tabla (`CREATE POLICY ... TO wamma_app USING (true) WITH CHECK (true)`), equivalente en efecto y portable, a costa de una política por tabla. **No se adopta ahora**, pero el plan debe dejarla escrita para no descubrirlo durante la migración.
@@ -293,7 +297,9 @@ Se adopta como regla del proyecto: **toda migración que cree una tabla incluye,
 
 Y se respalda con **una prueba que falla si alguna tabla del esquema queda sin ambos**.
 
-**Estado actual: media convención ya existe.** `backend/tools/db/pruebas-esquema.sql` tiene la prueba universal de RLS (*"RLS activo en todas las tablas del esquema"*), que el CI corre en el job `Migraciones`. Lo que **no** existe es la contraparte de `GRANT`: hoy se comprueba tabla por tabla (`interaccion`, `persona`, `oportunidad`, `persona_telefono`), así que una tabla nueva sin permisos pasa desapercibida. Es exactamente el agujero que obliga a V0016 a re-otorgar.
+**Estado al aprobarse: media convención ya existía.** `backend/tools/db/pruebas-esquema.sql` tenía la prueba universal de RLS (*"RLS activo en todas las tablas del esquema"*), que el CI corre en el job `Migraciones`. Lo que **no** existía era la contraparte de `GRANT`: se comprobaba tabla por tabla (`interaccion`, `persona`, `oportunidad`, `persona_telefono`), así que una tabla nueva sin permisos pasaba desapercibida.
+
+**Hecho.** La prueba universal de `GRANT` ya está, junto con su meta-prueba: crea una tabla, le revoca los permisos y exige que la comprobación la detecte. Una comprobación universal que nunca se ha visto fallar no protege de nada. Al correrla por primera vez quedó claro que **no había ninguna tabla sin permisos** (ver §6.1): el valor de esta prueba es impedir que las haya en adelante, no reparar algo roto.
 
 **Archivos afectados**
 
@@ -381,4 +387,4 @@ De ahí sale este orden:
 | Auditoría de solo lectura del 19/09/2026 | Los cinco puntos |
 
 ---
-*WAMMA · Confidencial · Rev. 2 · Aprobado · No constituye asesoría legal ni financiera.*
+*WAMMA · Confidencial · Rev. 3 · Aprobado · No constituye asesoría legal ni financiera.*

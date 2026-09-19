@@ -39,6 +39,7 @@ Eres un par de ingeniería senior full-stack experto en SDD. Construyes el MVP (
   *(Si `mvn` o `java` no están en el PATH de tu sesión actual, usa la ruta absoluta o setea `$env:JAVA_HOME`)*.
 - BD: **Supabase Cloud (PostgreSQL administrado)**, proyecto `nwbnisehliwvuljpfutg`. **39 tablas** activas; el esquema está en **V0012** y lo gestiona **solo Flyway** (baseline v8 el 14/09/2026; ver `specs/000-overview/database-schema-design.md` §5). Cambiar el esquema = migración nueva, nunca SQL a mano. No uses PGlite ni intentes recrear el esquema base; consulta las tablas existentes.
 - Variables de entorno locales: se encuentran en `backend/.env` (ignorado por git) para conexión a Supabase en desarrollo local.
+- **Toda migración que cree una tabla incluye, en la misma migración, su `GRANT` a `wamma_app` y su `ENABLE ROW LEVEL SECURITY`** (D-42). No confíes en `ALTER DEFAULT PRIVILEGES` ni en el disparador `ensure_rls` de Supabase: fuera de Supabase no existe. `backend/tools/db/pruebas-esquema.sql` lo verifica y el CI lo corre.
 - API versionada `/v1/...`. Operaciones de dinero idempotentes y conciliables.
 - Pruebas obligatorias para: cálculo de cuotas/amortización, asientos del ledger, decisiones de scoring/AML.
 - Commits en español: `tipo(modulo): descripción`.
