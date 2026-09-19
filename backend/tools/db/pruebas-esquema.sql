@@ -294,3 +294,14 @@ select exists (
          and has_table_privilege('wamma_app', c.oid, 'INSERT')));
 -- @ok acceso: se retira la tabla de usar y tirar
 drop table zz_comprobacion_sin_permisos;
+-- @verdad clave: evidencia y recaudo guardan la clave del objeto, no la URL (spec 011 §6.5)
+select to_regclass(format('%I.inspeccion_punto', current_schema())) is not null
+   and exists (select 1 from information_schema.columns
+               where table_schema = current_schema() and table_name = 'inspeccion_punto'
+                 and column_name = 'evidencia_clave')
+   and exists (select 1 from information_schema.columns
+               where table_schema = current_schema() and table_name = 'solicitud_recaudo'
+                 and column_name = 'archivo_clave')
+   and not exists (select 1 from information_schema.columns
+               where table_schema = current_schema()
+                 and column_name in ('evidencia_url', 'archivo_url'));
