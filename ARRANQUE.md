@@ -26,31 +26,57 @@ git commit -m "chore: estructura SDD inicial de WAMMA"
 
 > El remoto debe ser la **organización de WAMMA** en GitHub, no una cuenta personal (Constitución, Principio III).
 
-## Paso 2 · Generar la maqueta
+## Paso 2 · Levantar el backend localmente (Spring Boot)
 
-## Paso 2 · Levantar el frontend localmente
+El backend arranca sobre un **PostgreSQL embebido y desechable**, sin tocar la base
+compartida. Cada arranque parte de una base vacía: Flyway aplica todas las migraciones y
+se crea el administrador local.
+
+```bash
+cd backend
+mvn spring-boot:test-run -Dspring-boot.run.main-class=com.wamma.support.LocalDevServer
+```
+
+Queda escuchando en `http://localhost:8080`, con `/api/health` para comprobarlo.
+
+> **No uses `mvn spring-boot:run`.** Desde el spec 011 el perfil por defecto es `local` y no
+> define origen de datos: ese comando falla al arrancar, a propósito. Arrancar sin
+> configurar entorno no puede acabar apuntando a la base compartida.
+>
+> Para trabajar contra Supabase hace falta activarlo explícitamente
+> (`SPRING_PROFILES_ACTIVE=supabase`) con todas sus variables definidas; el servidor las
+> nombra todas juntas si falta alguna. Ojo: Flyway migraría esa base al arrancar, así que
+> `FLYWAY_ENABLED` viene en `false` salvo que el entorno lo active.
+
+## Paso 3 · Levantar el frontend localmente
 
 La maqueta cliente reside en `frontend-web/`:
 
 ```bash
 cd frontend-web
 npm install
+echo "VITE_API_URL=http://localhost:8080" > .env.local   # sin esto, arranca en modo maqueta
 npm run dev
 ```
 
-Abre en tu navegador la URL que muestre la terminal (típicamente `http://localhost:5173`).
+| Para qué | URL |
+|---|---|
+| Vitrina pública | `http://localhost:5173` |
+| **Ingreso al backoffice** | `http://localhost:5173/admin/ingresar` |
+| Salud del backend | `http://localhost:8080/api/health` |
 
-## Paso 3 · Levantar el backend localmente (Spring Boot)
+**Credenciales locales** (solo sirven para esa base desechable; están en
+`LocalDevServer.java`, no son secretos):
 
-El backend modular reside en `backend/`:
+* Usuario: `admin.local`
+* Contraseña inicial: `Clave local de desarrollo 2026`
 
-```bash
-cd backend
-mvn spring-boot:run
-```
+En el primer ingreso pedirá cambiar la contraseña y activar el segundo factor (TOTP) con
+una app autenticadora.
 
-* Por defecto arranca con el perfil **`standalone`** (sin requerir base de datos activa) y expone `/api/health` en el puerto configurado.
-* Para conectar con Supabase en desarrollo local, define las variables de entorno `SUPABASE_DB_URL`, `SUPABASE_DB_USER`, `SUPABASE_DB_PASSWORD` y activa el perfil `SPRING_PROFILES_ACTIVE=supabase`.
+> Sin `VITE_API_URL` el frontend funciona en **modo maqueta**: muestra datos de ejemplo del
+> navegador y no hay ingreso. El backend solo admite peticiones desde `localhost:5173` y
+> `localhost:5174`, que es lo que fija `LocalDevServer`.
 
 ---
 
