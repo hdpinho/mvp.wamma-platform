@@ -24,9 +24,20 @@ spring:
 
 server:
   port: ${PORT:${SERVER_PORT:8080}}
-  # Render termina el TLS y reenvía la IP del cliente en X-Forwarded-For (bitácora y
-  # límite de ingresos por IP). Solo Render llega al contenedor.
-  forward-headers-strategy: framework
+  # La IP del cliente se resuelve descartando los proxies de confianza de derecha a
+  # izquierda en X-Forwarded-For. `framework` tomaba el PRIMER elemento, que es el que el
+  # cliente controla: detrás de un balanceador que añade en vez de reemplazar —un ALB de
+  # AWS, por ejemplo— bastaba una cabecera falsificada para evadir el límite y ensuciar la
+  # bitácora. `native` usa RemoteIpValve de Tomcat, que sí descarta proxies conocidos.
+  forward-headers-strategy: ${WAMMA_ESTRATEGIA_CABECERAS:native}
+  tomcat:
+    remoteip:
+      # Rangos de los que SÍ se acepta X-Forwarded-For. Por defecto, redes privadas y
+      # loopback, que es lo correcto tras un ALB en una VPC. En Render hay que fijarlo a
+      # la IP real de su proxy: obsérvala en la bitácora antes de activarla, porque un
+      # rango mal puesto hace que todas las peticiones parezcan venir de la misma IP y
+      # deja fuera al backoffice entero.
+      internal-proxies: ${WAMMA_PROXIES_CONFIABLES:10\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?|192\.168\.\d\d?\d?\.\d\d?\d?|169\.254\.\d\d?\d?\.\d\d?\d?|127\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?|172\.1[6-9]\.\d\d?\d?\.\d\d?\d?|172\.2\d\.\d\d?\d?\.\d\d?\d?|172\.3[0-1]\.\d\d?\d?\.\d\d?\d?|0:0:0:0:0:0:0:1|::1}
 
 wamma:
   cors:
@@ -45,9 +56,13 @@ wamma:
     password-min-length: 12
     max-failed-attempts: 5
     lockout-duration: 15m
-    # Límite adicional por IP en el endpoint de ingreso (plan 001, S6).
+    # Tras estos fallos seguidos, el identificador queda congelado el tiempo de la ventana
+    # (plan 001, S6). Es el techo duro; el retardo de abajo actúa mucho antes.
     login-attempts-per-ip: 20
     login-ip-window: 10m
+    # Retardo progresivo por fallos seguidos, en segundos (D-40). El último valor es el
+    # tope. El servidor no duerme: responde 429 con Retry-After y libera el hilo.
+    login-delay-curve-seconds: [0, 1, 2, 4, 8]
 
   # Primer administrador (D-07). Solo se usa si la base no tiene ningún usuario.
   bootstrap-admin:

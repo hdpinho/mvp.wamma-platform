@@ -72,8 +72,6 @@ public abstract class PostgresIntegrationTest {
         registry.add("spring.flyway.password", () -> "postgres");
         registry.add("wamma.security.encryption-key", () -> TEST_ENCRYPTION_KEY);
         registry.add("wamma.security.index-key", () -> TEST_INDEX_KEY);
-        // Las pruebas hacen muchos ingresos desde 127.0.0.1; el límite por IP se prueba aparte.
-        registry.add("wamma.security.login-attempts-per-ip", () -> "100000");
         registry.add("wamma.bootstrap-admin.username", () -> ADMIN_USERNAME);
         registry.add("wamma.bootstrap-admin.first-name", () -> "Admin");
         registry.add("wamma.bootstrap-admin.last-name", () -> "Pruebas");

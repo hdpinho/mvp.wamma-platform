@@ -3,6 +3,7 @@ package com.wamma.platform.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  * Parámetros de seguridad del módulo 001. Los valores de política los aprobó el PO
@@ -16,8 +17,10 @@ import java.time.Duration;
  * @param passwordMinLength  longitud mínima de contraseña
  * @param maxFailedAttempts  intentos fallidos seguidos antes del bloqueo
  * @param lockoutDuration    duración del bloqueo
- * @param loginAttemptsPerIp intentos de ingreso admitidos por IP en la ventana
- * @param loginIpWindow      ventana del límite por IP
+ * @param loginAttemptsPerIp fallos seguidos tras los cuales se congela el identificador
+ * @param loginIpWindow      duración de esa congelación
+ * @param loginDelayCurveSeconds retardo en segundos según los fallos seguidos acumulados
+ *                           (D-40). El último valor es el tope: 0, 1, 2, 4 y 8 segundos.
  */
 @ConfigurationProperties("wamma.security")
 public record SecurityProperties(
@@ -30,5 +33,15 @@ public record SecurityProperties(
         int maxFailedAttempts,
         Duration lockoutDuration,
         int loginAttemptsPerIp,
-        Duration loginIpWindow) {
+        Duration loginIpWindow,
+        List<Integer> loginDelayCurveSeconds) {
+
+    /** Segundos de espera tras {@code fallos} fallos seguidos. Sin curva, sin espera. */
+    public int delayAfter(int fallos) {
+        if (loginDelayCurveSeconds == null || loginDelayCurveSeconds.isEmpty()) {
+            return 0;
+        }
+        int indice = Math.min(Math.max(fallos, 0), loginDelayCurveSeconds.size() - 1);
+        return loginDelayCurveSeconds.get(indice);
+    }
 }

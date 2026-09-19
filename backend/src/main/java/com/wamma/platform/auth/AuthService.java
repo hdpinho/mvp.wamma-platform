@@ -87,8 +87,9 @@ public class AuthService {
 
     @Transactional(noRollbackFor = ApiException.class)
     public PasswordStep login(String username, String password) {
-        rateLimiter.check(RequestInfo.clientIp());
         String normalized = username == null ? "" : username.trim().toLowerCase(Locale.ROOT);
+        String ip = RequestInfo.clientIp();
+        rateLimiter.check(ip, normalized);
         Instant now = clock.instant();
         Optional<UserAccount> found = users.findByUsername(normalized);
 
@@ -96,15 +97,18 @@ public class AuthService {
             encoder.matches(password == null ? "" : password, referenceHash);
             audit.recordAs(null, "sesion.fallida", "sesion", null, null,
                     detail("motivo", "credenciales", "usuario", truncate(normalized, 50)));
+            rateLimiter.recordFailure(ip, normalized);
             throw invalidCredentials();
         }
         UserAccount user = found.get();
         if (!user.active()) {
             audit.recordAs(null, "sesion.fallida", "usuario", user.id(), null, detail("motivo", "usuario_inactivo"));
+            rateLimiter.recordFailure(ip, normalized);
             throw invalidCredentials();
         }
         if (user.lockedAt(now)) {
             audit.recordAs(null, "sesion.fallida", "usuario", user.id(), null, detail("motivo", "cuenta_bloqueada"));
+            rateLimiter.recordFailure(ip, normalized);
             throw locked();
         }
         if (password == null || !encoder.matches(password, user.passwordHash())) {
@@ -112,10 +116,12 @@ public class AuthService {
                     now.plus(properties.lockoutDuration()));
             audit.recordAs(null, "sesion.fallida", "usuario", user.id(), null,
                     detail("motivo", "credenciales", "bloqueo_iniciado", lockedNow));
+            rateLimiter.recordFailure(ip, normalized);
             throw lockedNow ? locked() : invalidCredentials();
         }
 
         users.clearFailures(user.id());
+        rateLimiter.recordSuccess(ip, normalized);
         SessionService.Issued partial = sessions.issue(user.id(), SessionService.Level.PARCIAL);
         return new PasswordStep(partial.token(), nextStep(user), partial.expiresAt());
     }

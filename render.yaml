@@ -50,6 +50,13 @@ services:
         sync: false
       - key: WAMMA_ADMIN_CONTRASENA_INICIAL
         sync: false
+      # Rangos de los que se acepta X-Forwarded-For, como regex de Tomcat. Sin esto se
+      # usan las redes privadas y loopback, que es lo correcto tras un ALB en una VPC pero
+      # NO tras el proxy de Render. Obsérvese la IP real en la bitácora antes de fijarla:
+      # un rango mal puesto hace que todo parezca venir de la misma IP y el límite de
+      # ingreso deja fuera al backoffice entero.
+      - key: WAMMA_PROXIES_CONFIABLES
+        sync: false
       # Almacén de fotos. No es secreto y su valor es el comportamiento buscado en
       # producción: declararlo aquí evita depender de un valor por defecto del código.
       - key: WAMMA_FOTOS_ALMACEN
