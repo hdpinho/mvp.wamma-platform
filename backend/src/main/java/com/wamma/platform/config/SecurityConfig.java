@@ -80,7 +80,7 @@ public class SecurityConfig {
                 .requestMatchers("/", "/api/health", "/error").permitAll()
                 // Vitrina pública (spec 005): solo lectura y sin datos internos.
                 .requestMatchers(HttpMethod.GET, "/v1/catalogo", "/v1/catalogo/**", "/v1/tasa-bcv/vigente",
-                        "/archivos/**").permitAll()
+                        "/v1/parametros-financiamiento", "/archivos/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/auth/ingreso").permitAll()
                 .requestMatchers("/v1/auth/contrasena-inicial", "/v1/auth/2fa", "/v1/auth/2fa/**")
                     .hasAuthority(SessionAuthenticationFilter.PARTIAL)

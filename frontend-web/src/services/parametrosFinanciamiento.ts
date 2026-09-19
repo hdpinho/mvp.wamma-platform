@@ -1,9 +1,14 @@
 /**
- * Servicio de carga y sincronización de parámetros de financiamiento desde Supabase / Backend.
+ * Parámetros de financiamiento, servidos por el backend de WAMMA.
  *
- * Cumple con el requisito B:
- * "Si los parámetros no cargan, no muestres cuotas calculadas con valores de respaldo.
- * Muestra un estado de 'cálculo no disponible'. Mostrar una cuota con parámetros viejos es un riesgo."
+ * Antes esto hablaba directamente con la API de datos de Supabase usando la anon key. Se
+ * quitó (spec 011 §6.2): ataba el simulador de cuotas —camino crítico del negocio— a un
+ * proveedor concreto, contra el Principio II, y obligaba a exponer una clave y una política
+ * de lectura pública sobre la tabla. Ahora la única puerta a la base es el backend.
+ *
+ * Requisito B.5: si los parámetros no cargan, no se muestran cuotas calculadas con valores
+ * de respaldo, sino un estado de «cálculo no disponible». Una cuota con parámetros viejos
+ * es peor que ninguna cuota.
  */
 import { useEffect, useState } from 'react';
 import {
@@ -11,76 +16,43 @@ import {
   type ParametrosFinanciamiento,
 } from './financiamientoMotor';
 
-interface ParametrosDb {
-  tasa_mensual: number;
-  plazo_meses: number;
-  ratio_cuota_ingreso: number;
-  opciones_inicial: number[];
-  inicial_minima: number;
-  moneda_base?: string;
-  vigente_desde?: string;
-  activo?: boolean;
+/** Lo que devuelve GET /v1/parametros-financiamiento. */
+interface ParametrosApi {
+  tasaMensual: number;
+  plazoMeses: number;
+  ratioCuotaIngreso: number;
+  opcionesInicial: number[];
+  inicialMinima: number;
+  monedaBase?: string;
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, '');
 
 export async function obtenerParametrosFinanciamiento(): Promise<ParametrosFinanciamiento> {
-  // 1. Si Supabase está configurado con anon key (lectura pública con RLS)
-  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-    const url = `${SUPABASE_URL.replace(/\/+$/, '')}/rest/v1/parametros_financiamiento?activo=eq.true&order=vigente_desde.desc&limit=1`;
-    const res = await fetch(url, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Accept: 'application/json',
-      },
-    });
-
-    if (!res.ok) {
-      throw new Error(`Error al consultar parámetros en Supabase (código HTTP ${res.status})`);
-    }
-
-    const data = (await res.json()) as ParametrosDb[];
-    if (!data || data.length === 0) {
-      throw new Error('No se encontraron parámetros de financiamiento activos en la base de datos');
-    }
-
-    const row = data[0];
-    return {
-      tasaMensual: Number(row.tasa_mensual),
-      plazoMeses: Number(row.plazo_meses),
-      ratioCuotaIngreso: Number(row.ratio_cuota_ingreso),
-      opcionesInicial: Array.isArray(row.opciones_inicial)
-        ? row.opciones_inicial.map(Number)
-        : [0.20, 0.30, 0.40],
-      inicialMinima: Number(row.inicial_minima),
-    };
+  // Sin servidor configurado es el modo maqueta del desarrollo local: se usan los
+  // parámetros aprobados que vienen en el código. No es un respaldo ante un fallo —eso
+  // lo prohíbe el requisito B.5—, sino el modo de trabajar sin backend levantado.
+  if (!API_URL) {
+    return PARAMETROS_APROBADOS;
   }
 
-  // 2. Si hay backend Spring Boot configurado
-  if (API_URL) {
-    const res = await fetch(`${API_URL}/v1/parametros-financiamiento`, {
-      headers: { Accept: 'application/json' },
-    });
-    if (!res.ok) {
-      throw new Error(`Error al consultar parámetros en el backend (código HTTP ${res.status})`);
-    }
-    const row = (await res.json()) as ParametrosDb;
-    return {
-      tasaMensual: Number(row.tasa_mensual),
-      plazoMeses: Number(row.plazo_meses),
-      ratioCuotaIngreso: Number(row.ratio_cuota_ingreso),
-      opcionesInicial: Array.isArray(row.opciones_inicial)
-        ? row.opciones_inicial.map(Number)
-        : [0.20, 0.30, 0.40],
-      inicialMinima: Number(row.inicial_minima),
-    };
+  const res = await fetch(`${API_URL}/v1/parametros-financiamiento`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    throw new Error(`Error al consultar parámetros en el backend (código HTTP ${res.status})`);
   }
 
-  // 3. Modo local sin servicios remotos configurados: retorna la política aprobada oficial
-  return PARAMETROS_APROBADOS;
+  const row = (await res.json()) as ParametrosApi;
+  return {
+    tasaMensual: Number(row.tasaMensual),
+    plazoMeses: Number(row.plazoMeses),
+    ratioCuotaIngreso: Number(row.ratioCuotaIngreso),
+    opcionesInicial: Array.isArray(row.opcionesInicial)
+      ? row.opcionesInicial.map(Number)
+      : [0.20, 0.30, 0.40],
+    inicialMinima: Number(row.inicialMinima),
+  };
 }
 
 export interface EstadoParametrosFinanciamiento {
@@ -91,12 +63,12 @@ export interface EstadoParametrosFinanciamiento {
 
 export function useParametrosFinanciamiento(): EstadoParametrosFinanciamiento {
   const [parametros, setParametros] = useState<ParametrosFinanciamiento | null>(PARAMETROS_APROBADOS);
-  const [cargando, setCargando] = useState<boolean>(Boolean(SUPABASE_URL || API_URL));
+  const [cargando, setCargando] = useState<boolean>(Boolean(API_URL));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Si no hay endpoints remotos, el estado inicial ya tiene los parámetros aprobados
-    if (!SUPABASE_URL && !API_URL) {
+    // Sin servidor, el estado inicial ya trae los parámetros aprobados: no hay nada que pedir
+    if (!API_URL) {
       return;
     }
 

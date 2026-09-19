@@ -272,3 +272,36 @@ select tasa_ves = 45.12345678 from tasa_cambio_bcv where fecha = current_date an
 insert into tasa_cambio_bcv (fecha, moneda, tasa_ves, fuente) values (current_date, 'EUR', 46, 'BCV');
 -- @error tasa: el bolivar no tiene tasa contra si mismo
 insert into tasa_cambio_bcv (fecha, moneda, tasa_ves, fuente) values (current_date - 1, 'VES', 1, 'BCV');
+-- @verdad acceso: ninguna tabla del esquema se queda sin GRANT para wamma_app (spec 011 §6.6)
+-- Contraparte de la comprobación de RLS de más arriba. Sin ella, una tabla nueva sin permisos
+-- solo se descubre en ejecución y sobre esa tabla concreta, con el backend ya desplegado.
+select not exists (
+  select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = current_schema() and c.relkind in ('r', 'p')
+    and c.relname <> 'flyway_schema_history'
+    and not (has_table_privilege('wamma_app', c.oid, 'SELECT')
+         and has_table_privilege('wamma_app', c.oid, 'INSERT')));
+-- @ok acceso: tabla de usar y tirar, sin permisos, para probar que la comprobación sabe fallar
+create table zz_comprobacion_sin_permisos (id integer);
+revoke all on zz_comprobacion_sin_permisos from wamma_app;
+-- @verdad acceso: la comprobación anterior detecta esa tabla
+-- Una comprobación universal que nunca se ha visto fallar no protege de nada.
+select exists (
+  select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = current_schema() and c.relkind in ('r', 'p')
+    and c.relname <> 'flyway_schema_history'
+    and not (has_table_privilege('wamma_app', c.oid, 'SELECT')
+         and has_table_privilege('wamma_app', c.oid, 'INSERT')));
+-- @ok acceso: se retira la tabla de usar y tirar
+drop table zz_comprobacion_sin_permisos;
+-- @verdad clave: evidencia y recaudo guardan la clave del objeto, no la URL (spec 011 §6.5)
+select to_regclass(format('%I.inspeccion_punto', current_schema())) is not null
+   and exists (select 1 from information_schema.columns
+               where table_schema = current_schema() and table_name = 'inspeccion_punto'
+                 and column_name = 'evidencia_clave')
+   and exists (select 1 from information_schema.columns
+               where table_schema = current_schema() and table_name = 'solicitud_recaudo'
+                 and column_name = 'archivo_clave')
+   and not exists (select 1 from information_schema.columns
+               where table_schema = current_schema()
+                 and column_name in ('evidencia_url', 'archivo_url'));

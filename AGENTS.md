@@ -54,6 +54,7 @@ Plataforma propia de **WAMMA by Token Pago POS**: venta, certificación y financ
 - Montos: `BigDecimal` con escala fija; `long` en céntimos para operaciones simples. Nunca `float`/`double`. Toda operación monetaria registra moneda y tasa BCV aplicada.
 - API: versionada (`/v1/...`), contratos documentados.
 - Migraciones de BD: Flyway, versionadas e idempotentes; cambios al esquema del ledger son append-only.
+- Toda migración que cree una tabla incluye su `GRANT` a `wamma_app` y su `ENABLE ROW LEVEL SECURITY` (D-42, spec 011 §6.6). `backend/tools/db/pruebas-esquema.sql` lo verifica y el CI lo corre.
 - Commits: convención `tipo(modulo): descripción` (ej. `feat(007-ledger): asiento de partida doble`).
 
 ---
