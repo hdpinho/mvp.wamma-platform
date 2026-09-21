@@ -20,6 +20,12 @@ export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rate
 
   const [ingresoInput, setIngresoInput] = useState<string>('1000');
 
+  const manejarCambioIngreso = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Procesa únicamente los dígitos escritos por el usuario
+    const soloNumeros = e.target.value.replace(/[^0-9]/g, '');
+    setIngresoInput(soloNumeros);
+  };
+
   const calculoDisponible = Boolean(parametros && !error);
 
   const ingresoNum = Number(ingresoInput);
@@ -134,12 +140,12 @@ export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rate
                   €
                 </span>
                 <input
-                  type="number"
-                  min="1"
-                  step="50"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="Ej. 1000"
                   value={ingresoInput}
-                  onChange={(e) => setIngresoInput(e.target.value)}
+                  onChange={manejarCambioIngreso}
                   style={{
                     width: '100%',
                     padding: '10px 12px 10px 28px',

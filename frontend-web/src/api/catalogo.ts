@@ -7,7 +7,12 @@ export type Disponibilidad = 'disponible' | 'cita_agendada' | 'vendido';
 export type TransmisionApi = 'automatica' | 'manual' | 'secuencial';
 export type CombustibleApi = 'gasolina' | 'diesel' | 'hibrido' | 'electrico' | 'gas';
 export type CarroceriaApi = 'sedan' | 'hatchback' | 'suv' | 'camioneta' | 'pick_up' | 'coupe';
-export type EtiquetaApi = 'recien_ingresado' | 'dificil_de_conseguir' | 'listo_para_entrega';
+export type EtiquetaApi =
+  | 'recien_ingresado'
+  | 'reservado_para_cita'
+  | 'super_oportunidad'
+  | 'dificil_de_conseguir'
+  | 'listo_para_entrega';
 
 export interface CreditoFotoApi {
   autor: string;

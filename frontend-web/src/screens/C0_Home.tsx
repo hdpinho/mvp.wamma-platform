@@ -77,11 +77,11 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
             Inspeccionado, financiado y tuyo hoy mismo.
           </h1>
           <p className="hero-bajada">
-            Compra y financia vehículos usados con Estándar WAMMA en Venezuela. Todo bajo un mismo techo.
+            Olvídate de ir de un lado a otro. Aquí resolvemos todo el camino, para que llegues tranquilo al carro que se ajusta a ti.
           </p>
 
-          {/* Buscador central estilo Kavak */}
-          <form onSubmit={buscar} className="buscador-hero-kavak">
+          {/* Buscador central WAMMA */}
+          <form onSubmit={buscar} className="buscador-hero-wamma">
             <svg
               width="20"
               height="20"
@@ -91,7 +91,7 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="icono-busqueda-kavak"
+              className="icono-busqueda-wamma"
               aria-hidden="true"
             >
               <circle cx="11" cy="11" r="8" />
@@ -101,30 +101,30 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
               type="search"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Busca por marca o modelo (ej. Toyota, Aveo, Yaris...)"
+              placeholder="Buscar por marca o modelo (ej. Chevrolet, Aveo, Fiesta, Arauca)"
               aria-label="Buscar vehículos"
-              className="input-hero-kavak"
+              className="input-hero-wamma"
             />
-            <Boton type="submit" className="boton-hero-kavak">
+            <Boton type="submit" className="boton-hero-wamma">
               Ver vehículos
             </Boton>
           </form>
 
-          {/* Acciones directas estilo píldora como Kavak */}
-          <div className="pildoras-hero-kavak">
+          {/* Botones de acción principales WAMMA (cuadrados con esquinas redondeadas, en naranja como en la imagen) */}
+          <div className="acciones-hero-wamma">
             <button
               type="button"
               onClick={() => navigate('/catalogo')}
-              className="pildora-kavak"
+              className="boton-wamma-accion"
             >
-              Comprar auto
+              Encuéntralo
             </button>
             <button
               type="button"
               onClick={() => navigate('/financiamiento')}
-              className="pildora-kavak"
+              className="boton-wamma-accion"
             >
-              Financiamiento
+              Fináncialo
             </button>
           </div>
         </div>
@@ -135,8 +135,8 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
             overflow: hidden;
             width: 100%;
             height: calc(88vh - 88px);
-            min-height: 580px;
-            max-height: 840px;
+            min-height: 600px;
+            max-height: 860px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -160,9 +160,9 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
             inset: 0;
             background: linear-gradient(
               180deg,
-              rgba(14, 11, 9, 0.12) 0%,
-              rgba(14, 11, 9, 0.26) 45%,
-              rgba(14, 11, 9, 0.62) 100%
+              rgba(14, 11, 9, 0.18) 0%,
+              rgba(14, 11, 9, 0.38) 45%,
+              rgba(14, 11, 9, 0.75) 100%
             );
           }
           .hero-contenido {
@@ -178,9 +178,9 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
           }
           .hero-titulo {
             color: var(--blanco);
-            font-size: clamp(32px, 4.4vw, 54px);
+            font-size: clamp(30px, 4.2vw, 50px);
             font-weight: 800;
-            line-height: 1.12;
+            line-height: 1.15;
             margin-bottom: var(--space-md);
             text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85), 0 0 28px rgba(0, 0, 0, 0.6);
             letter-spacing: -0.02em;
@@ -188,78 +188,138 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
           .hero-bajada {
             color: var(--blanco);
             opacity: 0.98;
-            font-size: clamp(16px, 1.6vw, 20px);
-            line-height: 1.45;
+            font-size: clamp(15px, 1.5vw, 19px);
+            line-height: 1.5;
             margin-bottom: var(--space-xl);
-            max-width: 620px;
+            max-width: 660px;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85), 0 0 20px rgba(0, 0, 0, 0.5);
             font-weight: 500;
           }
-          .buscador-hero-kavak {
+          .buscador-hero-wamma {
             width: 100%;
-            max-width: 640px;
-            margin: 0 auto var(--space-lg) auto;
+            max-width: 680px;
+            margin: 0 auto;
             display: flex;
             align-items: center;
-            background: rgba(255, 255, 255, 0.96);
-            backdrop-filter: blur(12px);
-            border-radius: var(--radius-pill);
+            background: #FFFFFF;
+            border-radius: 12px;
             padding: 6px 8px 6px 18px;
-            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.85);
             transition: box-shadow 0.2s ease, transform 0.2s ease;
           }
-          .buscador-hero-kavak:focus-within {
-            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45), 0 0 0 2px var(--naranja-500);
+          .buscador-hero-wamma:focus-within {
+            box-shadow: 0 16px 44px rgba(0, 0, 0, 0.55), 0 0 0 2px var(--naranja-500);
             transform: translateY(-1px);
           }
-          .icono-busqueda-kavak {
+          .icono-busqueda-wamma {
             margin-right: 12px;
             flex-shrink: 0;
           }
-          .input-hero-kavak {
+          .input-hero-wamma {
             flex: 1;
             border: none;
             outline: none;
             background: transparent;
             font-family: var(--font-sans);
-            font-size: 16px;
+            font-size: 15px;
             color: var(--texto-primario);
             min-width: 120px;
           }
-          .boton-hero-kavak {
-            border-radius: var(--radius-pill) !important;
-            padding: 12px 28px !important;
+          .boton-hero-wamma {
+            border-radius: 8px !important;
+            padding: 12px 26px !important;
             font-size: 15px !important;
             font-weight: 700 !important;
             box-shadow: none !important;
             white-space: nowrap;
           }
-          .pildoras-hero-kavak {
+          .acciones-hero-wamma {
             display: flex;
-            gap: var(--space-md);
+            gap: 20px;
             flex-wrap: wrap;
             justify-content: center;
             align-items: center;
+            margin-top: 32px;
           }
-          .pildora-kavak {
-            background: rgba(255, 255, 255, 0.88);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: var(--radius-pill);
-            padding: 10px 24px;
+          .boton-wamma-accion {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 40px;
             font-family: var(--font-sans);
-            font-size: 15px;
+            font-size: 18px;
             font-weight: 700;
-            color: var(--texto-primario);
+            color: #FFFFFF;
+            background: #D17438;
+            border: none;
+            border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            min-width: 210px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 8px 24px rgba(209, 116, 56, 0.45), 0 2px 4px rgba(0, 0, 0, 0.2);
           }
-          .pildora-kavak:hover {
-            background: var(--blanco);
-            color: var(--naranja-600);
+          .boton-wamma-accion:hover {
+            background: #BA5F28;
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 12px 28px rgba(209, 116, 56, 0.6);
+          }
+          .barra-pilares-hero {
+            width: 100%;
+            background: linear-gradient(180deg, #D97A3B 0%, #C66526 100%);
+            border-top: 1px solid rgba(255, 255, 255, 0.35);
+            padding: 16px var(--space-xl);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 18px rgba(0, 0, 0, 0.22);
+            position: relative;
+            z-index: 10;
+          }
+          .barra-pilares-contenedor {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            gap: 16px;
+          }
+          .pilar-item {
+            display: inline-flex;
+            align-items: center;
+            cursor: default;
+            user-select: none;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+            opacity: 0.95;
+          }
+          .pilar-item:hover {
+            transform: translateY(-1px);
+            opacity: 1;
+          }
+          .pilar-texto {
+            color: #FFFFFF;
+            font-family: var(--font-sans);
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+          }
+          .pilar-separador {
+            color: rgba(255, 255, 255, 0.55);
+            font-size: 20px;
+            font-weight: 800;
+            line-height: 1;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+          }
+          @media (max-width: 1024px) {
+            .pilar-texto {
+              font-size: 15px;
+            }
+            .barra-pilares-contenedor {
+              gap: 12px;
+            }
           }
           @media (max-width: 768px) {
             .hero {
@@ -270,22 +330,85 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
             .hero-contenido {
               padding: var(--space-xl) var(--space-lg);
             }
-            .buscador-hero-kavak {
+            .barra-pilares-hero {
+              padding: 13px var(--space-md);
+              overflow-x: auto;
+              -webkit-overflow-scrolling: touch;
+              scrollbar-width: none;
+            }
+            .barra-pilares-hero::-webkit-scrollbar {
+              display: none;
+            }
+            .barra-pilares-contenedor {
+              justify-content: flex-start;
+              gap: 14px;
+              min-width: max-content;
+            }
+            .pilar-texto {
+              font-size: 14px;
+            }
+            .pilar-separador {
+              font-size: 16px;
+            }
+            .buscador-hero-wamma {
               flex-direction: column;
-              border-radius: var(--radius-lg);
+              border-radius: 12px;
               padding: var(--space-sm);
               gap: var(--space-sm);
             }
-            .input-hero-kavak {
+            .input-hero-wamma {
               width: 100%;
               padding: var(--space-sm);
             }
-            .boton-hero-kavak {
+            .boton-hero-wamma {
               width: 100%;
+            }
+            .acciones-hero-wamma {
+              margin-top: 24px;
+              width: 100%;
+              gap: 12px;
+            }
+            .boton-wamma-accion {
+              width: 100%;
+              padding: 14px 24px;
+              min-width: unset;
             }
           }
         `}</style>
       </section>
+
+      {/* ── Franja de Pilares WAMMA desplegados debajo del Hero ── */}
+      <div className="barra-pilares-hero">
+        <div className="barra-pilares-contenedor">
+          <div className="pilar-item">
+            <span className="pilar-texto">Inspección</span>
+          </div>
+
+          <span className="pilar-separador" aria-hidden="true">·</span>
+
+          <div className="pilar-item">
+            <span className="pilar-texto">Certificación</span>
+          </div>
+
+          <span className="pilar-separador" aria-hidden="true">·</span>
+
+          <div className="pilar-item">
+            <span className="pilar-texto">Financiamiento</span>
+          </div>
+
+          <span className="pilar-separador" aria-hidden="true">·</span>
+
+          <div className="pilar-item">
+            <span className="pilar-texto">Seguro</span>
+          </div>
+
+          <span className="pilar-separador" aria-hidden="true">·</span>
+
+          <div className="pilar-item">
+            <span className="pilar-texto">Acompañamiento</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

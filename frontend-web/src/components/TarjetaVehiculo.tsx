@@ -60,13 +60,13 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
           <BotonFavorito vehiculoId={vehiculo.id} />
         </div>
 
-        {vehiculo.estadoDisponibilidad === 'cita_agendada' ? (
+        {vehiculo.estadoDisponibilidad === 'cita_agendada' || vehiculo.etiqueta === 'Reservado para cita' ? (
           <span
             style={{
               position: 'absolute',
               top: '14px',
               left: '12px',
-              backgroundColor: 'var(--naranja-600)',
+              backgroundColor: '#D17438',
               color: 'var(--blanco)',
               fontSize: '10px',
               fontWeight: 700,
@@ -74,10 +74,13 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
               letterSpacing: '0.05em',
               padding: '5px 10px',
               borderRadius: 'var(--radius-pill)',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              boxShadow: '0 2px 6px rgba(209, 116, 56, 0.35)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
             }}
           >
-            ⏱️ Cita en curso
+            <span>⏱️</span> Reservado para cita
           </span>
         ) : vehiculo.estadoDisponibilidad === 'vendido' ? (
           <span
@@ -96,6 +99,50 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
             }}
           >
             Vendido
+          </span>
+        ) : vehiculo.etiqueta === 'Súper oportunidad' ? (
+          <span
+            style={{
+              position: 'absolute',
+              top: '14px',
+              left: '12px',
+              background: 'linear-gradient(135deg, #FF6F00 0%, #FFA000 100%)',
+              color: 'var(--blanco)',
+              fontSize: '10px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              padding: '5px 10px',
+              borderRadius: 'var(--radius-pill)',
+              boxShadow: '0 2px 8px rgba(255, 111, 0, 0.4)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <span>⭐</span> Súper oportunidad
+          </span>
+        ) : vehiculo.etiqueta === 'Recién ingresado' ? (
+          <span
+            style={{
+              position: 'absolute',
+              top: '14px',
+              left: '12px',
+              backgroundColor: '#1E7E34',
+              color: 'var(--blanco)',
+              fontSize: '10px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              padding: '5px 10px',
+              borderRadius: 'var(--radius-pill)',
+              boxShadow: '0 2px 6px rgba(30, 126, 52, 0.3)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <span>✨</span> Recién ingresado
           </span>
         ) : vehiculo.etiqueta ? (
           <span

@@ -20,8 +20,8 @@ export type Carroceria = (typeof CARROCERIAS)[number];
 
 export type Transmision = 'Automático' | 'Manual' | 'Secuencial';
 
-/** Etiqueta comercial que se pinta sobre la foto en el catálogo. */
-export type EtiquetaVehiculo = 'Recién ingresado' | 'Difícil de conseguir' | 'Listo para entrega';
+/** Etiqueta comercial que se pinta sobre la foto en el catálogo (solo las 3 oficiales). */
+export type EtiquetaVehiculo = 'Recién ingresado' | 'Reservado para cita' | 'Súper oportunidad';
 
 export type EstadoDisponibilidad = 'disponible' | 'cita_agendada' | 'vendido';
 

@@ -153,7 +153,73 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
             <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
               <BotonFavorito vehiculoId={vehiculo.id} tamano={22} />
             </div>
-            {vehiculo.etiqueta && (
+            {vehiculo.estadoDisponibilidad === 'cita_agendada' || vehiculo.etiqueta === 'Reservado para cita' ? (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '20px',
+                  left: '18px',
+                  backgroundColor: '#D17438',
+                  color: 'var(--blanco)',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  padding: '6px 12px',
+                  borderRadius: 'var(--radius-pill)',
+                  boxShadow: '0 2px 8px rgba(209, 116, 56, 0.4)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                }}
+              >
+                <span>⏱️</span> Reservado para cita
+              </span>
+            ) : vehiculo.etiqueta === 'Súper oportunidad' ? (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '20px',
+                  left: '18px',
+                  background: 'linear-gradient(135deg, #FF6F00 0%, #FFA000 100%)',
+                  color: 'var(--blanco)',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  padding: '6px 12px',
+                  borderRadius: 'var(--radius-pill)',
+                  boxShadow: '0 2px 8px rgba(255, 111, 0, 0.4)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                }}
+              >
+                <span>⭐</span> Súper oportunidad
+              </span>
+            ) : vehiculo.etiqueta === 'Recién ingresado' ? (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '20px',
+                  left: '18px',
+                  backgroundColor: '#1E7E34',
+                  color: 'var(--blanco)',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  padding: '6px 12px',
+                  borderRadius: 'var(--radius-pill)',
+                  boxShadow: '0 2px 6px rgba(30, 126, 52, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                }}
+              >
+                <span>✨</span> Recién ingresado
+              </span>
+            ) : vehiculo.etiqueta ? (
               <span
                 style={{
                   position: 'absolute',
@@ -171,7 +237,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
               >
                 {vehiculo.etiqueta}
               </span>
-            )}
+            ) : null}
           </div>
 
           {/* Galería: la primera foto es la principal */}
@@ -380,7 +446,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
                     marginBottom: '4px',
                   }}
                 >
-                  ⏱️ Cita en Curso / Reservado
+                  ⏱️ Reservado para cita
                 </div>
                 <div
                   style={{
@@ -389,7 +455,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
                     lineHeight: 1.4,
                   }}
                 >
-                  Este vehículo ya tiene una cita agendada. El agendamiento está desactivado para otros usuarios.
+                  Este vehículo ya tiene una cita agendada y se encuentra reservado. El agendamiento está desactivado para otros usuarios.
                 </div>
               </div>
             )}
@@ -423,7 +489,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
             motivoDeshabilitado={
               vehiculo.estadoDisponibilidad === 'vendido'
                 ? 'Este vehículo ya fue vendido.'
-                : 'Este vehículo tiene una cita en curso. Quien lo agendó recibirá de su asesor un enlace personal para solicitar el crédito.'
+                : 'Este vehículo está reservado para cita. Quien lo agendó recibirá de su asesor un enlace personal para solicitar el crédito.'
             }
           />
         </aside>

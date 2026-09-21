@@ -35,6 +35,7 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
   const [franjaHoraria, setFranjaHoraria] = useState<'Mañana' | 'Tarde'>('Mañana');
   const [metodoPago] = useState<'Contado' | 'Financiamiento'>('Financiamiento');
   const [rangoIngresos, setRangoIngresos] = useState('');
+  const [tabRequisitos, setTabRequisitos] = useState<'digital' | 'fisico'>('digital');
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [citaConfirmada, setCitaConfirmada] = useState<boolean>(false);
   const [enviando, setEnviando] = useState<boolean>(false);
@@ -229,6 +230,133 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
               </select>
             </div>
 
+            {/* Sección de Requisitos para el Financiamiento (Digital y Físico) */}
+            <div className="seccion-requisitos-financiamiento">
+              <div className="requisitos-header">
+                <div className="requisitos-header-top">
+                  <span className="requisitos-tag">Financiamiento WAMMA</span>
+                  <span className="requisitos-badge-alerta">Cuotas fijas · Sin sorpresas</span>
+                </div>
+                <h4 className="requisitos-titulo">
+                  Requisitos para aplicar al financiamiento
+                </h4>
+                <p className="requisitos-intro">
+                  Si deseas optar por financiamiento en cuotas fijas tras inspeccionar el vehículo, ten preparados los siguientes recaudos:
+                </p>
+              </div>
+
+              {/* Selector de Pestañas Digital / Físico */}
+              <div className="requisitos-tabs" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tabRequisitos === 'digital'}
+                  className={`tab-requisito ${tabRequisitos === 'digital' ? 'activo' : ''}`}
+                  onClick={() => setTabRequisitos('digital')}
+                >
+                  <span className="tab-icono">📱</span>
+                  <div className="tab-texto">
+                    <strong>Requisitos Digitales</strong>
+                    <small>Para la solicitud online</small>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tabRequisitos === 'fisico'}
+                  className={`tab-requisito ${tabRequisitos === 'fisico' ? 'activo' : ''}`}
+                  onClick={() => setTabRequisitos('fisico')}
+                >
+                  <span className="tab-icono">🏛️</span>
+                  <div className="tab-texto">
+                    <strong>Requisitos Físicos</strong>
+                    <small>Para llevar a tu cita en sede</small>
+                  </div>
+                </button>
+              </div>
+
+              {/* Contenido de la pestaña */}
+              <div className="requisitos-caja-contenido">
+                {tabRequisitos === 'digital' ? (
+                  <div className="requisitos-lista">
+                    <div className="requisito-item">
+                      <div className="requisito-check">✓</div>
+                      <div>
+                        <strong>Cédula o Pasaporte vigente:</strong> Archivo PDF o imagen nítida y legible por ambas caras.
+                      </div>
+                    </div>
+                    <div className="requisito-item">
+                      <div className="requisito-check">✓</div>
+                      <div>
+                        <strong>RIF personal actualizado:</strong> Comprobante digital descargado del portal del SENIAT con tu domicilio actual.
+                      </div>
+                    </div>
+                    <div className="requisito-item">
+                      <div className="requisito-check">✓</div>
+                      <div>
+                        <strong>Constancia de Trabajo o Certificación de Ingresos:</strong> Empleados: constancia membretada, sellada y con sueldo mensual. Independientes: certificación firmada por contador público colegiado (CPC).
+                      </div>
+                    </div>
+                    <div className="requisito-item">
+                      <div className="requisito-check">✓</div>
+                      <div>
+                        <strong>Estados de cuenta bancarios (últimos 3 a 6 meses):</strong> En PDF descargado directamente del banco donde se reflejen los ingresos.
+                      </div>
+                    </div>
+                    <div className="requisito-item">
+                      <div className="requisito-check">✓</div>
+                      <div>
+                        <strong>Comprobante de domicilio:</strong> Recibo de servicio público (luz, agua, gas o telefonía) o contrato de arrendamiento vigente.
+                      </div>
+                    </div>
+                    <div className="requisito-item">
+                      <div className="requisito-check">✓</div>
+                      <div>
+                        <strong>Referencias:</strong> Datos de contacto (nombre, teléfono y parentesco) de 2 referencias personales y 1 familiar.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="requisitos-lista">
+                    <div className="requisito-item">
+                      <div className="requisito-check requisito-check-fisico">✓</div>
+                      <div>
+                        <strong>Cédula de Identidad original laminada:</strong> Indispensable presentarla en físico para acceder a las instalaciones y validar tu identidad.
+                      </div>
+                    </div>
+                    <div className="requisito-item">
+                      <div className="requisito-check requisito-check-fisico">✓</div>
+                      <div>
+                        <strong>Copia física impresa del RIF:</strong> Documento impreso con dirección de domicilio actualizada para el expediente.
+                      </div>
+                    </div>
+                    <div className="requisito-item">
+                      <div className="requisito-check requisito-check-fisico">✓</div>
+                      <div>
+                        <strong>Original de Constancia laboral o Certificación CPC:</strong> Con sello húmedo y firmas autógrafas / visado colegiado con timbre fiscal.
+                      </div>
+                    </div>
+                    <div className="requisito-item">
+                      <div className="requisito-check requisito-check-fisico">✓</div>
+                      <div>
+                        <strong>Copia física de recibo de servicio o contrato de alquiler:</strong> Para el expediente físico de validación de residencia.
+                      </div>
+                    </div>
+                    <div className="requisito-item">
+                      <div className="requisito-check requisito-check-fisico">✓</div>
+                      <div>
+                        <strong>Teléfono móvil con WhatsApp activo:</strong> Para recibir y validar en el momento el código de seguridad OTP.
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="requisitos-pie-nota">
+                  💡 <em>Tras tu visita y prueba del auto, tu asesor comercial te enviará tu enlace personal para completar la solicitud y cargar los recaudos digitales.</em>
+                </div>
+              </div>
+            </div>
+
             <div className="alerta-reserva">
               ℹ️ Al agendar esta cita, el vehículo quedará reservado temporalmente y el botón de agendar
               se desactivará para otros usuarios mientras coordinamos tu visita.
@@ -264,16 +392,44 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
               </div>
             </div>
 
-            <div className="caja-whatsapp">
-              <div style={{ fontWeight: 600, color: '#0F6E56', marginBottom: '4px' }}>
-                📱 Siguiente paso: Confirmación vía WhatsApp
+              <div className="caja-whatsapp">
+                <div style={{ fontWeight: 600, color: '#0F6E56', marginBottom: '4px' }}>
+                  📱 Siguiente paso: Confirmación vía WhatsApp
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--texto-secundario)' }}>
+                  Un asesor de WAMMA te escribirá directamente a tu número{' '}
+                  <strong>{telefonoWhatsApp}</strong> para validar la hora exacta y darte las
+                  indicaciones de llegada a la sede.
+                </div>
               </div>
-              <div style={{ fontSize: '13px', color: 'var(--texto-secundario)' }}>
-                Un asesor de WAMMA te escribirá directamente a tu número{' '}
-                <strong>{telefonoWhatsApp}</strong> para validar la hora exacta y darte las
-                indicaciones de llegada a la sede.
+
+              {/* Recordatorio de requisitos en la pantalla de confirmación */}
+              <div className="caja-recordatorio-requisitos">
+                <div className="recordatorio-header">
+                  <span style={{ fontSize: '18px' }}>📋</span>
+                  <strong>Documentos a tener listos para tu cita y financiamiento</strong>
+                </div>
+                <div className="recordatorio-grid">
+                  <div className="recordatorio-col">
+                    <span className="recordatorio-sub">🏛️ En Físico (Llevar a la Sede)</span>
+                    <ul>
+                      <li>Cédula laminada original vigente</li>
+                      <li>Copia impresa del RIF vigente</li>
+                      <li>Original de constancia de trabajo o certificación CPC</li>
+                      <li>Celular con WhatsApp activo para validación OTP</li>
+                    </ul>
+                  </div>
+                  <div className="recordatorio-col">
+                    <span className="recordatorio-sub">📱 En Digital (Para Solicitud Online)</span>
+                    <ul>
+                      <li>Fotos/PDF de cédula y RIF digital</li>
+                      <li>PDF de últimos 3 meses de cuenta bancaria</li>
+                      <li>Recibo de servicio público o alquiler</li>
+                      <li>2 referencias personales y 1 familiar</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
-            </div>
 
             <div style={{ marginTop: 'var(--space-xl)' }}>
               <Boton variant="primary" fullWidth onClick={onCerrar}>
@@ -302,7 +458,7 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
         .modal-contenedor {
           background-color: var(--blanco);
           border-radius: var(--radius-lg);
-          max-width: 540px;
+          max-width: 580px;
           width: 100%;
           max-height: 90vh;
           overflow-y: auto;
@@ -438,6 +594,194 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
           border-radius: var(--radius-md);
           padding: 12px 14px;
           text-align: left;
+        }
+        .seccion-requisitos-financiamiento {
+          background-color: #FCFAF8;
+          border: 1px solid rgba(209, 116, 56, 0.2);
+          border-radius: var(--radius-md);
+          padding: 14px 16px;
+          margin-top: 4px;
+        }
+        .requisitos-header-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+        .requisitos-tag {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--naranja-600);
+          background: #FFF0E6;
+          padding: 3px 8px;
+          border-radius: var(--radius-pill);
+        }
+        .requisitos-badge-alerta {
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--texto-secundario);
+        }
+        .requisitos-titulo {
+          font-size: 14px;
+          font-weight: 700;
+          color: var(--texto-primario);
+          margin: 0 0 4px;
+        }
+        .requisitos-intro {
+          font-size: 12px;
+          color: var(--texto-secundario);
+          margin: 0 0 10px;
+          line-height: 1.4;
+        }
+        .requisitos-tabs {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+        .tab-requisito {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 10px;
+          border: 1px solid var(--borde);
+          border-radius: var(--radius-sm);
+          background: var(--blanco);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          text-align: left;
+          font-family: inherit;
+        }
+        .tab-requisito:hover {
+          border-color: var(--naranja-300);
+          background: #FFFDFB;
+        }
+        .tab-requisito.activo {
+          background: #FFF5EE;
+          border-color: var(--naranja-500);
+          box-shadow: 0 2px 6px rgba(209, 116, 56, 0.15);
+        }
+        .tab-icono {
+          font-size: 18px;
+          flex-shrink: 0;
+        }
+        .tab-texto {
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          min-width: 0;
+        }
+        .tab-texto strong {
+          font-size: 12px;
+          font-weight: 700;
+          color: var(--texto-primario);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .tab-requisito.activo .tab-texto strong {
+          color: var(--naranja-700);
+        }
+        .tab-texto small {
+          font-size: 10px;
+          color: var(--texto-secundario);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .requisitos-caja-contenido {
+          background: var(--blanco);
+          border: 1px solid var(--borde-claro);
+          border-radius: var(--radius-sm);
+          padding: 12px 14px;
+        }
+        .requisitos-lista {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .requisito-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          font-size: 12px;
+          line-height: 1.45;
+          color: var(--texto-primario);
+        }
+        .requisito-check {
+          width: 17px;
+          height: 17px;
+          border-radius: 50%;
+          background: #E8F5E9;
+          color: #2E7D32;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 10px;
+          font-weight: 700;
+          flex-shrink: 0;
+          margin-top: 1px;
+        }
+        .requisito-check-fisico {
+          background: #EDE7F6;
+          color: #512DA8;
+        }
+        .requisito-item strong {
+          color: var(--texto-primario);
+          font-weight: 600;
+        }
+        .requisitos-pie-nota {
+          margin-top: 10px;
+          padding-top: 8px;
+          border-top: 1px dashed var(--borde);
+          font-size: 11px;
+          color: var(--texto-secundario);
+          line-height: 1.4;
+        }
+        .caja-recordatorio-requisitos {
+          background: #FCFAF8;
+          border: 1px solid var(--naranja-200);
+          border-radius: var(--radius-md);
+          padding: 14px;
+          margin: var(--space-md) 0;
+          text-align: left;
+        }
+        .recordatorio-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          color: var(--naranja-800);
+          margin-bottom: 8px;
+        }
+        .recordatorio-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+        .recordatorio-sub {
+          display: block;
+          font-size: 11px;
+          font-weight: 700;
+          color: var(--texto-primario);
+          margin-bottom: 4px;
+        }
+        .recordatorio-col ul {
+          margin: 0;
+          padding-left: 16px;
+          font-size: 11px;
+          color: var(--texto-secundario);
+          line-height: 1.45;
+        }
+        @media (max-width: 520px) {
+          .requisitos-tabs {
+            grid-template-columns: 1fr;
+          }
+          .recordatorio-grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>

@@ -70,6 +70,17 @@ body {
   line-height: 1.5;
 }
 
+/* Quitar flechas/steppers de inputs numéricos en todos los navegadores */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Base typography */
 h1, h2, h3, h4, h5, h6 {
   font-weight: 700;

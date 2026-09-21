@@ -35,8 +35,16 @@ const CARROCERIAS: Record<CarroceriaApi, Carroceria> = {
 
 const ETIQUETAS: Record<EtiquetaApi, EtiquetaVehiculo> = {
   recien_ingresado: 'Recién ingresado',
-  dificil_de_conseguir: 'Difícil de conseguir',
-  listo_para_entrega: 'Listo para entrega',
+  reservado_para_cita: 'Reservado para cita',
+  super_oportunidad: 'Súper oportunidad',
+  dificil_de_conseguir: 'Súper oportunidad',
+  listo_para_entrega: 'Súper oportunidad',
+};
+
+const MAPA_ETIQUETAS_A_API: Record<EtiquetaVehiculo, EtiquetaApi> = {
+  'Recién ingresado': 'recien_ingresado',
+  'Reservado para cita': 'reservado_para_cita',
+  'Súper oportunidad': 'super_oportunidad',
 };
 
 const invertir = <A extends string, B extends string>(tabla: Record<A, B>): Record<B, A> =>
@@ -54,10 +62,14 @@ export const carroceriaAApi = (valor: string): CarroceriaApi => invertir(CARROCE
 export const etiquetaDesdeApi = (valor: EtiquetaApi | null): EtiquetaVehiculo | undefined =>
   valor ? ETIQUETAS[valor] : undefined;
 export const etiquetaAApi = (valor: EtiquetaVehiculo | undefined): EtiquetaApi | null =>
-  valor ? (invertir(ETIQUETAS)[valor] ?? null) : null;
+  valor ? (MAPA_ETIQUETAS_A_API[valor] ?? null) : null;
 
-/** Listas para los desplegables del formulario, en el orden en que se muestran. */
+/** Listas para los desplegables del formulario, en el orden en que se muestran (solo las 3 oficiales). */
 export const OPCIONES_TRANSMISION = Object.values(TRANSMISIONES);
 export const OPCIONES_COMBUSTIBLE = Object.values(COMBUSTIBLES);
 export const OPCIONES_CARROCERIA = Object.values(CARROCERIAS);
-export const OPCIONES_ETIQUETA = Object.values(ETIQUETAS);
+export const OPCIONES_ETIQUETA: EtiquetaVehiculo[] = [
+  'Recién ingresado',
+  'Reservado para cita',
+  'Súper oportunidad',
+];

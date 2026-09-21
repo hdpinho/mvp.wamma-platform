@@ -47,7 +47,7 @@ public record VehicleInput(
         @NotNull(message = "Indica el precio")
         @DecimalMin(value = "0", inclusive = false, message = "El precio debe ser mayor que cero")
         @Digits(integer = 16, fraction = 2, message = "El precio admite hasta dos decimales") BigDecimal precio,
-        @Pattern(regexp = "recien_ingresado|dificil_de_conseguir|listo_para_entrega", message = "Etiqueta no válida") String etiqueta,
+        @Pattern(regexp = "recien_ingresado|reservado_para_cita|super_oportunidad|dificil_de_conseguir|listo_para_entrega", message = "Etiqueta no válida") String etiqueta,
         boolean certificado,
         @Size(max = 60, message = "A lo sumo 60 imperfecciones") List<@Valid Imperfection> imperfecciones,
         @Valid Acquisition adquisicion,

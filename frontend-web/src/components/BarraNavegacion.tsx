@@ -151,21 +151,23 @@ export const BarraNavegacion: React.FC<BarraNavegacionProps> = () => {
           </NavLink>
 
           <NavLink
-            to="/catalogo"
+            to="/financiamiento"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              gap: '6px',
               backgroundColor: 'var(--naranja-500)',
               color: 'var(--blanco)',
-              padding: '10px 18px',
+              padding: '9px 16px',
               borderRadius: 'var(--radius-md)',
               fontWeight: 700,
-              fontSize: '14px',
+              fontSize: '13px',
               textDecoration: 'none',
-              transition: 'background-color 0.2s ease',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(209, 116, 56, 0.35)',
             }}
           >
-            Explorar Vitrina
+            <span>🏦</span> Wamma - Bank
           </NavLink>
         </div>
       </header>

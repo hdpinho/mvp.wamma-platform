@@ -16,7 +16,7 @@
       "puestos": 5,
       "traccion": "4x2",
       "certificado": true,
-      "etiqueta": "dificil_de_conseguir",
+      "etiqueta": "super_oportunidad",
       "color": "#D32F2F",
       "disponibilidad": "disponible",
       "foto": {
@@ -214,7 +214,7 @@
       "puestos": 7,
       "traccion": "4x4",
       "certificado": true,
-      "etiqueta": "dificil_de_conseguir",
+      "etiqueta": "super_oportunidad",
       "color": "#37474F",
       "disponibilidad": "disponible",
       "foto": {
@@ -313,7 +313,7 @@
       "puestos": 5,
       "traccion": "4x2",
       "certificado": true,
-      "etiqueta": "listo_para_entrega",
+      "etiqueta": "reservado_para_cita",
       "color": "#8D6E63",
       "disponibilidad": "disponible",
       "foto": {
@@ -493,7 +493,7 @@
       "puestos": 5,
       "traccion": "4x4",
       "certificado": true,
-      "etiqueta": "dificil_de_conseguir",
+      "etiqueta": "super_oportunidad",
       "color": "#BDBDBD",
       "disponibilidad": "disponible",
       "foto": {
