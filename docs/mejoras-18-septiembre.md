@@ -61,6 +61,9 @@ Se agregó un cuadro resumen de chequeo con la lista de recaudos físicos y digi
    - Tipografía refinada Montserrat en negrita blanca (`#FFFFFF`), con separadores de punto medio `·` y distribución uniforme (`justify-content: space-evenly`).
    - Sin recuadros ni iconos circulares pesados, brindando un acabado editorial limpio y corporativo acorde a la maqueta de referencia.
    - Soporte para desplazamiento táctil horizontal en dispositivos móviles.
+4. **Encabezado Móvil con Logo Oficial**:
+   - Se incorporó la barra superior fija (`.barra-movil-superior`) para visualización en navegadores móviles y tablets (`<= 1024px`).
+   - Muestra el Logo oficial WAMMA horizontal naranja en la esquina superior izquierda y el botón de acceso directo `🏦 Wamma - Bank` en la derecha.
 
 ---
 
@@ -73,3 +76,4 @@ Se agregó un cuadro resumen de chequeo con la lista de recaudos físicos y digi
   - Modal de cita: Apertura, navegación entre pestañas digital y física, y checklist de confirmación.
   - Calculadora de capacidad: Eliminación de flechas stepper nativas y validación estricta numérica.
   - Hero y Barra de Pilares: Estética de alta fidelidad, con botones "Encuéntralo" / "Fináncialo" y franja de pilares WAMMA refinada.
+  - Navegación Móvil: Logo oficial WAMMA visible y fijo en la parte superior en resolución móvil (390x844).

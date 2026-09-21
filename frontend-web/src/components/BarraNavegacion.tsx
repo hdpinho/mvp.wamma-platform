@@ -172,6 +172,20 @@ export const BarraNavegacion: React.FC<BarraNavegacionProps> = () => {
         </div>
       </header>
 
+      {/* ── Barra superior (móvil y tablet) ────────────────── */}
+      <header className="barra-movil-superior">
+        <NavLink to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <Logo articulacion="horizontal" variante="naranja" alto={34} className="logo-nav-movil" />
+        </NavLink>
+
+        <NavLink
+          to="/financiamiento"
+          className="boton-wamma-bank-movil"
+        >
+          <span>🏦</span> Wamma - Bank
+        </NavLink>
+      </header>
+
       {/* ── Pestañas inferiores (móvil) ─────────────────────── */}
       <nav className="barra-movil">
         {TABS.map((tab) => (
@@ -262,6 +276,40 @@ export const BarraNavegacion: React.FC<BarraNavegacionProps> = () => {
           .logo-nav { height: 36px !important; }
         }
 
+        /* Barra superior móvil con Logo */
+        .barra-movil-superior {
+          position: fixed;
+          top: 0; left: 0; right: 0;
+          height: 58px;
+          z-index: 900;
+          background-color: var(--blanco);
+          border-bottom: 1px solid var(--borde-claro);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 var(--space-md);
+        }
+        .boton-wamma-bank-movil {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          background-color: var(--naranja-500);
+          color: var(--blanco);
+          padding: 7px 13px;
+          border-radius: var(--radius-sm);
+          font-family: var(--font-sans);
+          font-weight: 700;
+          font-size: 12px;
+          text-decoration: none;
+          box-shadow: 0 2px 6px rgba(209, 116, 56, 0.3);
+          transition: background-color 0.2s ease;
+          white-space: nowrap;
+        }
+        .boton-wamma-bank-movil:active {
+          background-color: #BA5F28;
+        }
+
         .barra-movil {
           position: fixed;
           bottom: 0; left: 0; right: 0;
@@ -288,8 +336,13 @@ export const BarraNavegacion: React.FC<BarraNavegacionProps> = () => {
         }
         .pestana-movil.activa { color: var(--naranja-500); font-weight: 700; }
 
-        @media (max-width: 1024px) { .barra-escritorio { display: none; } }
-        @media (min-width: 1025px) { .barra-movil { display: none; } }
+        @media (max-width: 1024px) {
+          .barra-escritorio { display: none; }
+        }
+        @media (min-width: 1025px) {
+          .barra-movil { display: none; }
+          .barra-movil-superior { display: none; }
+        }
       `}</style>
     </>
   );
