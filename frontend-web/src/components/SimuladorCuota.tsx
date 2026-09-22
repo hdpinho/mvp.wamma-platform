@@ -57,7 +57,7 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
   const [inicialPct, setInicialPct] = useState<number>(0.20);
   const [detalleAbierto, setDetalleAbierto] = useState<boolean>(false);
 
-  // Si fallan los parámetros en Supabase/backend, no se calculan cuotas de respaldo
+  // Si fallan los parámetros del backend, no se calculan cuotas de respaldo
   const calculoDisponible = Boolean(parametros && !error);
 
   const opcionesInicial = parametros?.opcionesInicial || [0.20, 0.30, 0.40];
