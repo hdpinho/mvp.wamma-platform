@@ -235,7 +235,14 @@ Son las pantallas de la ola 2, ahora con datos del servidor. El asesor ve sus op
 
 ## 9. Métricas del embudo
 
-Se conserva la consulta de la Rev. 1 sobre `etapa_historial`, con `LEAD()` y `COALESCE(siguiente, now())`, para que las oportunidades vivas cuenten el tiempo que llevan paradas. Sin Redis:
+Se conserva la consulta de la Rev. 1 sobre `etapa_historial`, con `LEAD()` y `COALESCE(siguiente, now())`, para que las oportunidades vivas cuenten el tiempo que llevan paradas.
+
+**Corrección respecto de la Rev. 1:**
+- **Tiempo en etapa.** La consulta filtraba por período *antes* de calcular `LEAD()`. Así, si la oportunidad dejaba la etapa después del período, su tiempo se contaba hasta hoy. Ahora `LEAD()` se calcula sobre todo el historial y el filtro por período va después.
+- **Conversión.** Se mide sobre la **cohorte** de oportunidades creadas en el período. Llegar a una etapa es llegar a ella o a una posterior; «Perdido» no cuenta como avance.
+- **Referencia.** Las dos reglas están en `crm.domain.FunnelMetrics`, y la consulta de C8 se prueba contra ella.
+
+Sin Redis:
 - se calcula en cada consulta, con los índices de V0012;
 - objetivo del spec: **< 500 ms con 5.000 oportunidades abiertas**. Se mide con una prueba de integración sobre datos sintéticos.
 

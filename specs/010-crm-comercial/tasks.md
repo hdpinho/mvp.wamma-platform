@@ -26,6 +26,12 @@
 
 ## Ola A · Núcleo puro (`crm.domain`, sin Spring ni base)
 
+> **Avance al 22/09/2026: ola A completa.**
+> - 31 pruebas nuevas; `mvn verify`, con las 119 del backend, en verde.
+> - JaCoCo: **156 de 156 ramas** en `crm.domain`.
+> - ArchUnit, con 4 reglas.
+> - La consulta de métricas de la Rev. 1 tenía un defecto, corregido en `FunnelMetrics` (`plan.md` §9).
+
 ### A1 — Etapas, motivos y transiciones
 `Stage`, `LossReason` y `TransitionRules`, con la tabla de `plan.md` §4: avance, cierre con motivo (`otro` exige texto), retroceso con nota y etapas terminales.
 **Verifica:** **100 % de ramas**. CA-010.2, CA-010.3 y CA-010.10. Los mismos casos que `evaluarTransicion` del frontend.
