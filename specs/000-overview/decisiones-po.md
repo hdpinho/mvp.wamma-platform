@@ -58,6 +58,19 @@
 | D-38 | Video de demostración con vehículos de prueba en portada | **Producción de video dinámico de alta claridad con inventario de prueba**: Se genera un video HD 720p en bucle continuo (`portada-wamma.mp4`, 2.11 MB, H.264 FastStart) con tratamiento fotográfico de alta luminosidad (+22% brillo, +12% viveza de color, nitidez optimizada) que recorre los vehículos insignia (Toyota Corolla, Hyundai Tucson, Chevrolet Aveo, Chevrolet Silverado, Chery Arauca y Toyota Yaris). Se calibra el velo oscuro del CSS a un nivel sutil y translúcido (12% a 26% en el área visual clave) con sombras de texto reforzadas para máxima legibilidad. La versión anterior se preserva en carpeta temporal (`frontend-web/public/video/temporal/`). | Precisa D-37 | 004, 005, Portada, Multimedia |
 | D-39 | Simplificación de píldoras de acción en portada Hero | **Eliminación de píldora «Inspección 240 pts» en Inicio**: En la sección Hero de la portada (`C0_Home.tsx`), se retira el botón de píldora «Inspección 240 pts», manteniendo exclusivamente las dos acciones clave principales: «Comprar auto» (redirección a `/catalogo`) y «Financiamiento» (redirección a `/financiamiento`). La garantía y detalles de la inspección de 240 puntos se consultan a través de los enlaces del pie de página y en las fichas individuales de cada vehículo. | Precisa D-37 | 005, Home, C0_Home |
 
+> **D-40 a D-43** están reservadas: las registra el spec 011 (`specs/011-endurecimiento-entornos-y-acceso/spec.md`) del PR #1, que se mezcla al final del proyecto. Por eso la numeración de `main` sigue en D-44.
+
+## 18 y 21 de septiembre de 2026 — Mejoras de vitrina, agendamiento y navegación
+
+> Registradas el 21/09/2026, después de implementarse. Fuente: `docs/mejoras-18-septiembre.md` y los commits `a0e5a80` y `43b2b2b`. Lo que no cuadra con decisiones anteriores queda en *Pendientes derivados*.
+
+| # | Tema | Decisión | Sustituye | Afecta a |
+|---|---|---|---|---|
+| D-44 | Etiquetas comerciales de la vitrina | Solo tres etiquetas sobre la foto del vehículo: **Recién ingresado**, **Reservado para cita** y **Súper oportunidad**. Las anteriores («Difícil de conseguir», «Listo para entrega») pasan a «Súper oportunidad» (V0016). La elige el rol Inventario en el formulario del vehículo; es opcional | Precisa D-25 (plan 005, tabla `publicacion`) | 004, 005, TarjetaVehiculo, FichaVehiculo |
+| D-45 | Recaudos al agendar una cita | El modal de agendar cita informa, en dos pestañas, qué preparar: **Digital** (para cargar en la solicitud tras la visita) y **Físico** (para llevar el día de la cita). La confirmación repite la lista como recordatorio. Es informativo: no se cargan archivos en este paso | Precisa D-30 | 010, Solicitud, ModalAgendarCita |
+| D-46 | Portada: hero y pilares | Los botones del hero pasan a **«Encuéntralo»** (→ `/catalogo`) y **«Fináncialo»** (→ `/financiamiento`), cuadrados con esquinas redondeadas y en naranja WAMMA. Nuevo subtítulo y nuevo texto del buscador. Al pie del hero, una franja con los **pilares WAMMA**: Inspección · Certificación · Financiamiento · Seguro · Acompañamiento | Modifica D-39 | 005, Home, C0_Home |
+| D-47 | Navegación móvil y acceso a financiamiento | En pantallas de hasta 1024 px, barra superior fija con el **logo oficial** a la izquierda. El acceso a `/financiamiento` de la barra, en escritorio y en móvil, se rotula **«Wamma - Bank»** | Precisa D-34 | 005, Layout, BarraNavegacion |
+
 ## Pendientes derivados
 
 | Tema | Pregunta | Bloquea |
@@ -65,6 +78,13 @@
 | Sede (D-23) | Dirección de la sede, para la ficha del vehículo y la confirmación de citas | Nada crítico; etapa 2 |
 | Bloqueo (D-26) | Redacción legal final y plazo de reserva temporal al agendar cita | Vitrina / CRM |
 | Detalle legal (D-26) | Validación con asesoría legal del desglose de costo total e intereses | Vitrina / Backoffice |
+| Recaudos (D-45) | La lista del modal de cita no coincide con la de la solicitud de crédito. Estados de cuenta: **3 a 6 meses** en la cita frente a **6 meses** en la solicitud. Referencias: **2 personales y 1 familiar** en la cita frente a **2 personales** en los recaudos de la solicitud, cuyo paso 6 pide 3. ¿Cuál es la lista oficial? | Solicitud (etapa 4), manual 03 y 04 |
+| OTP en la visita (D-45) | Los recaudos físicos piden un celular con WhatsApp «para validar el código OTP» en la sede, pero D-16 dejó la fase sin OTP. ¿Se valida algo con código el día de la cita? | CRM (etapa 3) |
+| Pilares (D-46) | «**Certificación**» choca con D-29, que retiró ese término. «**Seguro**»: la base de conocimiento no recoge ninguna oferta de seguro. ¿Se mantienen los dos pilares? | Portada |
+| Denominación «Bank» (D-47) | WAMMA no es una entidad bancaria. Validar con asesoría legal el uso de «Wamma - Bank» como rótulo | Navegación |
+| Etiqueta «Reservado para cita» (D-44) | Se pone a mano y puede contradecir la disponibilidad automática «Con cita» que mueve el CRM. ¿Debe derivarse de la disponibilidad? | 005, CRM (etapa 3) |
+| Cotizador del asesor (D-26) | El cotizador del backoffice admite plazos de 6 a 36 meses, inicial de hasta 60 % y cualquier tasa. D-26 fija 24 meses, iniciales de 20/30/40 % y 4 % mensual. ¿Puede el asesor cotizar fuera de política? | Financiamiento (etapa 4) |
+| Publicar sin inspección (E11 frente a D-28) | El servidor sigue publicando vehículos sin inspección (E11), pero el formulario dice que «todos los vehículos publicados deben superar la inspección». ¿Se exige ya la inspección para publicar? | 004, 005 |
 
 ---
 *WAMMA · Confidencial · No constituye asesoría legal ni financiera.*

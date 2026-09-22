@@ -13,9 +13,11 @@
 | Capítulo | Módulo | Estado |
 |---|---|---|
 | [01 · Acceso, roles y seguridad](01-acceso-roles-y-seguridad.md) | 001 | **Completo** (etapa 1), con capturas: ingreso con 2FA, roles, usuarios, bitácora, mi cuenta y estado del servidor |
-| [02 · Inventario y catálogo](02-inventario-y-catalogo.md) | 004 / 005 | **Completo** (etapa 2), con capturas: inventario, fotos, publicación, tasa BCV y vitrina |
-| [03 · Seguimiento comercial](03-seguimiento-comercial.md) | 010 | Flujos de la maqueta. Pasa a datos reales en la etapa 3 |
+| [02 · Inventario y catálogo](02-inventario-y-catalogo.md) | 004 / 005 | **Completo** (etapa 2), con capturas: inventario, fotos, publicación, tasa BCV y vitrina. Textos al día con D-44 a D-47 (21/09/2026); las capturas de la vitrina y la portada son anteriores y se rehacen en el próximo recorrido |
+| [03 · Seguimiento comercial](03-seguimiento-comercial.md) | 010 | Flujos de la maqueta, con los recaudos informativos de la cita (D-45). Pasa a datos reales en la etapa 3 |
 | [04 · Financiamiento](04-financiamiento.md) | Simulador, parámetros, solicitud y bandeja | Flujos de la maqueta. Pasa a datos reales en la etapa 4 |
+
+Las decisiones que el manual deja como **pendiente del PO** están en la tabla *Pendientes derivados* de `specs/000-overview/decisiones-po.md`.
 
 ## Glosario
 

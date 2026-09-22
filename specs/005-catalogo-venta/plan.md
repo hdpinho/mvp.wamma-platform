@@ -53,7 +53,7 @@ backend/src/main/java/com/wamma/
 | Tabla | Cambio |
 |---|---|
 | `vehiculo` | + `codigo` (único, obligatorio) y la secuencia `vehiculo_codigo_seq`, que empieza en 17. `placa` admite nulo; su `UNIQUE` sigue y admite varios nulos. Los cuatro campos de adquisición admiten nulo, con un `CHECK` de "todos o ninguno", y su moneda admite `EUR`, `USD` o `VES`. + `CHECK` de carrocería con los seis tipos de la maqueta. + `es_demostracion` (booleano) |
-| `publicacion` | `moneda` por omisión `EUR`, con `CHECK` (`EUR`, `VES`). `tasa_bcv` y `fecha_tasa` admiten nulo solo en borrador (`CHECK`). + `etiqueta` (Recién ingresado, Difícil de conseguir, Listo para entrega) |
+| `publicacion` | `moneda` por omisión `EUR`, con `CHECK` (`EUR`, `VES`). `tasa_bcv` y `fecha_tasa` admiten nulo solo en borrador (`CHECK`). + `etiqueta` (Recién ingresado, Difícil de conseguir, Listo para entrega). *Sustituidas por D-44 (V0016): Recién ingresado, Reservado para cita, Súper oportunidad* |
 | `publicacion_foto` | `url` pasa a `clave`, la clave del objeto: las URL se arman con la configuración y así cambiar de proveedor no toca la base. + `clave_miniatura`, `ancho`, `alto`, `subida_por`. + `credito_autor`, `credito_licencia` y `credito_origen`, solo para las fotos referenciales. A lo sumo una principal por publicación, con un índice único parcial |
 | `inspeccion` | `inspector_id` admite nulo (solo carga inicial) |
 | `inspeccion_punto` | `CHECK` de que la posición está entre 0 y 100 |

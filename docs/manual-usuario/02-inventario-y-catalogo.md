@@ -8,7 +8,7 @@
 
 - El inventario ya **no vive en el navegador**: se guarda en el servidor y lo ve todo el equipo.
 - Un vehículo **no aparece en el sitio público hasta que alguien lo publica**. Antes es un **borrador**.
-- Los precios se llevan en **euros** (D-21). La vitrina muestra además su equivalencia en bolívares con la **tasa BCV del euro** del día, que se registra desde el backoffice (D-13).
+- Los precios se llevan en **euros** (D-21). La **tasa BCV del euro** se registra cada día desde el backoffice (D-13) y queda fijada en cada precio al publicarlo. El sitio público **no muestra bolívares ni precio de contado**: solo la cuota mensual en euros (D-27).
 - Para publicar hacen falta **al menos 5 fotos** (máximo 10) y una tasa BCV registrada.
 - En esta fase hay **una sola sede**: Distrito Capital (D-23).
 
@@ -29,7 +29,7 @@ Quien solo puede **ver** abre la misma pantalla sin los botones de gestión: no 
 
 ## Tasa BCV del euro
 
-Sección **Tasa BCV** del backoffice. La plataforma trabaja en euros y la vitrina muestra la equivalencia en bolívares, así que **la tasa se registra cada día**. Mientras no haya una nueva, se sigue usando la última registrada.
+Sección **Tasa BCV** del backoffice. La plataforma trabaja en euros y cada precio publicado conserva la tasa del día en que se fijó (Principio V), así que **la tasa se registra cada día**. Mientras no haya una nueva, se sigue usando la última registrada.
 
 1. Escribe la **fecha** (por defecto, hoy en Venezuela), los **bolívares por euro** (admite hasta 8 decimales; la coma decimal funciona) y la **fuente** de donde la tomaste.
 2. Pulsa **Registrar tasa**. La confirmación dice qué quedó registrado: *Tasa del 15/09/2026 registrada: 45,80 Bs. por euro.*
@@ -51,7 +51,8 @@ Sección **Inventario Vehículos** → **➕ Nuevo vehículo**.
    - La **placa** es opcional en esta fase y **no sale al sitio público** (D-12).
    - El **precio de adquisición** también es opcional; si lo registras, va completo: precio, moneda, tasa BCV usada y fecha. Es un dato interno y no se publica.
    - La **sede** es Distrito Capital y no se elige.
-2. **Certificación.** Marca **Certificado WAMMA** si el vehículo pasó la inspección. Un vehículo **sin certificar también se puede publicar**: su ficha lo dice y no muestra el sello (decisión E11).
+   - La **etiqueta comercial** es opcional. Hay tres: *Recién ingresado*, *Reservado para cita* y *Súper oportunidad* (D-44). Se ve sobre la foto en la vitrina y en la ficha.
+2. **Inspección.** Marca **Estándar WAMMA (Inspección superada)** si el vehículo pasó la inspección de 240 puntos (D-29). El formulario recuerda que todos los publicados deben superarla, pero **hoy el servidor todavía publica un vehículo sin marcar** (E11): su ficha lo indica y no muestra el sello. El PO debe confirmar cuál de las dos reglas vale (pendiente en `decisiones-po.md`).
 3. **Imperfecciones.** Marca sobre la silueta los rayones, abolladuras o desgaste, con su zona, tipo, severidad y descripción. El comprador las ve en la ficha: declararlas es lo que sostiene la certificación.
 4. Pulsa **Crear vehículo**.
 
@@ -104,7 +105,7 @@ Desde el inventario la cambia el rol Inventario; en el día a día la mueve el C
 
 | Pantalla | Qué ofrece |
 |---|---|
-| Inicio | Portada cinematográfica con video extendido de borde a borde (full-width) estilo Kavak, titular central, buscador rápido en formato píldora y botones directos de acción («Comprar auto», «Financiamiento», «Inspección 240 pts») conectado al pie de página corporativo `PiePagina` (D-34, D-37) |
+| Inicio | Video de portada de borde a borde (D-37, D-38), titular, subtítulo y buscador por marca o modelo. Dos botones: **Encuéntralo**, que lleva a la vitrina, y **Fináncialo**, que lleva a financiamiento (D-46). Al pie del video, la franja de pilares WAMMA: *Inspección · Certificación · Financiamiento · Seguro · Acompañamiento*; en el teléfono se desliza de lado. Debajo, solo el pie de página corporativo (D-34, D-36) |
 | Vitrina (catálogo) | Solo los vehículos **publicados** y no vendidos. Filtros específicos por **Cuota mensual**, **Rango de ingresos**, **Marca** (Ford, Chevrolet, Chery, Hyundai, Toyota), **Transmisión** y **Año** (D-28) |
 | Ficha del vehículo | Galería estandarizada de fotos de estudio (D-32), especificaciones técnicas, sello de **Inspección 240 puntos**, registro de imperfecciones sobre el diagrama, plan de financiamiento detallado y botón principal **Agendar cita** (D-29, D-30) |
 | Favoritos | Los que el visitante marcó con el corazón. Se guardan en su navegador: no requieren cuenta |
@@ -115,6 +116,8 @@ Desde el inventario la cambia el rol Inventario; en el día a día la mueve el C
 - **Precios y Cuotas (D-27):** En el sitio público **no se muestra el precio total de contado**. La vitrina y fichas se expresan exclusivamente mediante la **Cuota mensual estimada** en euros (`Desde €... /mes*`). Se eliminaron las referencias en bolívares (`Bs.`) y el ajuste dinámico manual de tasa euro del sitio público.
 - **Terminología (D-29):** Se utiliza estrictamente **«Inspección 240 puntos»** o **«Estándar WAMMA»** (todo el inventario en vitrina ha superado la inspección, por lo que no existe filtro de "solo certificados"). La sede física tampoco se expone al cliente en la ficha pública.
 - **Línea fotográfica (D-32):** Fotografías homogéneas de estudio con fondo de ciclorama neutro e iluminación uniforme a 3/4.
+- **Etiquetas (D-44):** *Recién ingresado* (verde), *Reservado para cita* (naranja, con reloj) y *Súper oportunidad* (dorado, con estrella). Las pone el rol Inventario; no dependen de la disponibilidad del vehículo.
+- **Barra superior (D-47):** en teléfonos y tabletas (hasta 1024 px de ancho) queda fija, con el logo oficial a la izquierda. El acceso a financiamiento se rotula **🏦 Wamma - Bank**, en escritorio y en móvil.
 - La vitrina se guarda en caché **un minuto**: un cambio recién hecho puede tardar ese tiempo en verse en el sitio público.
 
 ![La vitrina no muestra nada hasta que alguien publica](capturas/02-inventario/01-vitrina-vacia.png)

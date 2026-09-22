@@ -1,6 +1,6 @@
 # 000 · Diseño Físico y Relacional de Base de Datos — MVP WAMMA
 
-**Clasificación:** Confidencial · **Versión:** 1.1 · **Fecha:** Septiembre 2026  
+**Clasificación:** Confidencial · **Versión:** 1.3 · **Fecha:** Septiembre 2026  
 **Motor:** PostgreSQL 16+ (Supabase Cloud administrado)  
 **Gestor de Esquema:** Flyway (Spring Boot) — única fuente de verdad del esquema (§5)  
 **Principios vinculantes:** `.specify/memory/constitution.md` (Principios I, II, V, VI, VII)
@@ -8,6 +8,8 @@
 > **v1.1 (septiembre 2026):** incorpora las migraciones correctivas V0009–V0012: acceso mínimo, inmutabilidad también frente a `TRUNCATE`, cuadre del ledger verificado por el motor, CRM alineado con el spec aprobado 010, trazabilidad monetaria completa y retiro de cifras no confirmadas. Operación en §5; pendientes en §6.
 >
 > **v1.2 (15 de septiembre de 2026):** añade V0013 (identidad, sesiones y permisos del módulo 001) y V0014 (inventario, catálogo y tasa BCV del módulo 005): código de inventario, placa y adquisición opcionales, publicación en euros con la tasa fijada al publicar, fotos con miniatura y créditos, y la tasa BCV por fecha y moneda. **Aplicadas en local y en la CI; Supabase sigue en V0012** hasta que se despliegue (§5.2).
+>
+> **v1.3 (21 de septiembre de 2026):** documenta V0015 (`parametros_financiamiento`, con la semilla de D-26) y V0016 (tres etiquetas de vitrina, D-44). Añade al diccionario las tablas `sesion` y `codigo_recuperacion` de V0013, que faltaban. **Supabase sigue en V0012 con 39 tablas** (consulta de solo lectura del 21/09/2026); con V0013–V0016 serían 42. Los desfases de V0015 están en §6.
 
 ---
 
@@ -504,7 +506,7 @@ Bitácora estricta para toda transacción monetaria, cambio de estado de auto o 
 * `actor_id` (UUID, FK -> `usuario.id`, ON DELETE RESTRICT, NULL si es anónimo/sistema)
 * `accion` (VARCHAR(100), NOT NULL) — e.g. `VEHICULO_ESTADO_CAMBIO`, `PAGO_REGISTRADO`
 * `entidad` (VARCHAR(60), NOT NULL) — e.g. `vehiculo`, `pago`, `asiento`
-* `entidad_id` (UUID, NOT NULL)
+* `entidad_id` (UUID) — Admite nulo desde V0013: un ingreso fallido con un usuario inexistente no tiene entidad a la que apuntar
 * `antes` (JSONB)
 * `despues` (JSONB)
 * `ip_origen` (VARCHAR(45))
@@ -520,6 +522,23 @@ Referencias a secretos fuera de la base de datos (Constitución Principio VI).
 * `descripcion` (TEXT)
 * `creado_en` (TIMESTAMPTZ, DEFAULT `now()`)
 * `actualizado_en` (TIMESTAMPTZ, DEFAULT `now()`)
+
+#### 7.1 `sesion` (V0013)
+Sesión del backoffice con token opaco. En la base solo se guarda su hash.
+* `id` (UUID, PK)
+* `usuario_id` (UUID, FK -> `usuario.id`, ON DELETE RESTRICT, NOT NULL) — Índice `idx_sesion_usuario`
+* `token_hash` (CHAR(64), UNIQUE, NOT NULL) — SHA-256 del token; el token en claro nunca llega a la base
+* `nivel` (VARCHAR(10), NOT NULL) — `parcial` (contraseña correcta, falta el 2FA) o `completa`. Al pasar a `completa` se emite otro token
+* `creada_en`, `ultimo_uso_en` (TIMESTAMPTZ, NOT NULL, DEFAULT `now()`), `expira_en` (TIMESTAMPTZ, NOT NULL)
+* `revocada_en` (TIMESTAMPTZ), `motivo_revocacion` (VARCHAR(20)) — `salida`, `desactivacion`, `restablecimiento`, `cambio_contrasena`, `ascenso`. Van juntos o no van (`CHECK`)
+* `ip_origen` (VARCHAR(45)), `agente_usuario` (VARCHAR(300))
+
+#### 7.2 `codigo_recuperacion` (V0013)
+Diez códigos por usuario al activar el 2FA. Cada uno sirve una sola vez.
+* `id` (UUID, PK)
+* `usuario_id` (UUID, FK -> `usuario.id`, ON DELETE RESTRICT, NOT NULL)
+* `codigo_hash` (CHAR(64), NOT NULL) — HMAC con la clave del servidor: una copia de la base sola no permite probarlos por fuerza bruta. `UNIQUE (usuario_id, codigo_hash)`
+* `creado_en` (TIMESTAMPTZ, NOT NULL, DEFAULT `now()`), `usado_en` (TIMESTAMPTZ)
 
 ---
 
@@ -619,7 +638,7 @@ Vehículos certificados visibles en la vitrina pública.
 * `garantia_meses` (SMALLINT) — Sin valor por defecto: `[NEEDS CLARIFICATION: condiciones de garantía]` (spec 005)
 * `kilometraje_garantia` (INT) — Ídem
 * `estado` (VARCHAR(25), NOT NULL) — `borrador`, `publicado`, `pausado`, `vendido`. V0014 retiró el valor por defecto `'publicado'`: publicar es un acto explícito
-* `etiqueta` (VARCHAR(30)) — Etiqueta comercial sobre la foto: `recien_ingresado`, `dificil_de_conseguir`, `listo_para_entrega` (V0014)
+* `etiqueta` (VARCHAR(30)) — Etiqueta comercial sobre la foto, opcional: `recien_ingresado`, `reservado_para_cita`, `super_oportunidad` (V0016, D-44). V0014 admitía `recien_ingresado`, `dificil_de_conseguir` y `listo_para_entrega`; V0016 pasa las dos últimas a `super_oportunidad`
 * `publicado_en` (TIMESTAMPTZ)
 * `creado_por` (UUID, FK -> `usuario.id`)
 * `creado_en` (TIMESTAMPTZ, DEFAULT `now()`)
@@ -852,6 +871,19 @@ Monitoreo de legitimación de capitales, personas expuestas políticamente (PEP)
 * `resuelto_en` (TIMESTAMPTZ)
 * `creado_en` (TIMESTAMPTZ, DEFAULT `now()`)
 
+#### 28.1 `parametros_financiamiento` (V0015)
+Política comercial vigente de financiamiento (D-26). Una fila activa; los cambios de política se registran como filas nuevas con su `vigente_desde`.
+* `id` (UUID, PK)
+* `tasa_mensual` (NUMERIC(6, 4), NOT NULL) — `CHECK (>= 0)`. Semilla: 0,0400 (4 % mensual)
+* `plazo_meses` (INT, NOT NULL) — `CHECK (> 0)`. Semilla: 24
+* `ratio_cuota_ingreso` (NUMERIC(4, 2), NOT NULL) — `CHECK (> 0 AND <= 1)`. Semilla: 0,30
+* `opciones_inicial` (NUMERIC(4, 2)[], NOT NULL) — Semilla: 0,20 · 0,30 · 0,40
+* `inicial_minima` (NUMERIC(4, 2), NOT NULL) — `CHECK (> 0 AND <= 1)`. Semilla: 0,20
+* `moneda_base` (VARCHAR(3), NOT NULL, DEFAULT `'USD'`) — `USD`, `EUR` o `VES`. **La semilla dice `USD`, contra D-21** (§6)
+* `vigente_desde` (TIMESTAMPTZ, NOT NULL, DEFAULT `now()`), `activo` (BOOLEAN, NOT NULL, DEFAULT true)
+* `creado_en`, `actualizado_en` (TIMESTAMPTZ, NOT NULL, DEFAULT `now()`) — Trigger `actualizar_timestamp()`
+* *RLS:* activado, pero **con una política `parametros_financiamiento_lectura_publica`** (`SELECT` donde `activo`). Es la única tabla con política y contradice §1.5 (§6)
+
 ---
 
 ### Dominio 6: Fintech, Pagos y Ledger Sagrado (007)
@@ -1074,7 +1106,9 @@ mvn flyway:migrate
 
 La conexión llega por `FLYWAY_URL`, `FLYWAY_USER` y `FLYWAY_PASSWORD`, nunca por el repositorio. `baseline-on-migrate` queda en `false`: un esquema con tablas y sin historial es un error que debe verse, no algo que se adopta en silencio. En un PostgreSQL vacío (recuperación ante desastres, CI) Flyway aplica todas las migraciones desde cero, sin baseline.
 
-**V0013 y V0014** (etapas 1 y 2) se desarrollaron y se probaron **solo en local**, contra un PostgreSQL embebido que se crea vacío en cada arranque: ahí Flyway aplica V0001–V0014 desde cero y una prueba automática comprueba el esquema resultante. **Supabase sigue en V0012**; aplicarlas allí es una acción de despliegue pendiente, que se ensaya primero en una transacción que se revierte (§5.4).
+**V0013 a V0016** (etapas 1 y 2, parámetros de financiamiento y etiquetas) se desarrollaron y se probaron **solo en local**, contra un PostgreSQL embebido que se crea vacío en cada arranque: ahí Flyway aplica V0001–V0016 desde cero y una prueba automática comprueba el esquema resultante. **Supabase sigue en V0012** (verificado el 21/09/2026). Aplicarlas allí es una acción de despliegue pendiente, que se ensaya primero en una transacción que se revierte (§5.4).
+
+**Cuidado con el despliegue:** Render arranca con `FLYWAY_ENABLED=true`. El primer deploy que arranque bien con los secretos de la base aplicará de una vez todas las migraciones pendientes. Además, el PR #1 (spec 011, se mezcla al final del proyecto) trae su propia **V0016** y una **V0018**. Chocan con la V0016 de `main` y hay que renumerar al mezclar.
 
 ### 5.3 Activar el rol de aplicación
 1. En el SQL Editor de Supabase: `ALTER ROLE wamma_app WITH LOGIN PASSWORD '<secreto>';`
@@ -1103,6 +1137,8 @@ Pooler de Supabase en modo sesión (puerto 5432) para la aplicación y las migra
 | Vencimiento del enlace de financiamiento | La base exige que exista y sea posterior a la emisión; el plazo lo fija el negocio | Product Owner |
 | Enumeraciones de módulos en borrador: `usuario.tipo`, `alerta_aml.origen_lista`, escala 0–1000 de `decision_riesgo.score_interno`, estados de `publicacion`, `reserva`, `pago` y `credito`, tipos de `notificacion` | Vienen de V0002–V0008 sin spec aprobado. Se revisan en el `/clarify` de cada módulo (001, 005, 006, 007, 009) antes de escribir código contra ellas | Product Owner |
 | Prueba de integración de migraciones en el backend (CA-010.4 exige base real) | Pendiente: hoy el ensayo se hace a mano (§5.4) | Ingeniería |
+| `parametros_financiamiento.moneda_base` | La semilla de V0015 dice `USD`; D-21 fija el euro para toda la plataforma. V0015 no está aplicada en Supabase | Product Owner e ingeniería |
+| Política pública de `parametros_financiamiento` | V0015 crea una política de `SELECT` pensada para la API de datos de Supabase, que §1.5 excluye. No surte efecto, porque `anon` no tiene privilegios (V0009) y la CSP de `vercel.json` no permite `supabase.co`. El spec 011 (PR #1) la retira con su V0017 | Ingeniería |
 
 **Propuesta de plan de cuentas sembrada en V0007 (retirada en V0011, pendiente de validar):**
 

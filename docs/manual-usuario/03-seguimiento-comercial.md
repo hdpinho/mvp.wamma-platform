@@ -11,6 +11,19 @@ Desde la ficha del vehículo, **Agendar cita**:
 
 No se pide la cédula en este paso: se solicita al confirmar la cita, cuando el cliente ya está comprometido (§8.5 del spec).
 
+### Recaudos que se informan al agendar (D-45)
+
+El mismo formulario muestra, en dos pestañas, qué documentos preparar. Es **solo informativo**: en este paso no se carga ningún archivo.
+
+| Pestaña | Para qué | Documentos |
+|---|---|---|
+| **Requisitos Digitales** | Para cargarlos en la solicitud en línea, después de la visita | Cédula o pasaporte vigente, por ambas caras · RIF personal actualizado, del portal del SENIAT · Constancia de trabajo (empleados) o certificación de ingresos firmada por contador público colegiado (independientes) · Estados de cuenta bancarios de los últimos 3 a 6 meses, en PDF del banco · Recibo de servicio público o contrato de arrendamiento vigente · Datos de 2 referencias personales y 1 familiar |
+| **Requisitos Físicos** | Para llevarlos el día de la cita | Cédula de identidad original laminada, indispensable para entrar y validar la identidad · Copia impresa del RIF · Original de la constancia laboral o certificación del contador, con sello húmedo y firmas · Copia del recibo de servicio o del contrato de alquiler · Celular con WhatsApp activo, para validar un código de seguridad |
+
+Al confirmar la cita, la pantalla final repite la lista como recordatorio: *Documentos a tener listos para tu cita y financiamiento*.
+
+> **Pendiente del PO:** esta lista no coincide del todo con los recaudos de la solicitud de crédito (capítulo 04), ni en los meses de estados de cuenta ni en las referencias. Además, menciona un código de seguridad por WhatsApp que D-16 dejó fuera de esta fase. Cuando el PO fije la lista oficial, se corrige aquí.
+
 ## Bandeja de citas (backoffice)
 
 **Menú:** Citas y Solicitudes. El número rojo indica las citas pendientes.

@@ -12,6 +12,8 @@ Plataforma propia de **WAMMA by Token Pago POS** — venta, certificación y fin
 
 Eres un par de ingeniería senior full-stack experto en SDD. Construyes el MVP (Fase 1) **en orden**, módulo por módulo, sin saltarte el flujo de especificaciones.
 
+**Estado (21/09/2026):** backend con etapas 0–2 en `main` (001 seguridad, inventario, catálogo y tasa BCV). La etapa 3 (CRM en el servidor) no ha empezado. Frontend público ajustado con D-26 a D-39 y `docs/mejoras-18-septiembre.md`. Vercel publica en modo maqueta (sin `VITE_API_URL`) y Render sigue con un build anterior a la etapa 1. Decisiones vigentes: `specs/000-overview/decisiones-po.md` (hasta D-39). D-40 a D-43 están en el spec 011 del PR #1, que sigue abierto; las decisiones nuevas van desde **D-44**.
+
 ## Antes de escribir una sola línea
 
 1. Lee la Constitución (`.specify/memory/constitution.md`).
@@ -37,7 +39,7 @@ Eres un par de ingeniería senior full-stack experto en SDD. Construyes el MVP (
   - Java 21: `C:\Users\hdpinho\dev-tools\jdk-21.0.12.1+1` (`JAVA_HOME`)
   - Maven 3.9: `C:\Users\hdpinho\dev-tools\apache-maven-3.9.16\bin\mvn.cmd`
   *(Si `mvn` o `java` no están en el PATH de tu sesión actual, usa la ruta absoluta o setea `$env:JAVA_HOME`)*.
-- BD: **Supabase Cloud (PostgreSQL administrado)**, proyecto `nwbnisehliwvuljpfutg`. **39 tablas** activas; el esquema está en **V0012** y lo gestiona **solo Flyway** (baseline v8 el 14/09/2026; ver `specs/000-overview/database-schema-design.md` §5). Cambiar el esquema = migración nueva, nunca SQL a mano. No uses PGlite ni intentes recrear el esquema base; consulta las tablas existentes.
+- BD: **Supabase Cloud (PostgreSQL administrado)**, proyecto `nwbnisehliwvuljpfutg`. Supabase tiene **39 tablas** y está en **V0012** (verificado el 21/09/2026). El esquema lo gestiona **solo Flyway** (baseline v8 el 14/09/2026; ver `specs/000-overview/database-schema-design.md` §5). En el repo hay **V0013–V0016 sin aplicar en Supabase**; con ellas serían 42 tablas (`sesion`, `codigo_recuperacion`, `parametros_financiamiento`). El PR #1 (spec 011) reserva V0016–V0018 y choca con la V0016 de `main`. **No se mezcla hasta el final del proyecto** (decisión del usuario, 21/09/2026): se trabaja en `main` y la numeración se resuelve al mezclar. Render ejecuta Flyway al arrancar (`FLYWAY_ENABLED=true`): el primer deploy que arranque bien las aplicará. Cambiar el esquema = migración nueva, nunca SQL a mano. No uses PGlite ni intentes recrear el esquema base; consulta las tablas existentes.
 - Variables de entorno locales: se encuentran en `backend/.env` (ignorado por git) para conexión a Supabase en desarrollo local.
 - API versionada `/v1/...`. Operaciones de dinero idempotentes y conciliables.
 - Pruebas obligatorias para: cálculo de cuotas/amortización, asientos del ledger, decisiones de scoring/AML.
