@@ -71,12 +71,18 @@
 | D-46 | Portada: hero y pilares | Los botones del hero pasan a **«Encuéntralo»** (→ `/catalogo`) y **«Fináncialo»** (→ `/financiamiento`), cuadrados con esquinas redondeadas y en naranja WAMMA. Nuevo subtítulo y nuevo texto del buscador. Al pie del hero, una franja con los **pilares WAMMA**: Inspección · Certificación · Financiamiento · Seguro · Acompañamiento | Modifica D-39 | 005, Home, C0_Home |
 | D-47 | Navegación móvil y acceso a financiamiento | En pantallas de hasta 1024 px, barra superior fija con el **logo oficial** a la izquierda. El acceso a `/financiamiento` de la barra, en escritorio y en móvil, se rotula **«Wamma - Bank»** | Precisa D-34 | 005, Layout, BarraNavegacion |
 
+## 21 de septiembre de 2026 — Etapa 3: seguimiento comercial en el servidor
+
+| # | Tema | Decisión | Sustituye | Afecta a |
+|---|---|---|---|---|
+| D-48 | Etapa 3: CRM en el servidor | **Aprobados** el plan 010 Rev. 2 y los ajustes al spec de su §0.2 (spec 010 Rev. 2), con las opciones recomendadas por ingeniería. Las tareas (`tasks.md` Rev. 2) se aprobaron el mismo día. Backend en Spring Boot (Java 21):<ul><li>**Reserva al agendar (E4-A, C8):** la cita pendiente reserva el vehículo **24 horas**. Si nadie la confirma, el vehículo vuelve a disponible y la cita sigue en la bandeja, ya sin reserva.</li><li>**Límite de captación (E5):** como máximo **5 citas públicas por IP y 2 por teléfono cada 24 horas**. Sin CAPTCHA en esta etapa.</li><li>**Venta de contado (E6-A, C10):** se mantiene en el backoffice, aunque el formulario público solo ofrezca financiamiento (D-30).</li><li>**Enlace de financiamiento (E7, C9):** vence a los **7 días**; reemitirlo invalida el anterior.</li><li>**Reparto (E8, C3):** lo hace el coordinador, y el asesor puede **tomar para sí** una oportunidad sin dueño. Sin reparto automático.</li><li>**Rango de ingresos (E9-A, C11):** se retira del formulario de cita, porque no se usa.</li><li>El resto de las propuestas del plan §1 (E1–E3, E10–E13), como están.</li></ul> | Cierra C3 y el plazo de reserva de «Bloqueo (D-26)»; precisa D-30 | 010, 005, Solicitud |
+
 ## Pendientes derivados
 
 | Tema | Pregunta | Bloquea |
 |---|---|---|
 | Sede (D-23) | Dirección de la sede, para la ficha del vehículo y la confirmación de citas | Nada crítico; etapa 2 |
-| Bloqueo (D-26) | Redacción legal final y plazo de reserva temporal al agendar cita | Vitrina / CRM |
+| Bloqueo (D-26) | Redacción legal final del aviso de reserva al agendar cita. El plazo quedó en 24 horas (D-48) | Vitrina / CRM |
 | Detalle legal (D-26) | Validación con asesoría legal del desglose de costo total e intereses | Vitrina / Backoffice |
 | Recaudos (D-45) | La lista del modal de cita no coincide con la de la solicitud de crédito. Estados de cuenta: **3 a 6 meses** en la cita frente a **6 meses** en la solicitud. Referencias: **2 personales y 1 familiar** en la cita frente a **2 personales** en los recaudos de la solicitud, cuyo paso 6 pide 3. ¿Cuál es la lista oficial? | Solicitud (etapa 4), manual 03 y 04 |
 | OTP en la visita (D-45) | Los recaudos físicos piden un celular con WhatsApp «para validar el código OTP» en la sede, pero D-16 dejó la fase sin OTP. ¿Se valida algo con código el día de la cita? | CRM (etapa 3) |

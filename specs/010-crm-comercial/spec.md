@@ -1,11 +1,20 @@
 # 010 · Seguimiento comercial de prospectos (CRM ligero)
 
 **Proyecto:** WAMMA · Plataforma propia · **Fase 1 (MVP)**
-**Clasificación:** Confidencial · **Rev.:** 1 · **Septiembre 2026**
+**Clasificación:** Confidencial · **Rev.:** 2 · **Septiembre 2026**
 **Función:** Convertir el interés capturado en la vitrina en venta gestionada
 **Depende de:** 001 (identidad del asesor, auditoría, cifrado); 005 (vehículo publicado)
 **Alimenta a:** `specs/solicitud-credito/` (resuelve el `lead_id`, insumo D15)
-**Estado:** **Aprobado** por el Product Owner (septiembre 2026). C1, C4 y C5 resueltos (C4, con el módulo 001: D-24); quedan abiertas C2, C3 y C6, que no bloquean las olas 1 y 2
+**Estado:** **Aprobado** por el Product Owner. Rev. 1 en septiembre de 2026; **Rev. 2 el 21 de septiembre de 2026 (D-48)**, con los ajustes de `plan.md` §0.2. Resueltas C1, C3, C4, C5 y C8 a C11. Quedan abiertas C2 y C6, que no bloquean la etapa 3
+
+> **Rev. 2 (21/09/2026):**
+> - montos en euros (Constitución v3.0.0);
+> - la reserva al agendar vence a las 24 h (§8.8);
+> - límite de captación pública (§8.9);
+> - la modalidad al agendar es siempre financiamiento (D-30), pero la venta de contado sigue en el backoffice;
+> - el enlace de financiamiento vence a los 7 días;
+> - se retiran el aviso al buzón comercial (D-18) y el rango de ingresos del formulario;
+> - el asesor puede tomar una oportunidad sin dueño.
 
 > Spec del QUÉ y el POR QUÉ. El CÓMO va en `./plan.md`. Principios en `../../.specify/memory/constitution.md`.
 
@@ -79,7 +88,7 @@ El asesor **solo ve las oportunidades que le pertenecen** más las que no tienen
 ## 6. Requisitos funcionales (RF)
 
 ### Persona y deduplicación
-- **RF-010.1** Toda captura de interés (cita agendada, solicitud de crédito, alta manual) **resuelve o crea** una `persona`. Nunca se crea un registro comercial huérfano.
+- **RF-010.1** Toda captura de interés (cita agendada, solicitud de crédito, alta manual) **resuelve o crea** una `persona`. Nunca se crea un registro comercial huérfano. *En la etapa 3 la única vía de entrada es la cita pública; el alta manual queda para después (plan E13).*
 - **RF-010.2** La deduplicación usa la **cédula** como clave natural cuando está presente; si no, el **teléfono normalizado**. Dos capturas que resuelven a la misma persona producen **una persona y dos oportunidades**.
 - **RF-010.3** La ficha de la persona muestra todas sus oportunidades (abiertas y cerradas) y su historial completo de interacciones, en orden cronológico inverso.
 
@@ -87,7 +96,7 @@ El asesor **solo ve las oportunidades que le pertenecen** más las que no tienen
 - **RF-010.4** Una `oportunidad` representa la intención de compra de **una** persona sobre **un** vehículo. Una persona puede tener varias oportunidades abiertas a la vez.
 - **RF-010.5** La oportunidad avanza por las etapas declaradas en §8.1. Toda transición se valida contra la máquina de estados y **queda registrada** con actor y momento.
 - **RF-010.6** Cerrar una oportunidad como perdida **exige un motivo** del catálogo de §8.2. Sin motivo, la transición se rechaza.
-- **RF-010.7** Cada oportunidad admite un **asesor responsable** y una **próxima acción** con fecha.
+- **RF-010.7** Cada oportunidad admite un **asesor responsable** y una **próxima acción** con fecha. El coordinador asigna y reasigna; el asesor puede **tomar para sí** una oportunidad sin dueño, pero no quitársela a otro (C3, D-48).
 - **RF-010.8** Una oportunidad cerrada **no se reabre**. Retomar el contacto crea una oportunidad nueva sobre la misma persona, de modo que las métricas del embudo no se falseen.
 
 ### Interacciones
@@ -106,7 +115,7 @@ El asesor **solo ve las oportunidades que le pertenecen** más las que no tienen
 - **RF-010.17** Motivos de pérdida agregados por período.
 
 ### Venta y financiamiento (decisión del Product Owner, septiembre 2026)
-- **RF-010.18** Agendar una cita desactiva «Agendar cita» y «Solicitar financiamiento» en la ficha del vehículo mientras la cita siga abierta.
+- **RF-010.18** Agendar una cita desactiva «Agendar cita» y «Solicitar financiamiento» en la ficha del vehículo mientras la cita reserve el vehículo: **24 horas** si nadie la confirma; al confirmarla, hasta que se descarte o se cierre la oportunidad (C8, D-48).
 - **RF-010.19** Una cita confirmada ofrece «Asistió», que lleva la oportunidad a `visito`. Solo después aparece «Vender Vehículo».
 - **RF-010.20** «Vender Vehículo» de contado cierra la venta; financiado emite un enlace personal de solicitud de crédito y deja el vehículo reservado (§8.8).
 - **RF-010.21** Confirmar una cita, si hay correo, abre el correo del asesor con la confirmación para el cliente (§10). El asesor puede corregir el día y el horario acordados antes de confirmar.
@@ -118,7 +127,7 @@ El asesor **solo ve las oportunidades que le pertenecen** más las que no tienen
 | **Cifrado de campo** | Cédula, teléfono y correo se cifran en reposo, con índice ciego para permitir la deduplicación sin descifrar (Principio VI). Depende de `platform/crypto` (módulo 001) |
 | **Inmutabilidad** | `interaccion` y `etapa_historial` son append-only a nivel de motor de base de datos, no por convención |
 | **Mínimo privilegio** | El asesor no lee oportunidades de otros asesores ni datos del expediente de crédito |
-| **Montos** | `valor_estimado` sigue el Principio V: precisión fija, moneda y tasa BCV con su fecha. Prohibido `float` |
+| **Montos** | `valor_estimado` sigue el Principio V: precisión fija, en **euros**, con la tasa BCV y la fecha que fijó la publicación. Prohibido `float` |
 | **Rendimiento** | La vista de embudo responde en < 500 ms con 5.000 oportunidades abiertas |
 | **Retención** | Los datos de prospectos que nunca compran tienen período de conservación definido `[NEEDS CLARIFICATION: C2]` |
 
@@ -196,17 +205,31 @@ Igual que el módulo 009, este módulo **refleja** el estado del vehículo (005)
 ### 8.8 Venta tras la visita y habilitación del financiamiento (decisión del Product Owner, septiembre 2026)
 
 Agendar una cita **reserva el vehículo**: en su ficha se desactivan «Agendar cita» y «Solicitar financiamiento» para todos los visitantes.
+- Si el asesor no confirma la cita en **24 horas**, el vehículo vuelve a disponible. La cita sigue en la bandeja, ya sin reserva (C8, D-48).
+- Una cita confirmada mantiene la reserva hasta que se descarta o se cierra la oportunidad.
+- Un vehículo reservado o vendido no admite citas nuevas.
+
+En el formulario público la modalidad es siempre **financiamiento WAMMA** (D-30).
 
 Después, desde la bandeja de citas:
 
 1. **«Asistió»**, en una cita confirmada, lleva la oportunidad a `visito`.
-2. **«Vender Vehículo»** aparece solo después de la asistencia. Pide confirmar la forma de pago, precargada con la que el cliente indicó al agendar, porque puede haber cambiado:
+2. **«Vender Vehículo»** aparece solo después de la asistencia. Pide confirmar la forma de pago, precargada con financiamiento. **El contado se mantiene en el backoffice**, porque el cliente puede decidirlo en la visita (C10, D-48):
    - **Contado:** cierra la venta (`cerrado_ganado`) y el vehículo pasa a **vendido**.
    - **Financiamiento:** la oportunidad pasa a `negociacion`, el vehículo **sigue reservado** y se emite un **enlace personal** de solicitud de crédito para esa persona y ese vehículo. El asesor lo envía por WhatsApp o por correo. La venta se cierra desde el embudo cuando se apruebe el crédito.
 
 El enlace es la única forma de llegar a la solicitud de crédito (`../solicitud-credito/spec.md` §0.5). Lleva el vehículo, pero ningún dato personal.
+- **Vence a los 7 días** y sirve para una sola solicitud.
+- Reemitirlo invalida el anterior (C9, D-48).
+- El servidor guarda solo su huella (SHA-256): el enlace completo se muestra una sola vez al asesor.
 
-**Limitación de la maqueta:** sin servidor, el enlace se valida solo por su forma, así que no es un control de acceso. En producción el token es aleatorio, de un solo uso y con vencimiento, y lo valida el servidor. Además, en la maqueta cada navegador guarda su propio inventario: un vehículo creado desde el backoffice no existe en el teléfono del cliente.
+### 8.9 Límite de la captación pública (D-48)
+
+Como la cita pública reserva un vehículo, se limita para que nadie pueda vaciar la vitrina con citas falsas: **5 citas por IP y 2 por teléfono cada 24 horas**. Superado el límite, el formulario lo dice y no crea la cita. En esta etapa no hay CAPTCHA, porque exigiría un proveedor externo (Principio II).
+
+El formulario pide **nombre, WhatsApp, correo opcional, día y franja**. El rango de ingresos se retiró: no se usaba, y el ingreso es del expediente de crédito, no de la capa comercial (§8.3; C11, D-48).
+
+**Limitación de la maqueta:** sin servidor, el enlace se valida solo por su forma, así que no es un control de acceso. Desde la etapa 3 lo emite y lo valida el servidor.
 
 ## 9. Entidades de datos
 
@@ -217,7 +240,7 @@ El enlace es la única forma de llegar a la solicitud de crédito (`../solicitud
 | Integración | Decisión |
 |---|---|
 | **WhatsApp** | Enlaces `wa.me` con mensaje prellenado y número venezolano normalizado, como ya hace el backoffice. Gratuito, sin verificación de empresa y sin dependencia de Meta. **Contrapartida asumida:** la conversación ocurre fuera de la plataforma y el registro depende de que el asesor escriba la nota (RF-010.11) |
-| **Correo** | Notificación de nueva captura al buzón comercial. Al **confirmar la cita** se abre el correo del propio asesor con la confirmación ya redactada para el cliente: enlace `mailto:`, por decisión del Product Owner, sin proveedor ni dominio. Solo admite texto plano: un correo con diseño y logo exigiría envío desde servidor, fuera de esta etapa. Si el cliente no dejó correo al agendar, el asesor puede anotarlo al confirmar |
+| **Correo** | Sin aviso al buzón comercial: las capturas nuevas se ven en la bandeja del backoffice (D-18). Al **confirmar la cita** se abre el correo del propio asesor con la confirmación ya redactada para el cliente: enlace `mailto:`, por decisión del Product Owner, sin proveedor ni dominio. Solo admite texto plano: un correo con diseño y logo exigiría envío desde servidor, fuera de esta etapa. Si el cliente no dejó correo al agendar, el asesor puede anotarlo al confirmar |
 | **Módulo 005** | Lectura del vehículo publicado y escritura de su estado de disponibilidad |
 | **solicitud-credito** | Entrega del `lead_id`; lectura del **estado** de la solicitud, nunca de su contenido |
 
@@ -251,19 +274,24 @@ Ninguna tarea de implementación arranca con estas abiertas si la afecta (Princi
 
 - ~~`C1` **¿La cédula es obligatoria para agendar una cita?**~~ **CERRADO** (septiembre 2026): **captura en dos pasos**. Nombre y WhatsApp para agendar; cédula al confirmar la cita. Ver §8.5.
 - `[NEEDS CLARIFICATION: C2]` **Período de conservación** de datos de prospectos que nunca compran. Afecta al requisito de retención de §7.
-- `[NEEDS CLARIFICATION: C3]` **Reparto de oportunidades sin dueño:** ¿manual por el coordinador, o automático por turno? Afecta a RF-010.7.
+- ~~`C3` **Reparto de oportunidades sin dueño.**~~ **CERRADO** (21/09/2026, D-48): lo hace el coordinador, y el asesor puede tomar para sí una sin dueño. Sin reparto automático. Ver RF-010.7.
 - ~~`C4` **Identidad del asesor mientras el módulo 001 no exista.**~~ **CERRADO** (15/09/2026, D-24): el módulo 001 ya da usuarios reales, con rol y sesión (`CurrentUser`). El CRM los usa como autor de cada interacción y dueño de cada oportunidad cuando pase al servidor (etapa 3).
 - ~~`C5` **Umbral de "estancada"**~~ **CERRADO** (septiembre 2026): umbral **por etapa** — 2 / 3 / 7 / 7 / 14 días. Ver §8.6.
 - `[NEEDS CLARIFICATION: C6]` **¿Se notifica al cliente** algún cambio de etapa, o el embudo es puramente interno? Afecta al alcance de la integración de correo.
 - ~~`C7` **Enmienda de la Constitución** que recoja la premisa de §0.~~ **CERRADO** — Constitución **v2.0.0** (septiembre 2026). El texto vigente y este spec ya no discrepan.
+- ~~`C8` **Plazo de la reserva al agendar.**~~ **CERRADO** (D-48): 24 horas sin confirmar. Ver §8.8.
+- ~~`C9` **Vencimiento del enlace de financiamiento.**~~ **CERRADO** (D-48): 7 días; reemitirlo invalida el anterior. Ver §8.8.
+- ~~`C10` **Venta de contado tras D-30.**~~ **CERRADO** (D-48): se mantiene en el backoffice. Ver §8.8.
+- ~~`C11` **Rango de ingresos al agendar.**~~ **CERRADO** (D-48): se retira del formulario. Ver §8.9.
 
 ## 14. Trazabilidad
 
-**Constitución v2.0.0:** Principio I (protección del dato personal, mínimo privilegio, conservación declarada), II (portabilidad de la infraestructura), V (montos con precisión fija), VI (seguridad transversal), VII (SDD).
+**Constitución v3.0.0:** Principio I (protección del dato personal, mínimo privilegio, conservación declarada), II (portabilidad de la infraestructura), V (montos con precisión fija, en euros), VI (seguridad transversal), VII (SDD).
+**Decisiones:** D-18, D-24, D-30 y D-48 (`../000-overview/decisiones-po.md`).
 **Overview:** módulo 010 en `../000-overview/product-overview.md` §3; ola 2 en `../000-overview/tasks-build-order.md` §2; entidades en `../000-overview/data-model.md` §4.
 **Dependencias:** 001 (identidad, auditoría, cifrado), 005 (vehículo publicado).
 **Resuelve:** insumo **D15** (`lead_id`) de `../solicitud-credito/spec.md` §13.
 **Código existente que absorbe:** `frontend-web/src/screens/admin/O3_GestionCitas.tsx`, `frontend-web/src/state/vehiculosContexto.tsx`, `frontend-web/src/types/vehiculo.ts` (`CitaSolicitud`).
 
 ---
-*WAMMA · Confidencial · Rev. 1 · No constituye asesoría legal ni financiera.*
+*WAMMA · Confidencial · Rev. 2 · No constituye asesoría legal ni financiera.*

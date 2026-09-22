@@ -1,12 +1,13 @@
-# 010 · Desglose de tareas — Seguimiento comercial de prospectos
+# 010 · Desglose de tareas — Etapa 3: seguimiento comercial en el servidor
 
 **Proyecto:** WAMMA · Plataforma propia · **Fase 1 (MVP)**
-**Clasificación:** Confidencial · **Rev.:** 1 · **Septiembre 2026**
-**Referencias:** `./spec.md` (QUÉ) · `./plan.md` (CÓMO)
-**Estado:** **Aprobado** por el Product Owner (septiembre 2026) — ola 2 en ejecución
+**Clasificación:** Confidencial · **Rev.:** 2 · **Septiembre 2026**
+**Referencias:** `./spec.md` Rev. 2 (QUÉ) · `./plan.md` Rev. 2 (CÓMO) · D-48
+**Estado:** **Aprobado** por el Product Owner el 21 de septiembre de 2026 (D-48). Backend en **Spring Boot (Java 21)**, paquete `com.wamma.crm`
 
-> Tareas ejecutables, ordenadas por dependencia. Cada una declara qué la desbloquea y cómo se verifica.
-> Ninguna tarea arranca si una pregunta abierta de `spec.md` §13 la afecta directamente (Constitución, Principio VII).
+> Tareas ordenadas por dependencia. Cada una declara cómo se verifica. Todo se construye y se prueba **en local**, contra el PostgreSQL embebido. Supabase, Render y Vercel no se tocan en esta etapa (plan §11).
+>
+> La Rev. 1, escrita para Go, queda en el historial de Git. Sus olas 1 y 2 (núcleo y maqueta) se completaron el 10/09/2026 y sus pantallas son la base de la ola F.
 
 ---
 
@@ -14,170 +15,230 @@
 
 | Bloqueante | Bloquea | Estado |
 |---|---|---|
-| ~~**C1**~~ ¿cédula obligatoria para agendar? | F2 | **Cerrado** — captura en dos pasos (`spec.md` §8.5) |
-| **C2** período de conservación de datos | Nada del MVP; tarea futura | Ausente |
-| **C3** reparto de oportunidades sin dueño | B4 (solo el reparto automático) | Ausente — mitigado con `asesor_id` nulo |
-| ~~**C4**~~ identidad del asesor (módulo 001) | Olas 3, 4 y 5 completas | **Cerrado** — el 001 existe (D-24); se conecta en la etapa 3 |
-| ~~**C5**~~ umbral de "estancada" | F3, B5 | **Cerrado** — umbral por etapa 2/3/7/7/14 (`spec.md` §8.6) |
-| **C6** ¿se notifica al cliente? | Nada del MVP | Ausente |
-| ~~**C7**~~ enmienda de la Constitución | — | **Cerrado** — Constitución v2.0.0 |
-| **Módulo 001** (`internal/platform`) | Olas 3, 4 y 5 | **No construido** |
-
-**Las olas 1 y 2 se pueden ejecutar hoy**, íntegras: son núcleo puro y maqueta, sin I/O ni identidad. Con C1 y C5 cerrados, **ninguna tarea de la ola 2 queda bloqueada**. Lo que **no** se puede es dar el módulo por terminado.
-
-> **Avance al 2026-09-10:** ola 2 completa (F1–F5), verificada con un recorrido automatizado en navegador sobre la maqueta. Ese recorrido detectó un defecto en la fusión —se descartaba el registro absorbido— que se corrigió antes de construir F4 y F5; la regla vigente está en `plan.md` §5.1. La ola 1 (núcleo puro en Go) sigue pendiente.
+| Plan y spec Rev. 2 | Todo | **Cerrado** (D-48) |
+| Aprobación de estas tareas | Todo | **Cerrado** (21/09/2026) |
+| C3, C8, C9, C10 y C11 | C4, C5, C6, D3, F3 | **Cerrados** (D-48) |
+| C2: retención | Nada de esta etapa | Abierta: nada se borra |
+| C6: avisar al cliente | Nada de esta etapa | Abierta: solo el `mailto:` del asesor |
+| Módulos 001 y 005 en el servidor | Todo | **Hechos** (etapas 1 y 2) |
 
 ---
 
-## Ola 1 · Núcleo puro (cero I/O, máxima cobertura)
+## Ola A · Núcleo puro (`crm.domain`, sin Spring ni base)
 
-Arranca sin dependencias externas. Es la parte del módulo que sobrevive a cualquier decisión de infraestructura.
+### A1 — Etapas, motivos y transiciones
+`Stage`, `LossReason` y `TransitionRules`, con la tabla de `plan.md` §4: avance, cierre con motivo (`otro` exige texto), retroceso con nota y etapas terminales.
+**Verifica:** **100 % de ramas**. CA-010.2, CA-010.3 y CA-010.10. Los mismos casos que `evaluarTransicion` del frontend.
 
-### N1 — Entidades y catálogos del dominio
-Crear `backend/internal/crm/domain/` con `Persona`, `Oportunidad`, `Interaccion` y los catálogos de etapas y motivos de pérdida de `spec.md` §8.1 y §8.2 como datos, no como constantes dispersas.
-**Depende de:** nada.
-**Verifica:** compila; prueba de arquitectura con `go list` que confirma que `crm` **no** importa `creditapp` (`plan.md` §2.1).
+### A2 — Normalización
+`CedulaNormalizer` y `PhoneNormalizer` (E.164 venezolano).
+**Verifica:** **100 % de ramas**. Cédula con puntos, guiones, espacios y letra en minúscula. `0414…`, `414…`, `58414…` y `+58414…` dan el mismo número. Se rechazan los valores vacíos y los que no son venezolanos. Mismos casos que `normalizarTelefono` del frontend.
 
-### N2 — Normalización y deduplicación
-Módulo `dedup/`: normalización de cédula (puntos, guiones, letra en mayúscula) y de teléfono venezolano a E.164. Resolución por cédula, por teléfono y sin coincidencia, devolviendo **qué criterio** resolvió.
-**Depende de:** N1. **Afectada por:** C1.
-**Verifica:** **100 % de cobertura de ramas.** Casos: cédula con formato sucio, teléfono con y sin prefijo, `0414`/`+58414`/`58414` como el mismo número, cédula ausente, ambos ausentes.
-**Nota:** la lógica de normalización telefónica ya existe en `frontend-web/src/screens/admin/O3_GestionCitas.tsx`; se porta a Go como fuente única, igual que se hizo con `mocks/financiamiento.ts` → `calc` (ver `../solicitud-credito/tasks.md` N3).
+### A3 — Métricas
+`FunnelMetrics` sobre filas ya leídas: conversión entre etapas, tiempo en etapa y estancadas por umbral.
+**Verifica:** **100 % de ramas**. CA-010.9. Una oportunidad viva cuenta el tiempo hasta ahora.
 
-### N3 — Máquina de estados del embudo
-Tabla de transiciones de `plan.md` §4, con validación de origen **y** de actor. Incluye la exigencia de motivo al cerrar en perdido y de nota al retroceder.
-**Depende de:** N1.
-**Verifica:** **100 % de ramas.** Toda transición válida e inválida; cierre sin motivo rechazado (`CA-010.2`); retroceso sin nota rechazado (`CA-010.10`); toda salida desde etapa terminal rechazada (`CA-010.3`).
+### A4 — Plazos y enlace
+- Vencimiento de la reserva (24 h) y del enlace (7 días), calculados con `Clock`.
+- Generación del token (32 bytes aleatorios, Base64 URL) y su SHA-256.
 
-### N4 — Cálculo de métricas del embudo
-Módulo `metrics/`: conversión entre etapas, tiempo en etapa y detección de estancadas, operando sobre filas ya leídas (sin consultar la base).
-**Depende de:** N1, N3.
-**Verifica:** cobertura alta sobre datos fijos. Caso obligatorio: una oportunidad **abierta** cuenta el tiempo transcurrido hasta ahora, no queda fuera del promedio (`plan.md` §8).
+**Verifica:** límites exactos del vencimiento; el token nunca se repite en 10.000 generaciones; su hash tiene 64 caracteres hexadecimales.
 
----
-
-## Ola 2 · Maqueta (valida el modelo antes de migrar)
-
-Arranca en paralelo con la ola 1. Su propósito es que el equipo comercial corrija etapas y motivos **antes** de que exista una migración (`plan.md` §2.3).
-
-### F1 — Separar el contexto de CRM ✅ HECHO
-Extraer `frontend-web/src/state/crmContexto.tsx` con personas, oportunidades, interacciones y citas. `vehiculosContexto.tsx` se queda con inventario e imperfecciones. Tipos nuevos en `types/crm.ts`.
-**Depende de:** nada.
-**Verifica:** el inventario y los favoritos siguen funcionando igual; `npm run build` limpio; ningún componente importa ambos contextos para una sola tarea.
-
-### F2 — Resolución de persona al capturar ✅ HECHO
-`ModalAgendarCita.tsx` deja de crear una cita suelta: resuelve o crea la persona y abre la oportunidad en etapa `nuevo`.
-**Depende de:** F1. **Afectada por:** C1.
-**Verifica:** **`CA-010.1`** — dos citas con la misma cédula producen una persona y dos oportunidades. Prueba manual documentada, más prueba automatizada si ya existe arnés.
-
-### F3 — Migración de los datos locales v1 → v2 ✅ HECHO
-Función de arranque que lee las claves `wamma_*_v1`, agrupa las citas existentes por cédula, crea personas y oportunidades, y persiste `v2`. Es el ensayo de la migración real.
-**Depende de:** F1, F2. **Afectada por:** C5 (marca de estancadas).
-**Verifica:** con 20 citas simuladas de 12 personas distintas, el resultado son 12 personas y 20 oportunidades, sin pérdida de datos ni duplicados. La v1 no se borra hasta confirmar.
-
-### F4 — Pantalla de embudo ✅ HECHO (sin filtro por asesor: bloqueado por C4)
-`screens/admin/O7_EmbudoComercial.tsx`: columnas por etapa con conteo y monto, filtro por asesor, marca de estancadas y de próxima acción vencida.
-**Depende de:** F1, F3.
-**Verifica:** mover una oportunidad respeta la máquina de estados; cerrar en perdido exige motivo en la interfaz, no solo en el modelo.
-
-### F5 — Ficha 360 y registro de interacción ✅ HECHO
-`screens/admin/O7_FichaPersona.tsx` con oportunidades e historial. En `O3_GestionCitas.tsx`, tras pulsar WhatsApp se ofrece registrar la interacción con canal, dirección y fecha ya rellenados y **un solo campo obligatorio** (`plan.md` §7.4).
-**Depende de:** F4.
-**Verifica:** registrar una interacción tras usar WhatsApp cuesta un clic y escribir la nota. Si cuesta más, la tarea no está terminada — es el punto donde este módulo se abandona.
-
-### F6 — Venta tras la visita y enlace de financiamiento ✅ HECHO
-Botones «Asistió» y «Vender Vehículo» en la bandeja de citas; enlace personal de solicitud de crédito; bloqueo de «Solicitar financiamiento» en la ficha mientras hay cita; correo de confirmación desde el correo del asesor (`spec.md` §8.8, RF-010.18 a 21).
-**Depende de:** F5.
-**Verifica:** de contado, la venta se cierra y el vehículo queda vendido; financiado, el vehículo sigue reservado y el enlace abre la solicitud con el vehículo cargado; sin enlace, la solicitud no se muestra.
+### A5 — Reglas de arquitectura y cobertura
+ArchUnit (dependencia de pruebas) y JaCoCo (plugin), con umbral del 100 % de ramas solo sobre `com.wamma.crm.domain`.
+**Verifica:** la prueba falla si `inventory` importa `crm` o si `crm.domain` importa Spring o JDBC. `mvn verify` falla si baja la cobertura del dominio.
 
 ---
 
-## Ola 3 · Cimientos de datos
+## Ola B · Datos
 
-**Bloqueada por el módulo 001.** No arranca antes.
+### B1 — Migración V0017
+Los cambios de `plan.md` §3:
+- `oportunidad.moneda` en EUR y VES;
+- `cita_inspeccion.reserva_vence_en`, con su índice parcial.
 
-### O1 — Migraciones base
-Las seis tablas de `plan.md` §3.2. UUID v7, `NUMERIC(18,2)` para el valor estimado, `BYTEA` + `_bidx` para cédula, teléfono y correo.
-**Depende de:** módulo 001 (`platform/crypto`).
-**Verifica:** la migración sube y baja limpia; ningún campo monetario es `float`; el índice único parcial sobre `cedula_bidx` existe.
-**Estado (septiembre 2026):** el esquema ya existía (V0004, aplicado en Supabase) y se **corrigió** contra este plan en V0010–V0011: `persona` + `persona_telefono` con `BYTEA` e índice ciego, sin `float`, cédula única. Ensayado en Supabase con transacción revertida, sobre el esquema real y desde cero (`../000-overview/database-schema-design.md` §5.4), y aplicado el 14 de septiembre de 2026 (esquema en V0012). Flyway libre no tiene migraciones de bajada: la reversión se ensaya así. **Sigue bloqueado por el 001** todo lo que escriba datos: sin `platform/crypto` no hay qué cifrar.
+**Verifica:**
+- si hay oportunidades en USD, la migración falla con un mensaje claro;
+- pruebas nuevas en `pruebas-esquema.sql`;
+- desde cero en local y en la CI;
+- no toca `flyway_schema_history`.
 
-### O2 — Inmutabilidad a nivel de motor
-`REVOKE UPDATE, DELETE` + *trigger* `abortar_mutacion()` sobre `interacciones` y `etapa_historial`.
-**Depende de:** O1.
-**Verifica:** **`CA-010.4`** — `UPDATE` y `DELETE` fallan desde el usuario de aplicación. **Prueba de integración obligatoria**; sin base real no demuestra nada.
-**Estado (septiembre 2026):** motor listo en V0009 — `REVOKE` a `wamma_app`, trigger de fila y trigger de `TRUNCATE`; el ensayo confirmó que `UPDATE`, `DELETE` y `TRUNCATE` fallan. Falta la prueba automática desde el rol de aplicación, que exige activar `wamma_app` (`database-schema-design.md` §5.3).
-
-### O3 — Siembra de catálogos
-`catalogo_etapas` y `catalogo_motivos_perdida` con los valores de `spec.md` §8.1 y §8.2, ya corregidos por lo aprendido en la ola 2.
-**Depende de:** O1, F4.
-**Verifica:** los catálogos sembrados coinciden con los que el equipo validó en la maqueta. Ninguna etapa ni motivo inventado.
-**Estado (septiembre 2026):** hecho en V0010 — reemplaza las etapas y los motivos inventados en V0004 por los de §8.1 y §8.2, con los umbrales de §8.6. El ensayo verificó ambos catálogos contra el spec.
+### B2 — Repositorios JDBC
+Persona (con sus teléfonos cifrados e índices ciegos), oportunidad, cita, interacción, historial de etapas y fusión.
+**Verifica:** las pruebas de integración ejecutan cada consulta contra el esquema real.
 
 ---
 
-## Ola 4 · Backend con I/O
+## Ola C · Servicios
 
-### B1 — Repositorios
-`store/` con las consultas de `personas`, `oportunidades`, `interacciones` y `etapa_historial`. Deduplicación con `ON CONFLICT ... DO NOTHING` y relectura (`plan.md` §5).
-**Depende de:** O1, N2.
-**Verifica:** **prueba de integración de la condición de carrera** — dos inserciones concurrentes con la misma cédula producen una sola persona.
+### C1 — Resolución de identidad
+`IdentityResolver`: por cédula, por cualquier teléfono o nueva, con `ON CONFLICT DO NOTHING` y relectura (`plan.md` §5).
+**Verifica:**
+- **CA-010.1** con **dos hilos concurrentes** que insertan la misma cédula: queda una sola persona;
+- **CA-010.11**: consulta directa a la base sin ninguna cédula, teléfono ni correo en claro.
 
-### B2 — Transición de etapa transaccional
-Cambio de `oportunidades.etapa` + escritura de `etapa_historial` + efecto sobre el inventario, todo en **una transacción**.
-**Depende de:** B1, N3.
-**Verifica:** `CA-010.5` y `CA-010.6`; el caso del §4 en que un cierre perdido **no** libera el vehículo porque otra oportunidad abierta lo reclama. Fallo simulado a mitad de la transacción no deja etapa cambiada sin historial.
+### C2 — Confirmación, consolidación y fusión
+Al confirmar, la cédula se adjunta o se fusiona. La fusión reasigna oportunidades, citas, teléfonos e interacciones, conserva la copia en `fusion_persona` y deja la absorbida en `fusionado`, todo en una transacción.
+**Verifica:**
+- una cédula ya existente produce la fusión sin perder ningún teléfono;
+- el principal pasa a ser el de la cita más reciente;
+- la bitácora registra `persona.fusionada` con el criterio;
+- un fallo a mitad de la operación no deja nada a medias.
 
-### B3 — Interfaz de estado de solicitud
-`EstadoSolicitud` de `plan.md` §2.1, implementada por `creditapp`. Expone estado y nada más.
-**Depende de:** B1.
-**Verifica:** **`CA-010.7`** — un asesor obtiene el estado de la solicitud y **ningún** campo financiero. Prueba de integración con rol real.
+### C3 — Transiciones con efecto en el inventario
+Cambio de etapa, historial y bitácora en una transacción, con `version`. El efecto en el inventario pasa por el servicio de `inventory`.
+**Verifica:**
+- CA-010.5 y CA-010.6;
+- el cierre perdido **no** libera un vehículo que otra oportunidad abierta reclama;
+- el intento inválido queda en la bitácora;
+- dos cambios con la misma versión: el segundo recibe 409.
 
-### B4 — API `/v1/crm`
-Los nueve endpoints de `plan.md` §6. Paginación por cursor, `Idempotency-Key` en interacciones, `If-Match` en transición de etapa.
-**Depende de:** B1, B2, B3, módulo 001 (RBAC).
-**Verifica:** `CA-010.8` (filtrado por rol); un reintento de `POST` de interacción con la misma clave no duplica la nota; dos `PATCH` de etapa concurrentes → el segundo recibe `409`.
+### C4 — Captación pública
+`AppointmentService.schedule`:
+- validación y vehículo disponible en la vitrina;
+- persona por teléfono y oportunidad nueva o reutilizada;
+- cita pendiente;
+- reserva de 24 h con un `UPDATE … WHERE estado = 'exhibicion'` atómico.
 
-### B5 — Endpoint de métricas
-`GET /v1/crm/metricas/embudo` con la consulta de `plan.md` §8 y caché en Redis de vencimiento corto.
-**Depende de:** B1, N4. **Afectada por:** C5.
-**Verifica:** `CA-010.9`; el resultado coincide con el cálculo puro de N4 sobre los mismos datos.
+`CaptureRateLimiter`: 5 citas por IP y 2 por teléfono cada 24 h, en memoria.
+**Verifica:**
+- dos citas simultáneas al mismo vehículo producen una sola reserva y un 409;
+- un doble envío no duplica;
+- la sexta cita desde la misma IP y la tercera con el mismo teléfono reciben 429;
+- la respuesta no incluye datos personales.
 
-### B6 — Conmutar el frontend a la API
-El `crmContexto` cambia de fuente: de persistencia local a `/v1/crm`. Las pantallas no cambian.
-**Depende de:** B4, F5.
-**Verifica:** las pantallas de la ola 2 funcionan contra el backend sin cambios de interfaz. Si hubo que rediseñar una pantalla, el contrato de la ola 2 estaba mal y se documenta por qué.
+### C5 — Vencimiento de la reserva
+Tarea `@Scheduled` cada 15 minutos (y `@EnableScheduling`). La vitrina también aplica el vencimiento al leer la disponibilidad.
+**Verifica:**
+- con el reloj adelantado 24 h, el vehículo vuelve a disponible, la cita sigue pendiente sin reserva y queda `cita.reserva_vencida`;
+- una cita confirmada no vence;
+- con la tarea detenida, la vitrina ya muestra el vehículo disponible.
+
+### C6 — Venta y enlace de financiamiento
+- **Contado:** `cerrado_ganado` y el vehículo vendido.
+- **Financiamiento:** `negociacion` y emisión del enlace (hash, emisión y vencimiento a 7 días). Reemitirlo invalida el anterior.
+- La validación del enlace no consume su uso: eso es de la etapa 4.
+
+**Verifica:**
+- el token vuelve una sola vez y en la base solo está su hash;
+- un enlace vencido o reemplazado no es válido;
+- «Vender» sin asistencia previa devuelve 422.
+
+### C7 — Interacciones
+Alta append-only con `Idempotency-Key`, oportunidad opcional y corrección que referencia la anterior.
+**Verifica:**
+- un reintento con la misma clave devuelve la misma interacción;
+- **CA-010.4**: con `SET ROLE wamma_app`, `UPDATE`, `DELETE` y `TRUNCATE` sobre `interaccion` y `etapa_historial` fallan por privilegio.
+
+### C8 — Métricas en la base
+La consulta de `plan.md` §9, sin caché.
+**Verifica:** coincide con A3 sobre los mismos datos; **< 500 ms con 5.000 oportunidades abiertas** sintéticas.
 
 ---
 
-## Ola 5 · Verificación transversal
+## Ola D · API
 
-### V1 — Cifrado y búsqueda ciega
-Confirmar que cédula, teléfono y correo están cifrados en reposo y que la búsqueda opera contra el índice ciego sin descifrar.
-**Depende de:** O1, B1.
-**Verifica:** **`CA-010.11`** — consulta directa a la base no muestra ninguna cédula en claro.
+### D1 — Rutas públicas
+`POST /v1/citas` y `GET /v1/enlaces-financiamiento/{token}`, abiertas en `SecurityConfig`.
+**Verifica:** sin sesión funcionan; con datos inválidos, 422 en formato Problem Details; ninguna devuelve datos personales.
 
-### V2 — Auditoría de acciones comerciales
-Toda transición de etapa, reasignación de asesor y fusión de personas queda en la bitácora del módulo 001, incluidos los intentos rechazados.
-**Depende de:** B2, B4, módulo 001.
-**Verifica:** `CA-010.3`; una fusión por teléfono queda auditada con el criterio que la produjo (`plan.md` §5).
+### D2 — Bandeja de citas
+Listado, confirmación, descarte y asistencia.
+**Verifica:** el asesor ve las citas de sus oportunidades y las sin dueño; el coordinador ve todas.
 
-### V3 — Cierre del insumo D15
-Confirmar que `oportunidad.id` es el `lead_id` que `../solicitud-credito/spec.md` §13 declara ausente, y actualizar ese spec para cerrar D15.
-**Depende de:** B4.
-**Verifica:** una solicitud de crédito creada desde una oportunidad queda vinculada en ambos sentidos; D15 deja de figurar como insumo ausente.
+### D3 — Oportunidades
+Listado por cursor, etapa con `If-Match`, asesor (asignar o tomar sin dueño), próxima acción y venta.
+**Verifica:**
+- **CA-010.8**;
+- una oportunidad ajena devuelve 404 y queda en la bitácora;
+- el asesor no puede quitarle una oportunidad a otro (403);
+- dos `PATCH` concurrentes: el segundo recibe 409.
+
+### D4 — Personas e interacciones
+Búsqueda (nombre en texto; cédula y teléfono por índice ciego), ficha 360 y alta de interacción.
+**Verifica:** **CA-010.7**: ninguna respuesta del CRM tiene campos financieros; la búsqueda por cédula funciona sin descifrar.
+
+### D5 — Métricas y catálogos
+`GET /v1/crm/metricas/embudo` (`crm.ver_todas`) y `GET /v1/crm/catalogos`.
+**Verifica:** el asesor recibe 403 en las métricas; los catálogos coinciden con los sembrados en V0010.
 
 ---
 
-## Criterio de "terminado" del módulo
+## Ola E · Datos de desarrollo
+
+### E1 — Siembra local
+`LocalDevServer` crea asesores y coordinador ficticios, y algunas personas y citas de ejemplo, **solo** en el PostgreSQL embebido.
+**Verifica:** nada de esto corre con el perfil `supabase`.
+
+---
+
+## Ola F · Frontend
+
+### F1 — Clientes de la API
+`api/citas.ts` (público) y `api/crm.ts` (backoffice), con los tipos de los contratos.
+**Verifica:** `tsc -b` limpio.
+
+### F2 — Contexto del CRM con dos modos
+`state/crm.tsx`: con servidor y sesión, lee y escribe en la API, con operaciones asíncronas y errores visibles; sin servidor, queda la maqueta.
+**Verifica:** las pantallas no cambian de forma. Si alguna cambia, se documenta por qué.
+
+### F3 — Agendar cita
+`ModalAgendarCita` envía a `POST /v1/citas`, muestra el 409 y el 429 y reintenta una vez si el servidor está dormido. Se retira el rango de ingresos, también en la maqueta.
+**Verifica:** el mensaje correcto en cada caso; tras agendar, la ficha muestra «Con cita».
+
+### F4 — Bandeja
+`O3_GestionCitas`: confirmar (pide la cédula), descartar, asistió, vender (contado o financiamiento) y registrar interacción tras WhatsApp. El enlace se muestra una vez, con «Copiar».
+**Verifica:** registrar una interacción sigue costando un clic y la nota (`plan.md` Rev. 1 §7.4).
+
+### F5 — Embudo, personas y ficha
+`O7_*` con datos del servidor. En el embudo, filtro por asesor y «Tomar» en las sin dueño.
+**Verifica:** el asesor no ve oportunidades ajenas; el coordinador sí, con el filtro.
+
+### F6 — Enlace en la solicitud
+`C9` valida el enlace contra el servidor. El resto de la solicitud sigue en la maqueta hasta la etapa 4.
+**Verifica:** un enlace válido abre la solicitud con el vehículo; uno vencido o reemplazado lo explica.
+
+### F7 — Calidad
+**Verifica:** `tsc -b`, `npm run lint` y `npm run test` en verde.
+
+---
+
+## Ola G · Verificación y cierre de la etapa
+
+### G1 — Recorrido en navegador
+Playwright, contra el backend local:
+1. agendar;
+2. «Con cita» en la vitrina;
+3. confirmar con una cédula ya existente (fusión);
+4. asistió;
+5. vender con financiamiento;
+6. el enlace abre la solicitud;
+7. un descarte libera el vehículo.
+
+**Verifica:** todo pasa, sin errores de consola ni de CSP.
+
+### G2 — Manual de usuario (D-20)
+Capítulo 03 al día, con capturas del recorrido: lo que hace, quién lo usa, paso a paso, reglas y mensajes.
+**Verifica:** describe lo que la plataforma hace de verdad; lo que sigue en la maqueta queda marcado.
+
+### G3 — Documentación técnica
+- `data-model.md` y `database-schema-design.md` con V0017;
+- el spec de `solicitud-credito`, con el insumo D15 cerrado (`lead_id` = `oportunidad.id`);
+- este archivo, con el avance.
+
+**Verifica:** ningún documento contradice lo construido.
+
+---
+
+## Criterio de «terminado» de la etapa
 
 Además del criterio general de `../000-overview/tasks-build-order.md` §3:
 
-1. Los once criterios de aceptación de `spec.md` §11 pasan.
-2. `domain/`, `dedup/` y `metrics/` tienen **100 % de cobertura de ramas**.
-3. Las tres pruebas de integración irrenunciables pasan: condición de carrera, inmutabilidad a nivel de motor y aislamiento del expediente de crédito.
-4. Ninguna pregunta abierta de `spec.md` §13 que afecte a una tarea entregada queda sin resolver.
-5. La **cobertura de registro** (métrica de `spec.md` §12) se mide sobre uso real: si el equipo no registra interacciones, el módulo no está terminado aunque el código funcione.
+1. Pasan los once criterios de aceptación del spec §11.
+2. `crm.domain` tiene **100 % de ramas** (JaCoCo).
+3. Pasan las tres pruebas irrenunciables: la carrera de la deduplicación, la inmutabilidad frente al rol de aplicación y el aislamiento del expediente de crédito.
+4. Pasa el recorrido de G1 y el manual está al día (G2).
+5. **No se despliega:** el paso a Supabase, Render y Vercel es la etapa 5 y se decide con el PO (`plan.md` §11).
 
 ---
-*WAMMA · Confidencial · Rev. 1 · No constituye asesoría legal ni financiera.*
+*WAMMA · Confidencial · Rev. 2 · No constituye asesoría legal ni financiera.*

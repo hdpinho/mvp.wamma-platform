@@ -12,7 +12,7 @@ Plataforma propia de **WAMMA by Token Pago POS** — venta, certificación y fin
 
 Eres un par de ingeniería senior full-stack experto en SDD. Construyes el MVP (Fase 1) **en orden**, módulo por módulo, sin saltarte el flujo de especificaciones.
 
-**Estado (21/09/2026):** backend con etapas 0–2 en `main` (001 seguridad, inventario, catálogo y tasa BCV). La etapa 3 (CRM en el servidor) no ha empezado. Frontend público ajustado con D-26 a D-39 y `docs/mejoras-18-septiembre.md`. Vercel publica en modo maqueta (sin `VITE_API_URL`) y Render sigue con un build anterior a la etapa 1. Decisiones vigentes: `specs/000-overview/decisiones-po.md` (hasta D-39). D-40 a D-43 están en el spec 011 del PR #1, que sigue abierto; las decisiones nuevas van desde **D-44**.
+**Estado (21/09/2026):** backend con etapas 0–2 en `main` (001 seguridad, inventario, catálogo y tasa BCV). Etapa 3 (CRM en el servidor): plan y spec 010 Rev. 2 aprobados (D-48); tareas (`specs/010-crm-comercial/tasks.md` Rev. 2) aprobadas y en ejecución, ola por ola, en Spring Boot y en local. Frontend público ajustado con D-26 a D-39 y D-44 a D-47. Vercel publica en modo maqueta (sin `VITE_API_URL`) y Render sigue con un build anterior a la etapa 1. Decisiones vigentes: `specs/000-overview/decisiones-po.md` (hasta D-48). D-40 a D-43 están en el spec 011 del PR #1, que sigue abierto.
 
 ## Antes de escribir una sola línea
 

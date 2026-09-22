@@ -1,339 +1,291 @@
-# 010 · Plan técnico — Seguimiento comercial de prospectos
+# 010 · Plan técnico — Etapa 3: seguimiento comercial en el servidor
 
 **Proyecto:** WAMMA · Plataforma propia · **Fase 1 (MVP)**
-**Clasificación:** Confidencial · **Rev.:** 1 · **Septiembre 2026**
-**Spec de referencia:** `./spec.md`
-**Estado:** **Aprobado** por el Product Owner (septiembre 2026)
+**Clasificación:** Confidencial · **Rev.:** 2 · **Septiembre 2026**
+**Spec de referencia:** `./spec.md` (Rev. 1, con los ajustes de §0.2)
+**Estado:** **Aprobado** por el Product Owner el 21 de septiembre de 2026 (D-48), con la opción recomendada en cada punto de §1. La Rev. 1 (escrita para Go) queda en el historial de Git
 
-> El QUÉ está en `spec.md`. Aquí va el **CÓMO**: encaje arquitectónico, modelo físico, máquina de estados, contratos y estrategia de pruebas. `../000-overview/architecture-plan.md` manda sobre las decisiones transversales.
+> El QUÉ está en `spec.md`. Aquí va el CÓMO. `../000-overview/architecture-plan.md` manda sobre lo transversal. El plan del 001 fija la seguridad, la bitácora y la persistencia con `JdbcClient`; el del 005, el inventario y la disponibilidad.
 
 ---
 
-## 1. Supuestos adoptados
+## 0. Qué cambia respecto de la Rev. 1
 
-| # | Punto | Decisión | Reversibilidad |
+### 0.1 Lo que se conserva
+
+El modelo de dominio de la Rev. 1 **sigue vigente**, porque la ola 2 lo validó en la maqueta con uso real:
+- las siete etapas y la máquina de estados (§4);
+- el catálogo cerrado de motivos de pérdida;
+- la deduplicación por cédula o por cualquier teléfono, con la consolidación y la fusión reversible (§5);
+- las tres tablas append-only;
+- el cálculo de métricas sobre `etapa_historial` (§9).
+
+El esquema ya existe: V0004, alineado con este plan en V0010–V0011. Tampoco cambian los catálogos sembrados.
+
+### 0.2 Lo que cambia
+
+| Punto | Rev. 1 | Rev. 2 | Motivo |
 |---|---|---|---|
-| S1 | **Alcance del módulo** | Capa propia y ligera dentro de la plataforma. **No** se integra ni se compra un CRM externo en esta fase | Los datos quedan normalizados (una persona por cédula), que es justo lo que un CRM externo necesitaría para importar |
-| S2 | **Canal de contacto** | Enlaces `wa.me`, como ya hace el backoffice. Sin WhatsApp Business API | El registro de interacción es manual; migrar a la API de Meta añadiría el registro automático sin cambiar el modelo |
-| S3 | **Identidad del asesor** | `asesor_id` es FK a `usuario` (módulo 001). Mientras 001 no exista, el campo es **nulo** y la interfaz muestra "sin asignar" | Al llegar 001, se puebla. Ningún dato se pierde |
-| S4 | **Moneda del valor estimado** | USD con equivalencia BCV, reusando el tipo `Dinero` de `internal/creditapp/calc` (Principio V) | Ya es multi-moneda por construcción |
-| S5 | **Etapas del embudo** | Las siete de `spec.md` §8.1, en tabla de parámetros, **no** en un `ENUM` de código | Añadir o renombrar una etapa es una fila, no un despliegue |
-| S6 | **Reapertura** | Prohibida. Retomar contacto crea una oportunidad nueva | Es lo que mantiene honestas las métricas del embudo |
+| Stack | Go, `internal/crm/…` | Spring Boot, `com.wamma.crm`, `JdbcClient` | Migración del backend a Spring Boot (`architecture-plan.md`) |
+| Moneda (S4) | USD | **EUR**, con la tasa BCV fijada al publicar | Constitución v3.0.0 (D-21): deuda declarada que se paga en esta etapa |
+| Caché de métricas | Redis | Consulta directa, sin caché | Redis está fuera del MVP (`AGENTS.md`) |
+| Identidad (S3, C4) | `asesor_id` nulo hasta el 001 | Usuario real de la sesión (`CurrentUser`) | El 001 ya existe (D-24) |
+| Aviso al buzón comercial (spec §10) | Correo al buzón en cada captura | **Se retira**; la captura se ve en el backoffice | D-18 |
+| Modalidad al agendar (spec §8.8) | Contado o financiamiento | **Siempre financiamiento** | D-30 |
+| Reserva al agendar (RF-010.18) | Indefinida hasta que el asesor actúe | Con **plazo** (E4) | Con captación pública real, una reserva sin plazo deja que cualquiera vacíe la vitrina |
+
+Con la aprobación (D-48), el spec pasa a Rev. 2 con estos ajustes, y las preguntas C3 y C8 a C11 quedan cerradas en su §13.
+
+---
+
+## 1. Decisiones y propuestas
+
+| # | Punto | Aprobado (D-48) | Estado |
+|---|---|---|---|
+| E1 | Paquete y dependencias | `com.wamma.crm`, con `crm.domain` puro: etapas, transiciones, normalización y métricas, sin Spring ni I/O. `crm` usa `platform` (usuario, bitácora, cifrado) e `inventory`, este último **solo a través de su servicio** de disponibilidad, nunca por SQL directo. Nadie importa `crm` salvo el futuro `creditapp`. La regla `crm ↛ creditapp` se comprueba con una prueba de arquitectura (ArchUnit, dependencia nueva solo para pruebas) | Aprobado (D-48) |
+| E2 | Moneda | `oportunidad.moneda` pasa a `EUR`/`VES`, por omisión `EUR`. El `valor_estimado` es el **precio publicado**, con la tasa y la fecha que la publicación fijó al publicarse. No se recalcula | Aprobado (D-48) |
+| E3 | Captación pública | `POST /v1/citas` sin sesión. Pide lo mismo que el formulario actual: nombre, WhatsApp, correo opcional, vehículo, día y franja. Resuelve o crea la persona **por teléfono** (la cédula llega al confirmar, §8.5 del spec), abre la oportunidad en `nuevo` y la cita en `pendiente`. Si ya existe una oportunidad abierta de esa persona sobre ese vehículo, la reutiliza: un doble envío no duplica nada | Aprobado (D-48) |
+| E4 | Plazo de la reserva al agendar (**C8**, pendiente de D-26) | **A (recomendada):** la cita pendiente reserva el vehículo durante un plazo (**propuesto: 24 h**). Si nadie la confirma en ese plazo, el vehículo vuelve a disponible; la cita sigue pendiente en la bandeja, ya sin reserva. **B:** agendar no reserva; se reserva al confirmar. Es lo más simple, pero contradice RF-010.18. **C:** reserva sin plazo, como la maqueta. Así, cualquiera podría bloquear toda la vitrina con citas falsas | **Aprobado** (D-48): A, 24 h |
+| E5 | Límite de captación | Tope de citas públicas por IP y por teléfono en una ventana (**propuesto: 5 por IP y 2 por teléfono cada 24 h**). En memoria, con el mismo mecanismo que el límite de ingreso del 001. Sin CAPTCHA en esta etapa: exigiría un proveedor externo (Principio II) | **Aprobado** (D-48): 5 por IP y 2 por teléfono cada 24 h |
+| E6 | Venta de contado (**C10**) | D-30 retiró el contado del formulario público, pero la bandeja todavía ofrece «Vender de contado». **A (recomendada):** se mantiene en el backoffice, porque un cliente puede decidir pagar de contado en la visita. **B:** se retira también de la venta | **Aprobado** (D-48): A |
+| E7 | Enlace de financiamiento (**C9**) | Al vender con financiamiento se emite un token aleatorio de 32 bytes. En la base solo se guarda su SHA-256, con emisión y vencimiento; el token se muestra **una sola vez**, para que el asesor lo envíe. `GET /v1/enlaces-financiamiento/{token}` (público) dice si es válido y a qué vehículo apunta, sin ningún dato personal. Se marca como usado cuando se envíe la solicitud, que es de la etapa 4. Vencimiento propuesto: **7 días**. Reemitirlo invalida el anterior | **Aprobado** (D-48): 7 días |
+| E8 | Reparto sin dueño (**C3**) | El coordinador asigna (`crm.asignar`). Además, **un asesor puede tomar una oportunidad sin dueño** para sí mismo; no puede quitársela a otro. Sin eso, nada avanza mientras no haya coordinador. El reparto automático queda fuera | **Aprobado** (D-48) |
+| E9 | Rango de ingresos al agendar (**C11**) | Hoy el formulario lo pide, pero **no se guarda en ninguna parte**. Pedir un dato que no se usa va contra el mínimo privilegio (Principio I), y el ingreso es del expediente de crédito, no de la capa comercial (§8.3). **A (recomendada):** retirar el campo del formulario. **B:** guardarlo, y entonces el PO define para qué y quién lo ve | **Aprobado** (D-48): A |
+| E10 | Datos de la maqueta | No se migran al servidor: son simulados. El servidor arranca con el CRM vacío. El servidor local de desarrollo (`LocalDevServer`) sí siembra algunas personas y citas ficticias para los recorridos | Aprobado (D-48) |
+| E11 | Cédula en el backoffice | Se muestra completa a quien tiene `crm.ver_propias` o `crm.ver_todas`, porque la necesita para confirmar y fusionar (§8.3). En la bitácora va siempre enmascarada (`Masking`). La búsqueda por cédula o teléfono usa el índice ciego y no descifra nada | Aprobado (D-48) |
+| E12 | Etiqueta «Reservado para cita» (D-44) | No se toca en esta etapa. Si el PO decide que se derive de la disponibilidad (pendiente en `decisiones-po.md`), es un cambio pequeño en el catálogo público | Nota |
+| E13 | Alta manual de personas (RF-010.1) | Fuera de esta etapa: la maqueta no tiene esa pantalla. Las personas entran por la cita pública | Aprobado (D-48) |
 
 ---
 
 ## 2. Encaje en la arquitectura
 
-Stack heredado sin cambios: **Go** (monolito modular), **PostgreSQL**, **Redis**, **React**, API `/v1`.
-
-### 2.1 Paquete propio y dirección de las dependencias
-
 ```
-backend/internal/
-├── platform/      # auth, RBAC, auditoría, cifrado (001)   ← dependencia transversal
-├── catalog/       # vehículo publicado (005)
-├── crm/           # ◄ NUEVO — persona, oportunidad, embudo
-├── creditapp/     # captación de solicitudes de crédito
-└── risk/          # scoring, AML, decisión (006)
-```
-
-Dependencias permitidas:
-
-```
-crm      →  catalog     (lee el vehículo, escribe su disponibilidad)
-crm      →  platform    (identidad, auditoría, cifrado)
-creditapp →  crm        (resuelve la persona, obtiene el lead_id)
-```
-
-**Prohibida: `crm → creditapp`.** Es la traducción a límite de compilación de la regla de negocio de `spec.md` §8.3: la capa comercial no puede alcanzar el expediente financiero ni por descuido. Si mañana alguien escribe ese `import`, no compila. Es el mismo argumento que sostiene la separación `creditapp`/`risk` en `../solicitud-credito/plan.md` §2.1.
-
-Para que `creditapp` conozca el estado de la solicitud sin invertir la dependencia, `crm` **publica una interfaz** que `creditapp` implementa:
-
-```go
-// crm/domain: lo que la capa comercial necesita saber de una solicitud.
-// Deliberadamente pobre: estado y nada más.
-type EstadoSolicitud interface {
-    EstadoDe(ctx context.Context, solicitudID uuid.UUID) (string, error)
-}
+backend/src/main/java/com/wamma/
+├── platform/        # 001: seguridad, bitácora, cifrado, errores
+├── inventory/       # 004 parcial + 005: vehículo, publicación, disponibilidad
+├── catalog/         # vitrina pública
+├── exchangerate/    # tasa BCV
+└── crm/             # ◄ NUEVO
+    ├── domain/      # puro: Stage, TransitionRules, LossReason, PhoneNormalizer,
+    │                #        CedulaNormalizer, FunnelMetrics
+    ├── PersonRepository, OpportunityRepository, InteractionRepository,
+    │   AppointmentRepository, StageHistoryRepository
+    ├── IdentityResolver        # deduplicación y consolidación (§5)
+    ├── AppointmentService      # captación pública, confirmación, descarte, asistencia
+    ├── OpportunityService      # etapas, asesor, próxima acción, venta, enlace
+    ├── InteractionService
+    ├── FunnelService           # métricas
+    ├── PublicAppointmentController, CrmController, FinancingLinkController
+    └── CaptureRateLimiter
 ```
 
-El asesor ve "solicitud en análisis". No ve el balance del cliente porque **la interfaz no lo expone**, no porque un `if` lo filtre.
-
-### 2.2 Organización interna
-
-```
-internal/crm/
-├── domain/          # persona, oportunidad, etapas, máquina de estados — sin I/O
-├── dedup/           # normalización e índice ciego para deduplicar
-├── metrics/         # cálculo del embudo (consultas puras sobre filas ya leídas)
-├── store/           # repositorios PostgreSQL
-└── http/            # handlers /v1/crm
-```
-
-`domain/`, `dedup/` y `metrics/` no importan infraestructura: son puros y por tanto exhaustivamente testeables. Ahí es donde se exige la cobertura alta (§9).
-
-### 2.3 Camino de la maqueta (antes del backend)
-
-El backend de este módulo **depende del 001**, que no existe. Para no quedar bloqueado, el modelo se valida primero en el frontend:
-
-1. Se implementan `persona`, `oportunidad` e `interaccion` en un contexto de React con persistencia local, exactamente con la forma que tendrán las tablas.
-2. El equipo comercial usa la maqueta con datos simulados y se corrigen las etapas y los motivos de pérdida **antes** de escribir una migración.
-3. Cuando llegue el backend, el contrato ya está probado contra uso real y el frontend solo cambia de fuente de datos.
-
-Es deliberado: los catálogos de etapas y motivos son la parte del diseño que más se equivoca en la primera pasada, y corregirlos en una maqueta cuesta minutos.
+- **Dependencias:** `crm → platform` (usuario, bitácora, `FieldCipher`, `BlindIndex`, errores) y `crm → inventory` (leer el vehículo y su publicación; cambiar la disponibilidad). `inventory` no conoce `crm`.
+- **Estado de la solicitud de crédito:** `crm.domain` declara un puerto `CreditApplicationStatus` que devuelve **solo el estado**. Hasta la etapa 4 no hay implementación, y la oportunidad muestra «sin solicitud». El asesor no verá el balance del cliente porque el puerto no lo expone, no porque un `if` lo filtre (spec §8.3).
+- **Persistencia:** `JdbcClient`. Cada operación escribe sus cambios, su historial y su registro en la bitácora **en una sola transacción**.
+- **Dinero:** `platform.money.Money` (EUR), nunca `double`.
 
 ---
 
-## 3. Modelo físico
+## 3. Modelo físico — migración V0017
 
-Migraciones Flyway en `backend/src/main/resources/db/migration/`. El modelo base llegó en V0004 y quedó alineado con este plan en V0009–V0012 (septiembre 2026). Los nombres de tabla son singulares, como en el resto del esquema (`../000-overview/database-schema-design.md`).
+Las tablas ya existen (V0004, V0010, V0011). Solo se ajusta:
 
-### 3.1 Convenciones
-
-- **Identificadores:** UUID. La base genera v4 (`gen_random_uuid()`); la aplicación puede asignar v7, ordenable por tiempo, cuando le convenga.
-- **Dinero:** `NUMERIC(18,2)` + `moneda VARCHAR(3)` (`USD`/`VES`) + `tasa_bcv NUMERIC(18,8)` + `fecha_tasa DATE`. **Prohibido `float`** (Principio V).
-- **Auditoría de fila:** `creado_en`, `creado_por`, `actualizado_en`.
-- **Cifrado de campo:** `cedula`, `telefono_whatsapp` y `correo` como `BYTEA` con sobre cifrado vía `platform/crypto`.
-- **Índice ciego:** columna `indice_ciego_<campo>` con HMAC-SHA256 determinista y clave separada, para deduplicar sin descifrar.
-
-### 3.2 Tablas
-
-| Tabla | Notas de implementación |
+| Tabla | Cambio |
 |---|---|
-| `persona` | `indice_ciego_cedula` único (admite nulos: la cédula llega en el segundo paso, §5.1). `canal_origen` como texto trazado, sin lista cerrada. `criterio_resolucion` registra si la identidad se resolvió por cédula, por teléfono o es nueva (§5) |
-| `persona_telefono` | Un teléfono por fila: `persona_id`, `telefono_cifrado`, `indice_ciego_telefono`, `es_principal` (como mucho uno por persona). Así la deduplicación busca por **cualquiera** de los teléfonos de una persona con un índice (§5.1) |
-| `fusion_persona` | **Append-only**, con el tratamiento de §3.3. Sobreviviente, absorbida (queda en estado `fusionado`; no se borra), copia íntegra del registro absorbido con sus datos personales ya cifrados, ids reasignados y momento. Es lo que hace reversible una fusión (§5.1) |
-| `oportunidad` | FK a `persona` y `vehiculo`. `etapa` referencia `catalogo_etapa.codigo`. `motivo_perdida` con `CHECK`: obligatorio si y solo si `etapa = 'cerrado_perdido'`. Puntero `solicitud_credito_id` sin unión de datos. Enlace de financiamiento como hash SHA-256 con emisión, vencimiento y uso único. `version` para el `If-Match` de §6. Índices en `(etapa, asesor_id)` y `(persona_id)` |
-| `interaccion` | **Append-only.** `corrige_interaccion_id` autorreferencial y nulo. `idempotency_key` única (§6). Índice en `(persona_id, ocurrido_en DESC)` |
-| `etapa_historial` | **Append-only.** `oportunidad_id`, `etapa_anterior`, `etapa_nueva` (códigos del catálogo), `nota`, `actor_id`, `creado_en`. Índice en `(oportunidad_id, creado_en)` |
-| `cita_inspeccion` | Evento dentro de una oportunidad (§7.1): `oportunidad_id`, `dia_preferido`, `franja` (`manana`/`tarde`), `estado` (`pendiente`/`confirmada`/`descartada`) |
-| `catalogo_etapa` | Código, nombre, orden, `es_terminal`, `umbral_estancada_dias` (`spec.md` §8.6; nulo en las terminales). Se siembra con las siete etapas de `spec.md` §8.1 |
-| `catalogo_motivo_perdida` | Código, nombre, `exige_texto`. Se siembra con el catálogo de `spec.md` §8.2 |
+| `oportunidad` | `moneda`: por omisión `EUR` y `CHECK (moneda IN ('EUR', 'VES'))` (E2). `modalidad_pago` conserva `contado` y `financiamiento` (E6-A) |
+| `cita_inspeccion` | + `reserva_vence_en` (TIMESTAMPTZ), por E4-A. Nulo = la cita ya no reserva. Índice parcial sobre las que todavía reservan, para la tarea de vencimiento |
 
-### 3.3 Inmutabilidad real, no por convención
+Reglas de toda migración nueva (`database-schema-design.md` §5):
+- no toca `flyway_schema_history`;
+- falla con un mensaje claro si encuentra oportunidades en `USD`, en lugar de convertirlas en silencio;
+- tiene pruebas en `pruebas-esquema.sql` y se prueba desde cero en local y en la CI;
+- se ensaya contra Supabase en una transacción que se revierte antes del despliegue, con tu confirmación.
 
-`interaccion` y `etapa_historial`, como toda tabla append-only del esquema, reciben tres barreras (V0009):
-
-```sql
-REVOKE UPDATE, DELETE, TRUNCATE ON interaccion, etapa_historial FROM wamma_app;
-CREATE TRIGGER trg_interaccion_inmutable
-  BEFORE UPDATE OR DELETE ON interaccion
-  FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_inmutable();
-CREATE TRIGGER trg_interaccion_sin_truncate
-  BEFORE TRUNCATE ON interaccion
-  FOR EACH STATEMENT EXECUTE FUNCTION prevenir_modificacion_inmutable();
-```
-
-El `REVOKE` protege del error honesto; el *trigger* de fila, de una conexión con privilegios de más; el de sentencia cubre `TRUNCATE`, que los de fila no ven. Una nota de seguimiento es la clase de dato que alguien querrá "arreglar" cuando una venta se caiga y haya que explicar por qué — y ese es exactamente el momento en que debe ser inmutable.
-
-`CA-010.4` verifica esto con **prueba de integración obligatoria**: sin base de datos real, la prueba no demuestra nada.
-
-### 3.4 Por qué `etapa_historial` es una tabla aparte
-
-Es la única entidad que añado sobre lo estrictamente descrito, y tiene una razón concreta: sin historial de transiciones, "tiempo medio en etapa" y "conversión entre etapas" **no se pueden calcular** — solo se conoce la foto actual del embudo, que es justo lo que no sirve para decidir.
-
-Se consideró registrarlas como `interacciones` con canal `sistema`. Se descartó: mezcla el registro de contacto humano con la traza de la máquina de estados, y obliga a filtrar por canal en toda consulta de ambas. Cinco columnas separadas cuestan menos que ese acoplamiento.
+**Numeración:** V0017 es el siguiente número libre en `main`. El PR #1 reserva V0016–V0018 para el spec 011; como se mezcla al final del proyecto, **sus migraciones se renumeran al mezclar** para ir después de las de `main`.
 
 ---
 
 ## 4. Máquina de estados
 
-Tabla de transiciones, validada por origen **y** por actor (mismo criterio que `../solicitud-credito/plan.md` §5).
+Sin cambios respecto de la Rev. 1. Vive en `crm.domain.TransitionRules`, sin I/O:
 
 | Desde | Hacia | Condición |
 |---|---|---|
-| `nuevo` | `contactado`, `cita_confirmada`, `visito`, `negociacion`, `cerrado_ganado` | Avance libre |
-| `contactado` | `cita_confirmada`, `visito`, `negociacion`, `cerrado_ganado` | Avance libre |
-| `cita_confirmada` | `visito`, `negociacion`, `cerrado_ganado` | Avance libre |
-| `visito` | `negociacion`, `cerrado_ganado` | Avance libre |
-| `negociacion` | `cerrado_ganado` | Avance libre |
-| *cualquiera abierta* | `cerrado_perdido` | **Exige motivo** del catálogo |
-| *cualquiera abierta* | *cualquier etapa anterior* | **Exige nota** no vacía |
+| Cualquier etapa abierta | Una posterior | Avance libre, incluso saltando etapas |
+| Cualquier etapa abierta | `cerrado_perdido` | **Exige motivo** del catálogo; `otro` exige además texto |
+| Cualquier etapa abierta | Una anterior | **Exige nota** no vacía |
 | `cerrado_ganado`, `cerrado_perdido` | — | **Terminal.** Ninguna transición |
 
-Toda transición, válida o no:
+Toda transición:
+1. se valida en el dominio;
+2. si es válida, escribe `etapa_historial` y la bitácora **en la misma transacción** que el cambio de etapa, con control optimista por `version` (`If-Match`);
+3. si es inválida, se rechaza con 422 y el intento queda en la bitácora (`oportunidad.transicion_rechazada`, CA-010.3).
 
-1. Se valida contra esta tabla en `domain/` (sin I/O, por tanto testeable al 100 %).
-2. Si es válida, escribe `etapa_historial` **en la misma transacción** que el cambio de `oportunidades.etapa`. No hay ventana en que la etapa cambie sin quedar registrada.
-3. Si es inválida, se rechaza y se registra el intento en la auditoría del módulo 001 (`CA-010.3`).
+**Efectos sobre el inventario**, en la misma transacción y a través del servicio de `inventory`:
 
-**Efectos laterales sobre el inventario** (RF-010.12), en la misma transacción:
-
-| Transición | Efecto en `vehiculo.estado` |
+| Hecho | Disponibilidad del vehículo |
 |---|---|
-| → `cerrado_ganado` | `vendido` |
-| → `cerrado_perdido` | `disponible`, **solo si** ninguna otra oportunidad abierta lo reclama |
+| Cita pública agendada | `cita_agendada`, con el plazo de E4 |
+| Oportunidad → `cerrado_ganado` | `vendido` |
+| Oportunidad → `cerrado_perdido`, cita descartada o reserva vencida | `disponible`, **solo si** ninguna otra oportunidad abierta lo reclama |
+| Venta con financiamiento | Sigue reservado: la oportunidad pasa a `negociacion` |
 
-Esa última condición importa: si dos personas negocian el mismo auto y una se cae, el vehículo **no** vuelve a disponible mientras la otra siga viva.
+Un vehículo con cita o vendido **no admite una cita pública nueva** (409, RF-010.18). El control es de la base, no del formulario: dos visitantes que agendan el mismo auto a la vez producen **una** reserva, gracias a un `UPDATE … WHERE estado = 'exhibicion'`, que es atómico.
 
 ---
 
-## 5. Deduplicación
+## 5. Deduplicación y consolidación
 
-El algoritmo, en `dedup/` (puro):
+La regla es la de la Rev. 1 (§5 y §5.1), portada a Java:
 
-1. **Normalizar** la cédula (quitar puntos, guiones y espacios; mayúscula en la letra) y el teléfono a formato E.164 venezolano (`0414…` → `+58414…`, reusando la lógica que ya vive en `O3_GestionCitas.tsx`).
-2. **Buscar por `cedula_bidx`.** Si hay coincidencia, es la misma persona.
-3. Si no hay cédula, **buscar por `telefono_bidx`**. Si hay coincidencia, es la misma persona *probable*: se reutiliza y se registra el criterio usado.
-4. Si no hay coincidencia, crear.
+1. **Normalizar** (`crm.domain`, puro):
+   - la cédula, sin puntos, guiones ni espacios y con la letra en mayúscula;
+   - el teléfono, a E.164 venezolano (`0414…`, `414…`, `58414…` y `+58414…` son el mismo número). La normalización del frontend (`types/crm.ts`) es la referencia y se prueba con los mismos casos.
+2. **Índice ciego** con `BlindIndex`, con un contexto distinto por campo (`persona.cedula`, `persona_telefono.telefono`, `persona.correo`). El valor en claro se cifra con `FieldCipher` bajo el mismo contexto.
+3. **Resolver:** por cédula si la hay; si no, por **cualquier** teléfono de la persona; si no, se crea una persona nueva. Se guarda `criterio_resolucion`.
+4. **Carrera:** el índice único de `indice_ciego_cedula` es la garantía de CA-010.1. La inserción usa `ON CONFLICT DO NOTHING` y, si no devuelve fila, vuelve a leer.
 
-**La condición de carrera es real y se resuelve en la base, no en la aplicación.** Dos citas simultáneas con la misma cédula pasarían ambas el paso 2 antes de que cualquiera inserte. La inserción usa:
+**Al confirmar la cita** llega la cédula:
+- si no existe en otra persona, se adjunta;
+- si existe en **otra**, se **fusionan**: sobrevive la más antigua, se reasignan oportunidades, citas, teléfonos e interacciones, la absorbida queda en estado `fusionado` y en `fusion_persona` queda una copia íntegra, ya cifrada;
+- el teléfono principal pasa a ser el de la cita más reciente, y los demás se conservan.
 
-```sql
-INSERT INTO personas (...) VALUES (...)
-ON CONFLICT (cedula_bidx) DO NOTHING
-RETURNING id;
-```
-
-Si no devuelve fila, se relee por `cedula_bidx`. El índice único parcial es lo que garantiza `CA-010.1`; el chequeo previo es solo una optimización.
-
-Se registra **qué criterio** resolvió la deduplicación (cédula o teléfono). Una fusión por teléfono puede ser errónea —un teléfono familiar compartido— y hay que poder auditarla y deshacerla.
-
-### 5.1 Consolidación al llegar la cédula (decisión C1)
-
-Con la captura en dos pasos, la persona nace resuelta **por teléfono** y la cédula llega después, al confirmar la cita. Ese momento tiene tres desenlaces:
-
-| Situación | Acción |
-|---|---|
-| La cédula no existe en ninguna otra persona | Se adjunta a la persona actual |
-| La cédula ya existe en **otra** persona | **Fusión**: las dos son la misma gente. Sobrevive la más antigua; las oportunidades, citas e interacciones de la otra se reasignan. **Ningún dato se descarta** (ver abajo) |
-| La cédula ya está en **esta** persona | Nada que hacer |
-
-La fusión es la operación delicada del módulo: mueve historial entre registros. Va en **una transacción**, deja traza del origen y del destino, y es la razón por la que §5 exige guardar el criterio de deduplicación — sin él no se puede revisar una fusión dudosa.
-
-#### Qué se conserva en una fusión (corregido en septiembre 2026)
-
-La primera implementación en la maqueta eliminaba la persona absorbida y guardaba solo su id. El recorrido en navegador lo detectó: se perdía el teléfono que el cliente dio en esa cita, la fusión no se podía deshacer y, además, el siguiente contacto desde ese teléfono volvía a crear una persona duplicada — la fusión se deshacía sola. La regla vigente:
-
-1. **Todos los teléfonos se conservan.** El principal pasa a ser el de la cita más reciente —si el cliente agendó con un número nuevo, por ahí quiere que lo contacten— y los demás van a `telefonos_adicionales`.
-2. **La deduplicación por teléfono mira todos**, no solo el principal. Si no, la fusión se deshace en el próximo contacto.
-3. **Se guarda una copia íntegra** del registro absorbido junto con la lista de oportunidades, citas e interacciones que se le reasignaron (`fusion_persona`, append-only). Es lo que permite auditar y revertir. El botón de revertir no está construido en la maqueta; los datos para hacerlo, sí.
+La fusión se hace en **una transacción**, queda en la bitácora con el criterio que la produjo y **no se borra nada**. El botón de revertir sigue fuera de alcance; los datos para hacerlo, no.
 
 ---
 
-## 6. Contratos de API
+## 6. Flujos
 
-Todos bajo `/v1/crm`, autenticados, con RBAC del módulo 001.
+### 6.1 Agendar (sitio público)
+`POST /v1/citas` →
+1. límite de E5;
+2. validación (fecha de hoy en adelante, franja, teléfono venezolano válido);
+3. el vehículo debe estar en la vitrina y disponible;
+4. se resuelve la persona por teléfono;
+5. se crea o reutiliza la oportunidad (`nuevo`, modalidad financiamiento, valor = precio publicado);
+6. se crea la cita `pendiente` y se reserva el vehículo durante 24 h (E4);
+7. bitácora `cita.agendada`, sin actor.
 
-| Método y ruta | Notas |
-|---|---|
-| `GET /v1/crm/personas?q=` | Busca por nombre, cédula o teléfono. La búsqueda por cédula y teléfono va contra el **índice ciego**, no descifra |
-| `GET /v1/crm/personas/{id}` | Ficha 360: persona + oportunidades + interacciones paginadas |
-| `POST /v1/crm/personas` | **Idempotente por cédula** (§5) |
-| `GET /v1/crm/oportunidades?etapa=&asesor=&estancadas=&cursor=` | Paginación por cursor. Filtrada por RBAC: el asesor solo ve las suyas y las sin asignar (`CA-010.8`) |
-| `POST /v1/crm/oportunidades` | Crea sobre una persona resuelta |
-| `PATCH /v1/crm/oportunidades/{id}/etapa` | `{etapa, motivo_perdida?, nota?}`. Valida la máquina de estados y aplica los efectos del §4 |
-| `PATCH /v1/crm/oportunidades/{id}/asesor` | Asignación y reasignación |
-| `POST /v1/crm/oportunidades/{id}/interacciones` | Requiere cabecera `Idempotency-Key`: un reintento de red no debe duplicar una nota en un historial append-only |
-| `GET /v1/crm/metricas/embudo?desde=&hasta=` | §8 |
+La respuesta no devuelve ningún dato personal: solo el día, la franja y el estado.
 
-Los `PATCH` de etapa llevan **`If-Match` con la versión de la oportunidad**. Dos asesores moviendo la misma oportunidad a la vez es un escenario cotidiano en un backoffice: el segundo recibe `409` y relee, en vez de sobrescribir en silencio.
+### 6.2 Bandeja de citas (backoffice)
+- **Confirmar:** pide la cédula (consolida o fusiona, §5) y permite corregir el correo, el día y la franja. Lleva la oportunidad a `cita_confirmada`, quita el vencimiento de la reserva y devuelve los datos para el `mailto:` del asesor, como hoy.
+- **Descartar:** pide un motivo del catálogo. Descarta la cita, cierra la oportunidad en `cerrado_perdido` y libera el vehículo si nadie más lo reclama.
+- **Asistió:** lleva la oportunidad a `visito`.
+- **Vender:** pide confirmar la modalidad (E6-A). De contado cierra en `cerrado_ganado` y el vehículo pasa a vendido. Con financiamiento, la oportunidad pasa a `negociacion` y se emite el enlace (E7).
+- **WhatsApp:** abre `wa.me` y después **ofrece** registrar la interacción (RF-010.11).
+
+### 6.3 Vencimiento de la reserva (E4-A, 24 h)
+Una tarea programada (`@Scheduled`, cada 15 minutos; es la primera del backend, así que se activa `@EnableScheduling`) libera los vehículos cuya reserva venció y deja en la bitácora `cita.reserva_vencida`. La consulta de disponibilidad de la vitrina aplica el vencimiento por su cuenta, así que un servidor dormido (D-19) no deja vehículos bloqueados de más.
+
+### 6.4 Embudo, personas e interacciones
+Son las pantallas de la ola 2, ahora con datos del servidor. El asesor ve sus oportunidades y las que no tienen dueño (`crm.ver_propias`); el coordinador y el auditor ven todas (`crm.ver_todas`).
 
 ---
 
-## 7. Frontend
+## 7. Contratos de API
 
-### 7.1 Refactorización previa: separar el contexto
-
-`frontend-web/src/state/vehiculosContexto.tsx` lleva hoy **221 líneas y tres responsabilidades**: inventario, imperfecciones y citas. Añadirle personas, oportunidades e interacciones lo convertiría en el cajón de sastre del proyecto.
-
-```
-state/
-├── vehiculosContexto.tsx    # inventario + imperfecciones (se reduce)
-└── crmContexto.tsx          # ◄ NUEVO — personas, oportunidades, interacciones, citas
-```
-
-Las **citas migran al contexto de CRM**: una cita es un evento dentro de una oportunidad, no un atributo del inventario. El acoplamiento que queda es el bloqueo del vehículo, que se expresa como una llamada explícita entre contextos y no como estado compartido.
-
-### 7.2 Tipos
-
-`CitaSolicitud` deja de cargar los datos de contacto embebidos y gana `personaId` y `oportunidadId`. Los tipos nuevos van a `types/crm.ts`; `types/vehiculo.ts` se queda solo con el vehículo.
-
-**Migración de datos locales:** la maqueta ya tiene citas guardadas con claves `wamma_*_v1`. Al subir de versión se escribe una función que, al arrancar, lee `v1`, agrupa las citas por cédula, crea personas y oportunidades, y guarda `v2`. Es el ensayo en pequeño de la migración real: si no funciona con 20 citas simuladas, tampoco con 2.000 reales.
-
-### 7.3 Pantallas
-
-| Pantalla | Estado | Contenido |
+| Método y ruta | Permiso | Notas |
 |---|---|---|
-| `screens/admin/O7_EmbudoComercial.tsx` | **Nueva** | Tablero por etapa con conteo y monto por columna; filtro por asesor; marca visual de estancadas y de próxima acción vencida |
-| `screens/admin/O7_FichaPersona.tsx` | **Nueva** | Ficha 360: datos de contacto, oportunidades (abiertas y cerradas con su motivo) e historial de interacciones |
-| `screens/admin/O3_GestionCitas.tsx` | **Modificada** | La tarjeta gana etapa, asesor y próxima acción. Tras pulsar WhatsApp, ofrece registrar la interacción (RF-010.11) |
-| `components/ModalAgendarCita.tsx` | **Modificada** | Sin cambio visible para el cliente: al enviar, resuelve o crea la persona y abre la oportunidad |
-| `components/admin/AdminLayout.tsx` | **Modificada** | Entradas de navegación para embudo y personas |
+| `POST /v1/citas` | Público | E3, E5. 409 si el vehículo ya tiene cita, está vendido o no está en la vitrina |
+| `GET /v1/enlaces-financiamiento/{token}` | Público | E7: `{valido, vehiculo}` o 404; nunca datos personales |
+| `GET /v1/crm/citas?estado=` | `crm.ver_propias` / `crm.ver_todas` | Bandeja, filtrada por rol |
+| `POST /v1/crm/citas/{id}/confirmacion` | `crm.operar` | `{cedula, correo?, dia?, franja?}` → consolidación o fusión |
+| `POST /v1/crm/citas/{id}/descarte` | `crm.operar` | `{motivo, texto?}` |
+| `POST /v1/crm/citas/{id}/asistencia` | `crm.operar` | → `visito` |
+| `POST /v1/crm/oportunidades/{id}/venta` | `crm.operar` | `{modalidad}`. Con financiamiento devuelve el enlace **una sola vez** |
+| `GET /v1/crm/oportunidades?etapa=&asesor=&estancadas=&cursor=` | `crm.ver_propias` / `crm.ver_todas` | Paginación por cursor; CA-010.8 |
+| `PATCH /v1/crm/oportunidades/{id}/etapa` | `crm.operar` | `{etapa, motivo?, texto?, nota?}` con `If-Match`; 409 si otro la movió antes |
+| `PUT /v1/crm/oportunidades/{id}/asesor` | `crm.asignar`, o `crm.operar` para tomar una sin dueño (E8) | |
+| `PUT /v1/crm/oportunidades/{id}/proxima-accion` | `crm.operar` | `{accion, fecha}` |
+| `GET /v1/crm/personas?q=` · `GET /v1/crm/personas/{id}` | `crm.ver_propias` / `crm.ver_todas` | Búsqueda por nombre (texto) o por cédula y teléfono (índice ciego). Ficha 360 |
+| `POST /v1/crm/personas/{id}/interacciones` | `crm.operar` | Con `Idempotency-Key`; `oportunidadId` opcional; `corrigeInteraccionId` opcional |
+| `GET /v1/crm/metricas/embudo?desde=&hasta=` | `crm.ver_todas` | §9 |
+| `GET /v1/crm/catalogos` | `crm.ver_propias` / `crm.ver_todas` | Etapas con umbrales y motivos de pérdida, desde la base |
 
-Rutas nuevas: `/admin/embudo`, `/admin/personas`, `/admin/personas/:id`.
+- **Visibilidad:** un asesor que pide una oportunidad ajena recibe **404**, no 403, para no confirmar que existe. El intento queda en la bitácora.
+- **Errores:** en el formato Problem Details de la etapa 0.
+- **Eventos nuevos de la bitácora:**
+  - `cita.agendada`, `cita.confirmada`, `cita.descartada`, `cita.reserva_vencida`;
+  - `persona.creada`, `persona.fusionada`;
+  - `oportunidad.etapa_cambiada`, `oportunidad.transicion_rechazada`, `oportunidad.asesor_asignado`, `oportunidad.venta_contado`;
+  - `enlace_financiamiento.emitido`;
+  - `interaccion.registrada`.
 
-### 7.4 Registro de interacción con la mínima fricción
-
-Es el punto donde este tipo de módulo se abandona. Si registrar una llamada cuesta seis campos, nadie registra nada y las métricas quedan vacías.
-
-El formulario por defecto trae **canal, dirección y fecha ya rellenados** por el contexto desde el que se abre (pulsar WhatsApp implica canal `whatsapp`, dirección `saliente`, fecha ahora). Queda **un solo campo obligatorio: la nota.** Guardar y cerrar en un clic.
-
----
-
-## 8. Métricas del embudo
-
-La consulta no obvia es el tiempo en etapa. Se calcula sobre `etapa_historial` con una función de ventana, tomando la diferencia contra la transición siguiente de la misma oportunidad:
-
-```sql
-SELECT
-  etapa_nueva AS etapa,
-  AVG(COALESCE(siguiente_ts, now()) - ts) AS tiempo_medio
-FROM (
-  SELECT
-    oportunidad_id, etapa_nueva, ts,
-    LEAD(ts) OVER (PARTITION BY oportunidad_id ORDER BY ts) AS siguiente_ts
-  FROM etapa_historial
-  WHERE ts >= $1 AND ts < $2
-) t
-GROUP BY etapa_nueva;
-```
-
-`COALESCE(siguiente_ts, now())` es lo que hace que una oportunidad **todavía viva** cuente el tiempo que lleva parada. Sin eso, las estancadas —precisamente las que hay que ver— quedarían fuera del promedio.
-
-La conversión entre etapas consecutivas sale de contar oportunidades distintas que alcanzaron cada etapa en el período. Los resultados se **cachean en Redis** con vencimiento corto: son consultas de tablero, no de transacción.
+  Los datos personales van enmascarados.
 
 ---
 
-## 9. Estrategia de pruebas
+## 8. Frontend
+
+- **Clientes de la API:** `api/citas.ts` (público) y `api/crm.ts` (backoffice).
+- **`state/crm.tsx`:**
+  - con servidor y sesión, lee y escribe en `/v1/crm`, con operaciones asíncronas que devuelven errores que la pantalla muestra;
+  - sin servidor, sigue en modo maqueta, como hoy;
+  - las pantallas no deberían cambiar de forma. Si alguna tiene que cambiar, se documenta por qué: el contrato de la ola 2 estaba mal (tarea B6 de la Rev. 1).
+- **`ModalAgendarCita`:** con servidor, envía a `POST /v1/citas` y muestra el 409 («este vehículo ya tiene una cita») y el 429. Se retira el campo de rango de ingresos (E9-A), también en modo maqueta.
+- **Vitrina y ficha:** el «Con cita» sale de la disponibilidad del servidor, que ya viene en `/v1/catalogo`.
+- **Bandeja (`O3_GestionCitas`):** confirmar, descartar, asistió, vender y registrar interacción contra el servidor. El enlace de financiamiento se muestra una vez, con «Copiar» y el mensaje de WhatsApp.
+- **Embudo, personas y ficha 360 (`O7_*`):** con filtro por asesor, que antes estaba bloqueado por C4.
+- **Solicitud (`C9`):** valida el enlace con `GET /v1/enlaces-financiamiento/{token}`. El resto de la solicitud sigue en la maqueta hasta la etapa 4.
+- **Sin cambios:** `correoCita.ts` (`mailto:`) y los enlaces `wa.me`.
+
+---
+
+## 9. Métricas del embudo
+
+Se conserva la consulta de la Rev. 1 sobre `etapa_historial`, con `LEAD()` y `COALESCE(siguiente, now())`, para que las oportunidades vivas cuenten el tiempo que llevan paradas. Sin Redis:
+- se calcula en cada consulta, con los índices de V0012;
+- objetivo del spec: **< 500 ms con 5.000 oportunidades abiertas**. Se mide con una prueba de integración sobre datos sintéticos.
+
+Si no se cumple, se añade una caché en memoria de vencimiento corto, sin servicios externos.
+
+---
+
+## 10. Estrategia de pruebas
 
 | Objeto | Nivel | Exigencia |
 |---|---|---|
-| Máquina de estados (`domain/`) | Unitaria, sin I/O | **100 % de ramas.** Toda transición válida e inválida, incluidos los intentos desde estado terminal |
-| Deduplicación (`dedup/`) | Unitaria | **100 % de ramas.** Normalización de cédula y teléfono; coincidencia por cédula, por teléfono y sin coincidencia |
-| Condición de carrera de deduplicación | Integración | Dos inserciones concurrentes con la misma cédula producen **una** persona (`CA-010.1`) |
-| Inmutabilidad append-only | Integración | `UPDATE` y `DELETE` sobre `interacciones` y `etapa_historial` fallan desde el usuario de aplicación (`CA-010.4`) |
-| Efectos sobre el inventario | Integración | Cierre ganado/perdido y el caso de la segunda oportunidad viva (§4) |
-| Aislamiento del expediente de crédito | Integración | Un asesor no obtiene ningún campo financiero (`CA-010.7`) |
-| Métricas | Unitaria sobre datos fijos | Tiempo en etapa con oportunidad viva incluida |
-
-Las tres pruebas de integración obligatorias son las que no pueden simularse: la carrera, la inmutabilidad a nivel de motor y el filtrado por rol. Todo lo demás es puro y rápido.
+| `crm.domain`: transiciones, normalización y métricas | Unitaria, sin Spring | **100 % de ramas**, medido con JaCoCo (plugin nuevo en el pom) solo sobre ese paquete. CA-010.2, CA-010.3 y CA-010.10. Una oportunidad viva cuenta hasta ahora (CA-010.9) |
+| Deduplicación y fusión | Integración (PostgreSQL embebido) | CA-010.1 con **dos inserciones concurrentes** de la misma cédula; la fusión reasigna todo y conserva la copia |
+| Inmutabilidad | Integración, con `SET ROLE wamma_app` | CA-010.4: `UPDATE`, `DELETE` y `TRUNCATE` sobre `interaccion` y `etapa_historial` fallan por privilegio |
+| Efectos sobre el inventario | Integración | CA-010.5 y CA-010.6. El cierre perdido **no** libera un vehículo que otra oportunidad reclama. Dos citas simultáneas al mismo vehículo producen una sola reserva. Reserva vencida (E4) |
+| Visibilidad por rol | Integración | CA-010.8: el asesor ve las suyas y las sin dueño; una ajena devuelve 404 y queda en la bitácora |
+| Aislamiento del expediente | Integración | CA-010.7: ninguna respuesta del CRM incluye campos financieros |
+| Cifrado | Integración | CA-010.11: la base no tiene ninguna cédula, teléfono ni correo en claro |
+| Captación pública | Integración | Límite de E5 (429); doble envío sin duplicados; 409 en un vehículo con cita |
+| Arquitectura | ArchUnit | `crm` no depende de `creditapp`; `inventory` no depende de `crm` |
+| Rendimiento del embudo | Integración | < 500 ms con 5.000 abiertas |
+| V0017 | `SchemaTestRunner` y CI | Desde cero; en Supabase, ensayo antes del despliegue |
+| Recorrido en navegador | Playwright | Agendar → la vitrina lo marca «Con cita» → confirmar con una cédula ya existente (fusión) → asistió → vender con financiamiento → el enlace abre la solicitud. Sin errores de consola ni de CSP |
 
 ---
 
-## 10. Insumos ausentes y cómo se aíslan
+## 11. Despliegue (acciones del PO, al final de la etapa)
 
-Mismo criterio que `../solicitud-credito/plan.md` §12: lo que falta va **detrás de un adaptador** o de un catálogo, para que su llegada no toque el dominio.
+Esta etapa **no despliega sola**. Render aplica todas las migraciones pendientes al arrancar (`FLYWAY_ENABLED=true`), así que el primer deploy que arranque bien llevará Supabase de V0012 a V0017 de una vez. Antes de eso:
+1. revisar los desfases de V0015 (`database-schema-design.md` §6);
+2. hacer el ensayo de V0013–V0017 contra Supabase, en una transacción que se revierte;
+3. configurar en Render los secretos que faltan (BD, `WAMMA_CLAVE_*`, administrador inicial y fotos);
+4. poner `VITE_API_URL` en Vercel.
 
-| Pregunta abierta | Aislamiento mientras no se resuelva |
+Es la etapa 5 del plan (D-02). Se decide con el PO.
+
+---
+
+## 12. Riesgos y limitaciones
+
+| Riesgo | Mitigación |
 |---|---|
-| ~~**C1**~~ cédula obligatoria | **Cerrada**: captura en dos pasos (`spec.md` §8.5). Exige la consolidación de cédula descrita en §5 |
-| **C2** retención | Nada se borra. Cuando haya política, se implementa como tarea programada |
-| **C3** reparto de oportunidades | `asesor_id` nulo = sin asignar. El reparto automático sería una capa encima |
-| ~~**C4**~~ identidad del asesor | **Cerrada** con el 001 (D-24): `asesor_id` apunta a `usuario`, y el CRM lo llena al pasar al servidor (etapa 3) |
-| ~~**C5**~~ umbral de estancada | **Cerrada**: umbral por etapa 2/3/7/7/14 días, en tabla de parámetros y no en código |
-| **C6** notificación al cliente | El módulo no notifica. Si se decide que sí, se apoya en el motor de notificaciones del 009 |
-| ~~**C7**~~ enmienda constitucional | **Cerrada** en la Constitución v2.0.0 |
+| Citas falsas que bloquean la vitrina | Reserva de 24 h (E4) y límite de 5 citas por IP y 2 por teléfono cada 24 h (E5). Sin CAPTCHA en esta etapa |
+| El límite por IP depende de la IP de origen. En `main`, `X-Forwarded-For` todavía no está endurecido; lo corrige el PR #1 | Se añade además el límite por teléfono, que no depende de la IP. Al mezclar el PR, el límite de captación usa su lectura de IP |
+| Una fusión por teléfono equivocada (teléfono familiar compartido) | Solo se fusiona al llegar la **cédula**; por teléfono solo se reutiliza la persona, y queda el criterio. La copia en `fusion_persona` permite revertir |
+| La cédula se ve completa en el backoffice | Solo con permisos del CRM (E11); la bitácora la enmascara |
+| Servidor dormido (D-19) al agendar | El formulario espera y reintenta una vez; si falla, lo dice y no pierde lo escrito |
+| Choques con el PR #1 al mezclar | Archivos comunes: `SecurityConfig` (rutas públicas nuevas) y `application.yml` (bloque `wamma.crm` nuevo y separado). La numeración de migraciones se resuelve al mezclar |
+| C2 (retención) sigue abierta | Nada se borra. Cuando haya política, será una tarea programada |
+| C6 (avisar al cliente) sigue abierta | El módulo no notifica. La confirmación va por el `mailto:` del asesor, como hoy |
 
 ---
-
-## 11. Bloqueante de arquitectura
-
-Igual que `creditapp`, este módulo necesita `internal/platform` —cifrado de campo, auditoría, RBAC— para **todo lo que toque persistencia**. Ese paquete es el **módulo 001**, ola 0 del proyecto, y aún no se ha construido.
-
-En concreto, sin el 001 no hay: autor real de una interacción, dueño real de una oportunidad, filtrado por rol (`CA-010.8`), ni cifrado de cédula (`CA-010.11`).
-
-**Lo que sí se puede hacer sin el 001:** todo el §2.3 (validar el modelo en la maqueta) y las olas 1 y 2 de `./tasks.md` (dominio puro y deduplicación), que no tocan I/O.
-
----
-*WAMMA · Confidencial · Rev. 1 · No constituye asesoría legal ni financiera.*
+*WAMMA · Confidencial · Rev. 2 · No constituye asesoría legal ni financiera.*
