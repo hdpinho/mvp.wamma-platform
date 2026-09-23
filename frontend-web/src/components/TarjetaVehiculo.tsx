@@ -197,7 +197,7 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
           </div>
         </div>
 
-        {/* Pie: Inspección 240 puntos */}
+        {/* Pie: Certificado Con Estándar WAMMA */}
         <div
           style={{
             display: 'flex',
@@ -229,7 +229,7 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
             >
               <polyline points="20 6 9 17 4 12" />
             </svg>
-            Inspección 240 puntos
+            Certificado Con Estándar WAMMA
           </span>
         </div>
       </div>

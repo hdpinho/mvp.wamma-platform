@@ -13,7 +13,7 @@ export const PiePagina: React.FC = () => {
               <Logo articulacion="horizontal" variante="blanco" alto={32} />
             </Link>
             <p className="pie-slogan">
-              Plataforma de venta, inspección de 240 puntos y financiamiento de vehículos usados
+              Plataforma de venta, certificación con Estándar WAMMA y financiamiento de vehículos usados
               garantizados en Venezuela. Todo bajo un mismo techo.
             </p>
           </div>
@@ -64,7 +64,7 @@ export const PiePagina: React.FC = () => {
           <div className="pie-columna">
             <h4 className="pie-titulo-columna">Estándar WAMMA</h4>
             <ul className="pie-lista">
-              <li><Link to="/catalogo">Inspección de 240 puntos</Link></li>
+              <li><Link to="/catalogo">Certificado con Estándar WAMMA</Link></li>
               <li><Link to="/catalogo">Validación legal de documentos</Link></li>
               <li><Link to="/catalogo">Fotografías reales de estudio</Link></li>
               <li><Link to="/catalogo">Garantía WAMMA</Link></li>

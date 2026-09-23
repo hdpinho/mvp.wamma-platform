@@ -87,6 +87,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
     ['Carrocería', vehiculo.carroceria],
     ['Tracción', vehiculo.traccion],
     ['Puestos', String(vehiculo.puestos)],
+    ['Cantidad de dueños', String(vehiculo.duenos ?? 1)],
     ['VIN', vehiculo.vin],
   ];
 
@@ -355,7 +356,7 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
                 marginBottom: 'var(--space-lg)',
               }}
             >
-              <h2 style={{ fontSize: '18px' }}>Inspección de 240 puntos</h2>
+              <h2 style={{ fontSize: '18px' }}>Certificación Estándar WAMMA</h2>
               <SelloCertificado />
             </div>
 

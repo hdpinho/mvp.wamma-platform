@@ -32,6 +32,36 @@ interface RangoIngreso {
   chip: string;
 }
 
+interface RangoCuota {
+  id: string;
+  etiqueta: string;
+  cuotaMin?: number;
+  cuotaMax?: number;
+  chip: string;
+}
+
+const RANGOS_CUOTA: RangoCuota[] = [
+  {
+    id: 'hasta-390',
+    etiqueta: 'Hasta 390',
+    cuotaMax: 390,
+    chip: 'Cuota: Hasta 390',
+  },
+  {
+    id: '391-600',
+    etiqueta: 'Desde 391 hasta 600',
+    cuotaMin: 391,
+    cuotaMax: 600,
+    chip: 'Cuota: Desde 391 hasta 600',
+  },
+  {
+    id: 'a-partir-de-600',
+    etiqueta: 'A partir de 600',
+    cuotaMin: 601,
+    chip: 'Cuota: A partir de 600',
+  },
+];
+
 /** Rangos de ingresos y cuotas asociadas. */
 const RANGOS_INGRESO: RangoIngreso[] = [
   {
@@ -87,6 +117,7 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
   const [busqueda, setBusqueda] = useState(params.get('q') ?? '');
   const [marcas, setMarcas] = useState<string[]>([]);
   const [transmisiones, setTransmisiones] = useState<string[]>([]);
+  const [rangoCuota, setRangoCuota] = useState<string>('');
   const [cuotaMax, setCuotaMax] = useState(params.get('cuotaMax') ?? '');
   const [rangoIngreso, setRangoIngreso] = useState('');
   const [anioMin, setAnioMin] = useState('');
@@ -97,13 +128,17 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
     const texto = busqueda.trim().toLowerCase();
 
     const filtrados = vehiculos.filter((v) => {
-      const nombre = `${v.marca} ${v.modelo} ${v.version}`.toLowerCase();
+      const nombre = `${v.marca} ${v.modelo}`.toLowerCase();
       if (texto && !nombre.includes(texto)) return false;
       if (marcas.length && !marcas.includes(v.marca)) return false;
       if (transmisiones.length && !transmisiones.includes(v.transmision)) return false;
       const cuota = cuotaDesde(v.precio);
+      const rangoCuotaObj = RANGOS_CUOTA.find((r) => r.id === rangoCuota);
       const rangoObj = RANGOS_INGRESO.find((r) => r.id === rangoIngreso);
-      if (rangoObj) {
+      if (rangoCuotaObj) {
+        if (rangoCuotaObj.cuotaMin !== undefined && cuota < rangoCuotaObj.cuotaMin) return false;
+        if (rangoCuotaObj.cuotaMax !== undefined && cuota > rangoCuotaObj.cuotaMax) return false;
+      } else if (rangoObj) {
         if (rangoObj.cuotaMin !== undefined && cuota < rangoObj.cuotaMin) return false;
         if (rangoObj.cuotaMax !== undefined && cuota > rangoObj.cuotaMax) return false;
       } else if (cuotaMax && cuota > Number(cuotaMax)) {
@@ -127,11 +162,43 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
       case 'anio-desc':
         ordenados.sort((a, b) => b.anio - a.anio);
         break;
-      default:
-        // Relevancia: primero los que tienen etiqueta especial
-        ordenados.sort(
-          (a, b) => Number(Boolean(b.etiqueta)) - Number(Boolean(a.etiqueta)),
-        );
+      default: {
+        // Relevancia: primero los que tienen etiqueta especial, pero NUNCA mostrar Toyota primero
+        ordenados.sort((a, b) => {
+          const aEtiqueta = Boolean(a.etiqueta);
+          const bEtiqueta = Boolean(b.etiqueta);
+          const aToyota = a.marca.trim().toLowerCase() === 'toyota';
+          const bToyota = b.marca.trim().toLowerCase() === 'toyota';
+
+          // 1. Si uno tiene etiqueta y el otro no
+          if (aEtiqueta !== bEtiqueta) {
+            // Si el etiquetado es Toyota y el otro no, no permitir que Toyota desplace al no-Toyota
+            if (bEtiqueta && bToyota && !aToyota) return 1;
+            if (aEtiqueta && aToyota && !bToyota) return -1;
+            return Number(bEtiqueta) - Number(aEtiqueta);
+          }
+
+          // 2. A igual condición de etiqueta: no-Toyota se muestra antes que Toyota
+          if (aToyota !== bToyota) {
+            return aToyota ? 1 : -1;
+          }
+
+          return 0;
+        });
+
+        // 3. Regla estricta: bajo "Más relevantes", el vehículo en posición 0 NUNCA puede ser Toyota
+        // si existe al menos un vehículo de otra marca disponible en la lista filtrada.
+        if (ordenados.length > 1 && ordenados[0].marca.trim().toLowerCase() === 'toyota') {
+          const primerNoToyotaIdx = ordenados.findIndex(
+            (v) => v.marca.trim().toLowerCase() !== 'toyota'
+          );
+          if (primerNoToyotaIdx > 0) {
+            const [primerNoToyota] = ordenados.splice(primerNoToyotaIdx, 1);
+            ordenados.unshift(primerNoToyota);
+          }
+        }
+        break;
+      }
     }
     return ordenados;
   }, [
@@ -139,6 +206,7 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
     busqueda,
     marcas,
     transmisiones,
+    rangoCuota,
     cuotaMax,
     rangoIngreso,
     anioMin,
@@ -149,6 +217,7 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
     setBusqueda('');
     setMarcas([]);
     setTransmisiones([]);
+    setRangoCuota('');
     setCuotaMax('');
     setRangoIngreso('');
     setAnioMin('');
@@ -157,7 +226,7 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
   const filtrosActivos =
     marcas.length +
     transmisiones.length +
-    (cuotaMax ? 1 : 0) +
+    (rangoCuota ? 1 : cuotaMax ? 1 : 0) +
     (rangoIngreso ? 1 : 0) +
     (anioMin ? 1 : 0);
 
@@ -166,8 +235,7 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
       <header style={{ marginBottom: 'var(--space-lg)' }}>
         <h1 style={{ fontSize: '26px' }}>Vitrina WAMMA</h1>
         <p style={{ fontSize: '14px', color: 'var(--texto-secundario)' }}>
-          Vehículos usados con inspección de 240 puntos y validación legal de documentos.
-          Todo el inventario está disponible en la <strong>Gran Caracas</strong>.
+          Todos los vehículos están certificados con Estándar WAMMA: inspeccionados en más de 200 puntos, reacondicionados y con validación legal de documentos. Disponibles ahora, listos para agendar cita.
         </p>
       </header>
 
@@ -184,7 +252,7 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
           type="search"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por marca, modelo o versión"
+          placeholder="Buscar por marca o modelo"
           aria-label="Buscar vehículos"
           className="form-input"
           style={{ flex: '1 1 260px' }}
@@ -260,7 +328,15 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
               onClick={() => setRangoIngreso('')}
             />
           )}
-          {cuotaMax && !rangoIngreso && (
+          {rangoCuota && (
+            <ChipFiltro
+              etiqueta={RANGOS_CUOTA.find((r) => r.id === rangoCuota)?.chip ?? ''}
+              activo
+              removible
+              onClick={() => setRangoCuota('')}
+            />
+          )}
+          {cuotaMax && !rangoCuota && !rangoIngreso && (
             <ChipFiltro
               etiqueta={`Cuota ≤ €${cuotaMax}`}
               activo
@@ -312,26 +388,26 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
           >
             <GrupoFiltro titulo="Cuota mensual">
               <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
-                <ChipFiltro
-                  etiqueta="Cuota menor de €390"
-                  activo={cuotaMax === '390' && !rangoIngreso}
-                  onClick={() => {
-                    setRangoIngreso('');
-                    setCuotaMax(cuotaMax === '390' ? '' : '390');
-                  }}
-                />
-                <ChipFiltro
-                  etiqueta="Cuota menor de €600"
-                  activo={cuotaMax === '600' && !rangoIngreso}
-                  onClick={() => {
-                    setRangoIngreso('');
-                    setCuotaMax(cuotaMax === '600' ? '' : '600');
-                  }}
-                />
+                {RANGOS_CUOTA.map((rango) => {
+                  const activo = rangoCuota === rango.id;
+                  return (
+                    <ChipFiltro
+                      key={rango.id}
+                      etiqueta={rango.etiqueta}
+                      activo={activo}
+                      onClick={() => {
+                        setRangoIngreso('');
+                        setCuotaMax('');
+                        setRangoCuota(activo ? '' : rango.id);
+                      }}
+                    />
+                  );
+                })}
                 <ChipFiltro
                   etiqueta="Ver todo"
-                  activo={!cuotaMax && !rangoIngreso}
+                  activo={!rangoCuota && !cuotaMax && !rangoIngreso}
                   onClick={() => {
+                    setRangoCuota('');
                     setCuotaMax('');
                     setRangoIngreso('');
                   }}

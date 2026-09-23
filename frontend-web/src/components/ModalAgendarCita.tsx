@@ -35,7 +35,6 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
   const [franjaHoraria, setFranjaHoraria] = useState<'Mañana' | 'Tarde'>('Mañana');
   const [metodoPago] = useState<'Contado' | 'Financiamiento'>('Financiamiento');
   const [rangoIngresos, setRangoIngresos] = useState('');
-  const [tabRequisitos, setTabRequisitos] = useState<'digital' | 'fisico'>('digital');
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [citaConfirmada, setCitaConfirmada] = useState<boolean>(false);
   const [enviando, setEnviando] = useState<boolean>(false);
@@ -132,7 +131,7 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
             Cuota desde {formatoEUR(cuotaDesde(vehiculo.precio))} /mes
           </div>
           <div style={{ fontSize: '12px', color: 'var(--naranja-600)', fontWeight: 600 }}>
-            ✓ Inspección 240 puntos
+            ✓ Certificado Con Estándar WAMMA
           </div>
         </div>
 
@@ -235,124 +234,64 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
               <div className="requisitos-header">
                 <div className="requisitos-header-top">
                   <span className="requisitos-tag">Financiamiento WAMMA</span>
-                  <span className="requisitos-badge-alerta">Cuotas fijas · Sin sorpresas</span>
                 </div>
                 <h4 className="requisitos-titulo">
                   Requisitos para aplicar al financiamiento
                 </h4>
                 <p className="requisitos-intro">
-                  Si deseas optar por financiamiento en cuotas fijas tras inspeccionar el vehículo, ten preparados los siguientes recaudos:
+                  Si deseas optar al financiamiento, ten preparados los siguientes documentos:
                 </p>
               </div>
 
-              {/* Selector de Pestañas Digital / Físico */}
-              <div className="requisitos-tabs" role="tablist">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={tabRequisitos === 'digital'}
-                  className={`tab-requisito ${tabRequisitos === 'digital' ? 'activo' : ''}`}
-                  onClick={() => setTabRequisitos('digital')}
-                >
-                  <span className="tab-icono">📱</span>
-                  <div className="tab-texto">
-                    <strong>Requisitos Digitales</strong>
-                    <small>Para la solicitud online</small>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={tabRequisitos === 'fisico'}
-                  className={`tab-requisito ${tabRequisitos === 'fisico' ? 'activo' : ''}`}
-                  onClick={() => setTabRequisitos('fisico')}
-                >
-                  <span className="tab-icono">🏛️</span>
-                  <div className="tab-texto">
-                    <strong>Requisitos Físicos</strong>
-                    <small>Para llevar a tu cita en sede</small>
-                  </div>
-                </button>
-              </div>
-
-              {/* Contenido de la pestaña */}
+              {/* Lista unificada de requisitos */}
               <div className="requisitos-caja-contenido">
-                {tabRequisitos === 'digital' ? (
-                  <div className="requisitos-lista">
-                    <div className="requisito-item">
-                      <div className="requisito-check">✓</div>
-                      <div>
-                        <strong>Cédula o Pasaporte vigente:</strong> Archivo PDF o imagen nítida y legible por ambas caras.
-                      </div>
-                    </div>
-                    <div className="requisito-item">
-                      <div className="requisito-check">✓</div>
-                      <div>
-                        <strong>RIF personal actualizado:</strong> Comprobante digital descargado del portal del SENIAT con tu domicilio actual.
-                      </div>
-                    </div>
-                    <div className="requisito-item">
-                      <div className="requisito-check">✓</div>
-                      <div>
-                        <strong>Constancia de Trabajo o Certificación de Ingresos:</strong> Empleados: constancia membretada, sellada y con sueldo mensual. Independientes: certificación firmada por contador público colegiado (CPC).
-                      </div>
-                    </div>
-                    <div className="requisito-item">
-                      <div className="requisito-check">✓</div>
-                      <div>
-                        <strong>Estados de cuenta bancarios (últimos 3 a 6 meses):</strong> En PDF descargado directamente del banco donde se reflejen los ingresos.
-                      </div>
-                    </div>
-                    <div className="requisito-item">
-                      <div className="requisito-check">✓</div>
-                      <div>
-                        <strong>Comprobante de domicilio:</strong> Recibo de servicio público (luz, agua, gas o telefonía) o contrato de arrendamiento vigente.
-                      </div>
-                    </div>
-                    <div className="requisito-item">
-                      <div className="requisito-check">✓</div>
-                      <div>
-                        <strong>Referencias:</strong> Datos de contacto (nombre, teléfono y parentesco) de 2 referencias personales y 1 familiar.
-                      </div>
+                <div className="requisitos-lista">
+                  <div className="requisito-item">
+                    <div className="requisito-check">✓</div>
+                    <div>
+                      <strong>Cédula o Pasaporte vigente:</strong> Original laminada para acceso en sede y archivo digital (PDF o foto nítida) para el expediente.
                     </div>
                   </div>
-                ) : (
-                  <div className="requisitos-lista">
-                    <div className="requisito-item">
-                      <div className="requisito-check requisito-check-fisico">✓</div>
-                      <div>
-                        <strong>Cédula de Identidad original laminada:</strong> Indispensable presentarla en físico para acceder a las instalaciones y validar tu identidad.
-                      </div>
-                    </div>
-                    <div className="requisito-item">
-                      <div className="requisito-check requisito-check-fisico">✓</div>
-                      <div>
-                        <strong>Copia física impresa del RIF:</strong> Documento impreso con dirección de domicilio actualizada para el expediente.
-                      </div>
-                    </div>
-                    <div className="requisito-item">
-                      <div className="requisito-check requisito-check-fisico">✓</div>
-                      <div>
-                        <strong>Original de Constancia laboral o Certificación CPC:</strong> Con sello húmedo y firmas autógrafas / visado colegiado con timbre fiscal.
-                      </div>
-                    </div>
-                    <div className="requisito-item">
-                      <div className="requisito-check requisito-check-fisico">✓</div>
-                      <div>
-                        <strong>Copia física de recibo de servicio o contrato de alquiler:</strong> Para el expediente físico de validación de residencia.
-                      </div>
-                    </div>
-                    <div className="requisito-item">
-                      <div className="requisito-check requisito-check-fisico">✓</div>
-                      <div>
-                        <strong>Teléfono móvil con WhatsApp activo:</strong> Para recibir y validar en el momento el código de seguridad OTP.
-                      </div>
+                  <div className="requisito-item">
+                    <div className="requisito-check">✓</div>
+                    <div>
+                      <strong>RIF personal actualizado:</strong> Descargado del portal del SENIAT con tu domicilio fiscal actual.
                     </div>
                   </div>
-                )}
+                  <div className="requisito-item">
+                    <div className="requisito-check">✓</div>
+                    <div>
+                      <strong>Constancia de Trabajo o Certificación de Ingresos:</strong> Empleados: constancia membretada, sellada y con sueldo mensual. Independientes: certificación firmada por contador público colegiado (CPC).
+                    </div>
+                  </div>
+                  <div className="requisito-item">
+                    <div className="requisito-check">✓</div>
+                    <div>
+                      <strong>Estados de cuenta bancarios (últimos 3 a 6 meses):</strong> En PDF descargado directamente del banco donde se reflejen los ingresos.
+                    </div>
+                  </div>
+                  <div className="requisito-item">
+                    <div className="requisito-check">✓</div>
+                    <div>
+                      <strong>Comprobante de domicilio:</strong> Recibo de servicio público (luz, agua, gas o telefonía) o contrato de arrendamiento vigente.
+                    </div>
+                  </div>
+                  <div className="requisito-item">
+                    <div className="requisito-check">✓</div>
+                    <div>
+                      <strong>Referencias:</strong> Datos de contacto (nombre, teléfono y parentesco) de 2 referencias personales y 1 familiar.
+                    </div>
+                  </div>
+                  <div className="requisito-item">
+                    <div className="requisito-check">✓</div>
+                    <div>
+                      <strong>Teléfono móvil con WhatsApp activo:</strong> Para recibir y validar tu código de seguridad OTP durante la cita.
+                    </div>
+                  </div>
+                </div>
 
                 <div className="requisitos-pie-nota">
-                  💡 <em>Tras tu visita y prueba del auto, tu asesor comercial te enviará tu enlace personal para completar la solicitud y cargar los recaudos digitales.</em>
+                  💡 <em>Puedes consignar estos documentos en físico el día de tu cita o cargarlos digitalmente a través del enlace de solicitud que te enviará tu asesor.</em>
                 </div>
               </div>
             </div>
@@ -403,31 +342,18 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
                 </div>
               </div>
 
-              {/* Recordatorio de requisitos en la pantalla de confirmación */}
+              {/* Recordatorio unificado de requisitos en la confirmación */}
               <div className="caja-recordatorio-requisitos">
                 <div className="recordatorio-header">
                   <span style={{ fontSize: '18px' }}>📋</span>
                   <strong>Documentos a tener listos para tu cita y financiamiento</strong>
                 </div>
-                <div className="recordatorio-grid">
-                  <div className="recordatorio-col">
-                    <span className="recordatorio-sub">🏛️ En Físico (Llevar a la Sede)</span>
-                    <ul>
-                      <li>Cédula laminada original vigente</li>
-                      <li>Copia impresa del RIF vigente</li>
-                      <li>Original de constancia de trabajo o certificación CPC</li>
-                      <li>Celular con WhatsApp activo para validación OTP</li>
-                    </ul>
-                  </div>
-                  <div className="recordatorio-col">
-                    <span className="recordatorio-sub">📱 En Digital (Para Solicitud Online)</span>
-                    <ul>
-                      <li>Fotos/PDF de cédula y RIF digital</li>
-                      <li>PDF de últimos 3 meses de cuenta bancaria</li>
-                      <li>Recibo de servicio público o alquiler</li>
-                      <li>2 referencias personales y 1 familiar</li>
-                    </ul>
-                  </div>
+                <div className="recordatorio-lista-unificada">
+                  <div className="recordatorio-item">✓ Cédula laminada vigente y copia de RIF actualizado</div>
+                  <div className="recordatorio-item">✓ Constancia laboral o certificación de ingresos CPC</div>
+                  <div className="recordatorio-item">✓ Estados de cuenta bancarios (últimos 3 a 6 meses)</div>
+                  <div className="recordatorio-item">✓ Recibo de servicio público o contrato de arrendamiento</div>
+                  <div className="recordatorio-item">✓ Teléfono móvil con WhatsApp para validación en sede</div>
                 </div>
               </div>
 
@@ -756,23 +682,16 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
           color: var(--naranja-800);
           margin-bottom: 8px;
         }
-        .recordatorio-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
+        .recordatorio-lista-unificada {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
         }
-        .recordatorio-sub {
-          display: block;
-          font-size: 11px;
-          font-weight: 700;
-          color: var(--texto-primario);
-          margin-bottom: 4px;
-        }
-        .recordatorio-col ul {
-          margin: 0;
-          padding-left: 16px;
-          font-size: 11px;
+        .recordatorio-item {
+          font-size: 12px;
           color: var(--texto-secundario);
+          line-height: 1.4;
+        }
           line-height: 1.45;
         }
         @media (max-width: 520px) {

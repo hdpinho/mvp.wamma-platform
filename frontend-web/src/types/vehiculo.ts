@@ -98,6 +98,8 @@ export interface VehiculoData {
   carroceria: Carroceria;
   puestos: number;
   traccion: '4x2' | '4x4';
+  /** Número o cantidad de dueños previos del vehículo. */
+  duenos?: number;
   certificado: boolean;
   etiqueta?: EtiquetaVehiculo;
   /** Galería; la primera es la principal. */

@@ -69,8 +69,6 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
     cuota,
     totalIntereses,
     costoTotal,
-    cuotaDefecto20,
-    inicialDefecto20,
   } = useMemo(() => {
     if (!calculoDisponible || !parametros || precio <= 0) {
       return {
@@ -79,17 +77,12 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
         cuota: 0,
         totalIntereses: 0,
         costoTotal: 0,
-        cuotaDefecto20: 0,
-        inicialDefecto20: 0,
       };
     }
 
     const mInicial = precio * inicialPct;
     const mFinanciado = precio - mInicial;
     const cuotaCalculada = calcularCuota(precio, inicialPct, parametros);
-
-    const ini20 = precio * 0.20;
-    const cuota20 = calcularCuota(precio, 0.20, parametros);
 
     const cTotal = cuotaCalculada * plazoMeses;
     const tIntereses = Math.max(0, cTotal - mFinanciado);
@@ -100,8 +93,6 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
       cuota: cuotaCalculada,
       totalIntereses: tIntereses,
       costoTotal: cTotal,
-      cuotaDefecto20: cuota20,
-      inicialDefecto20: ini20,
     };
   }, [calculoDisponible, parametros, precio, inicialPct, plazoMeses]);
 
@@ -155,13 +146,13 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
         </div>
       )}
 
-      {/* Resumen de cabecera: "$X inicial" y "$Y × 24 meses" (opción 20% por defecto) */}
+      {/* Resumen de cabecera: "$X inicial" y "$Y × 24 meses" dinámicos según simulación */}
       {calculoDisponible && (
         <div
           style={{
             backgroundColor: 'var(--superficie)',
             borderRadius: 'var(--radius-md)',
-            padding: '12px 16px',
+            padding: '14px 18px',
             border: '1px solid var(--borde-claro)',
           }}
         >
@@ -170,15 +161,55 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'baseline',
-              fontSize: '15px',
-              fontWeight: 700,
-              color: 'var(--carbon)',
+              flexWrap: 'wrap',
+              gap: '6px 12px',
             }}
           >
-            <span>{formatoEUR(inicialDefecto20)} inicial</span>
-            <span style={{ color: 'var(--naranja-600)', fontSize: '17px' }}>
-              {formatoEUR(cuotaDefecto20)} × {plazoMeses} meses
-            </span>
+            <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: '6px' }}>
+              <span
+                style={{
+                  fontSize: '28px',
+                  fontWeight: 800,
+                  color: 'var(--carbon)',
+                  lineHeight: 1.1,
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {formatoEUR(montoInicial)}
+              </span>
+              <span
+                style={{
+                  fontSize: '15px',
+                  fontWeight: 700,
+                  color: 'var(--carbon)',
+                }}
+              >
+                inicial
+              </span>
+            </div>
+
+            <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: '6px' }}>
+              <span
+                style={{
+                  fontSize: '28px',
+                  fontWeight: 800,
+                  color: 'var(--naranja-600)',
+                  lineHeight: 1.1,
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {formatoEUR(cuota)}
+              </span>
+              <span
+                style={{
+                  fontSize: '15px',
+                  fontWeight: 700,
+                  color: 'var(--naranja-600)',
+                }}
+              >
+                × {plazoMeses} meses
+              </span>
+            </div>
           </div>
         </div>
       )}
