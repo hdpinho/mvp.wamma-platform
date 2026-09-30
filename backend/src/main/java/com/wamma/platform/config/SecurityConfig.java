@@ -78,10 +78,17 @@ public class SecurityConfig {
                 }))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/", "/api/health", "/error").permitAll()
-                // Vitrina pública (spec 005): solo lectura y sin datos internos.
+                // Vitrina pública (spec 005), citas públicas (spec 010), parámetros y solicitud de crédito autoservicio.
                 .requestMatchers(HttpMethod.GET, "/v1/catalogo", "/v1/catalogo/**", "/v1/tasa-bcv/vigente",
-                        "/archivos/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/v1/auth/ingreso").permitAll()
+                        "/archivos/**", "/v1/enlaces-financiamiento/**",
+                        "/v1/parametros-financiamiento", "/v1/financiamiento/parametros",
+                        "/v1/solicitudes-credito/enlace/**", "/v1/solicitudes-credito/*/estado").permitAll()
+                .requestMatchers(HttpMethod.HEAD, "/v1/catalogo", "/v1/catalogo/**", "/v1/tasa-bcv/vigente",
+                        "/archivos/**", "/v1/enlaces-financiamiento/**",
+                        "/v1/parametros-financiamiento", "/v1/financiamiento/parametros",
+                        "/v1/solicitudes-credito/enlace/**", "/v1/solicitudes-credito/*/estado").permitAll()
+                .requestMatchers(HttpMethod.POST, "/v1/auth/ingreso", "/v1/citas",
+                        "/v1/solicitudes-credito", "/v1/solicitudes-credito/recaudos").permitAll()
                 .requestMatchers("/v1/auth/contrasena-inicial", "/v1/auth/2fa", "/v1/auth/2fa/**")
                     .hasAuthority(SessionAuthenticationFilter.PARTIAL)
                 .anyRequest().hasAuthority(SessionAuthenticationFilter.COMPLETE)
@@ -96,7 +103,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key", "If-Match"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key", "If-Match", "Accept"));
         configuration.setExposedHeaders(List.of("ETag", "Location"));
         configuration.setMaxAge(3600L);
 

@@ -11,7 +11,8 @@ import {
   type ParametrosFinanciamiento,
 } from './financiamientoMotor';
 
-interface ParametrosDb {
+export interface ParametrosDb {
+  id?: string;
   tasa_mensual: number;
   plazo_meses: number;
   ratio_cuota_ingreso: number;
@@ -20,6 +21,21 @@ interface ParametrosDb {
   moneda_base?: string;
   vigente_desde?: string;
   activo?: boolean;
+}
+
+export interface ParametrosFinanciamientoCompletos extends ParametrosFinanciamiento {
+  monedaBase?: string;
+  vigenteDesde?: string;
+  activo?: boolean;
+}
+
+export interface ActualizarParametrosPayload {
+  tasa_mensual: number;
+  plazo_meses: number;
+  ratio_cuota_ingreso: number;
+  opciones_inicial: number[];
+  inicial_minima: number;
+  moneda_base?: string;
 }
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -83,10 +99,46 @@ export async function obtenerParametrosFinanciamiento(): Promise<ParametrosFinan
   return PARAMETROS_APROBADOS;
 }
 
+export async function actualizarParametrosFinanciamiento(
+  payload: ActualizarParametrosPayload,
+  token?: string | null
+): Promise<ParametrosFinanciamientoCompletos> {
+  const base = API_URL || 'http://localhost:8080';
+  const res = await fetch(`${base}/v1/financiamiento/parametros`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.detail || errorBody.message || `Error al actualizar parámetros (código HTTP ${res.status})`);
+  }
+
+  const row = (await res.json()) as ParametrosDb;
+  return {
+    tasaMensual: Number(row.tasa_mensual),
+    plazoMeses: Number(row.plazo_meses),
+    ratioCuotaIngreso: Number(row.ratio_cuota_ingreso),
+    opcionesInicial: Array.isArray(row.opciones_inicial)
+      ? row.opciones_inicial.map(Number)
+      : [0.20, 0.30, 0.40],
+    inicialMinima: Number(row.inicial_minima),
+    monedaBase: row.moneda_base,
+    vigenteDesde: row.vigente_desde,
+    activo: row.activo,
+  };
+}
+
 export interface EstadoParametrosFinanciamiento {
   parametros: ParametrosFinanciamiento | null;
   cargando: boolean;
   error: string | null;
+  recargar: () => Promise<void>;
 }
 
 export function useParametrosFinanciamiento(): EstadoParametrosFinanciamiento {
@@ -94,34 +146,28 @@ export function useParametrosFinanciamiento(): EstadoParametrosFinanciamiento {
   const [cargando, setCargando] = useState<boolean>(Boolean(SUPABASE_URL || API_URL));
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Si no hay endpoints remotos, el estado inicial ya tiene los parámetros aprobados
+  const cargar = async () => {
     if (!SUPABASE_URL && !API_URL) {
+      setParametros(PARAMETROS_APROBADOS);
+      setCargando(false);
       return;
     }
+    try {
+      setCargando(true);
+      setError(null);
+      const params = await obtenerParametrosFinanciamiento();
+      setParametros(params);
+    } catch (err: unknown) {
+      setParametros(null);
+      setError(err instanceof Error ? err.message : 'Error desconocido al cargar parámetros');
+    } finally {
+      setCargando(false);
+    }
+  };
 
-    let cancelado = false;
-
-    obtenerParametrosFinanciamiento()
-      .then((params) => {
-        if (!cancelado) {
-          setParametros(params);
-          setCargando(false);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelado) {
-          // Requisito B.5: Si los parámetros no cargan, NO mostrar valores de respaldo
-          setParametros(null);
-          setError(err instanceof Error ? err.message : 'Error desconocido al cargar parámetros');
-          setCargando(false);
-        }
-      });
-
-    return () => {
-      cancelado = true;
-    };
+  useEffect(() => {
+    cargar();
   }, []);
 
-  return { parametros, cargando, error };
+  return { parametros, cargando, error, recargar: cargar };
 }

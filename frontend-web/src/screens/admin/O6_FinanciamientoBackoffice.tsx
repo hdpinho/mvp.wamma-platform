@@ -2,6 +2,12 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useVehiculos } from '../../state/vehiculosContexto';
 import { Boton } from '../../components/Boton';
 import { PARAMETROS_FINANCIAMIENTO, calcularCuota, generarAmortizacion } from '../../mocks/financiamiento';
+import {
+  useParametrosFinanciamiento,
+  actualizarParametrosFinanciamiento,
+} from '../../services/parametrosFinanciamiento';
+import { tokenDeSesion } from '../../api/cliente';
+import { useSesion } from '../../state/sesionContexto';
 
 interface O6FinanciamientoBackofficeProps {
   rateBCV: number;
@@ -26,6 +32,24 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
   rateBCV: _rateBCV,
 }) => {
   const { vehiculos } = useVehiculos();
+  const {
+    parametros: parametrosBackend,
+    cargando: cargandoParametros,
+    recargar: recargarParametros,
+  } = useParametrosFinanciamiento();
+  const { puede, estado: estadoSesion } = useSesion();
+
+  const puedeEditarParametros =
+    estadoSesion === 'sin_servidor' || puede('parametros.gestionar') || puede('cotizador.usar');
+
+  const [mostrarGestionParametros, setMostrarGestionParametros] = useState(false);
+  const [guardandoParametros, setGuardandoParametros] = useState(false);
+  const [mensajeParametros, setMensajeParametros] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null);
+
+  const [cfgTasaMensual, setCfgTasaMensual] = useState<number>(4.0);
+  const [cfgPlazoMeses, setCfgPlazoMeses] = useState<number>(24);
+  const [cfgRatioCapacidad, setCfgRatioCapacidad] = useState<number>(30);
+  const [cfgInicialMinima, setCfgInicialMinima] = useState<number>(20);
 
   const [vehiculoSeleccionadoId, setVehiculoSeleccionadoId] = useState<string>(
     vehiculos[0]?.id || '',
@@ -34,21 +58,40 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
   const [nombreCliente, setNombreCliente] = useState<string>('');
   const [telefonoCliente, setTelefonoCliente] = useState<string>('');
 
+  // La inicial arranca en el mínimo vigente (20 %, decisión del PO).
+  const [porcentajeInicial, setPorcentajeInicial] = useState<number>(
+    Math.round(PARAMETROS_FINANCIAMIENTO.inicialPorcentaje * 100),
+  );
+  const [plazoMeses, setPlazoMeses] = useState<number>(24);
+  const [tasaMensualPct, setTasaMensualPct] = useState<number>(4.0);
+
   // Sincronizar selección inicial cuando los vehículos cargan asíncronamente desde el backend
   useEffect(() => {
     if (!vehiculoSeleccionadoId && vehiculos.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVehiculoSeleccionadoId(vehiculos[0].id);
       setPrecioPersonalizado(vehiculos[0].precio);
     }
   }, [vehiculos, vehiculoSeleccionadoId]);
 
-  // La inicial arranca en el mínimo vigente (20 %, decisión del PO).
-  const [porcentajeInicial, setPorcentajeInicial] = useState<number>(
-    Math.round(PARAMETROS_FINANCIAMIENTO.inicialPorcentaje * 100),
-  );
-  const [plazoMeses, setPlazoMeses] = useState<number>(18);
-  const [tasaMensualPct, setTasaMensualPct] = useState<number>(4.0);
+  // Sincronizar campos de cotización con parámetros activos del backend al recibirlos
+  const [parametrosSincronizados, setParametrosSincronizados] = useState(false);
+
+  useEffect(() => {
+    if (parametrosBackend && !parametrosSincronizados) {
+      const tasaPct = +(parametrosBackend.tasaMensual * 100).toFixed(2);
+      const inicialPct = Math.round(parametrosBackend.inicialMinima * 100);
+      setPorcentajeInicial(inicialPct);
+      setPlazoMeses(parametrosBackend.plazoMeses);
+      setTasaMensualPct(tasaPct);
+
+      setCfgTasaMensual(tasaPct);
+      setCfgPlazoMeses(parametrosBackend.plazoMeses);
+      setCfgRatioCapacidad(Math.round(parametrosBackend.ratioCuotaIngreso * 100));
+      setCfgInicialMinima(inicialPct);
+
+      setParametrosSincronizados(true);
+    }
+  }, [parametrosBackend, parametrosSincronizados]);
 
   // Análisis de capacidad en EUR
   const [ingresoMensualEUR, setIngresoMensualEUR] = useState<number>(1500);
@@ -85,10 +128,50 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
   const totalIntereses = tablaAmortizacion.reduce((acc, row) => acc + row.interes, 0);
   const totalPagado = montoFinanciado + totalIntereses;
 
-  // Ratios de capacidad (30% del ingreso según Constitución WAMMA)
-  const capacidadPagoDisponible = (ingresoMensualEUR || 0) * PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago;
+  // Ratios de capacidad (30% del ingreso según Constitución WAMMA o parametrizado en BD)
+  const ratioCapacidad = parametrosBackend
+    ? parametrosBackend.ratioCuotaIngreso
+    : PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago;
+  const capacidadPagoDisponible = (ingresoMensualEUR || 0) * ratioCapacidad;
   const ratioCuotaIngreso =
     ingresoMensualEUR > 0 ? (cuotaMensualEUR / ingresoMensualEUR) * 100 : 0;
+
+  const guardarParametrosBd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGuardandoParametros(true);
+    setMensajeParametros(null);
+    try {
+      const payload = {
+        tasa_mensual: Number((cfgTasaMensual / 100).toFixed(4)),
+        plazo_meses: Number(cfgPlazoMeses),
+        ratio_cuota_ingreso: Number((cfgRatioCapacidad / 100).toFixed(2)),
+        opciones_inicial: [
+          Number((cfgInicialMinima / 100).toFixed(2)),
+          Number(((cfgInicialMinima + 10) / 100).toFixed(2)),
+          Number(((cfgInicialMinima + 20) / 100).toFixed(2)),
+        ],
+        inicial_minima: Number((cfgInicialMinima / 100).toFixed(2)),
+        moneda_base: 'EUR',
+      };
+      await actualizarParametrosFinanciamiento(payload, tokenDeSesion());
+      await recargarParametros();
+      setTasaMensualPct(cfgTasaMensual);
+      setPlazoMeses(cfgPlazoMeses);
+      setPorcentajeInicial(cfgInicialMinima);
+      setMensajeParametros({
+        tipo: 'exito',
+        texto: '✓ Parámetros actualizados exitosamente en la base de datos y registrados en auditoría inmutable.',
+      });
+      setTimeout(() => setMensajeParametros(null), 5000);
+    } catch (err: unknown) {
+      setMensajeParametros({
+        tipo: 'error',
+        texto: err instanceof Error ? err.message : 'Error al guardar los parámetros',
+      });
+    } finally {
+      setGuardandoParametros(false);
+    }
+  };
 
   const copiarPropuestaWhatsApp = () => {
     const vehiculoTitulo =
@@ -130,10 +213,122 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
             Herramienta interna para estructurar planes de financiamiento, generar amortizaciones exactas y enviar propuestas a clientes en Euros y Bolívares (BCV).
           </p>
         </div>
-        <Boton variant="primary" onClick={copiarPropuestaWhatsApp}>
-          {copiado ? '✓ ¡Copiado al Portapapeles!' : '📋 Copiar Propuesta para WhatsApp'}
-        </Boton>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {puedeEditarParametros && (
+            <Boton
+              variant="secondary"
+              onClick={() => setMostrarGestionParametros(!mostrarGestionParametros)}
+            >
+              ⚙️ {mostrarGestionParametros ? 'Ocultar Parámetros BD' : 'Parámetros del Sistema (BD)'}
+            </Boton>
+          )}
+          <Boton variant="primary" onClick={copiarPropuestaWhatsApp}>
+            {copiado ? '✓ ¡Copiado al Portapapeles!' : '📋 Copiar Propuesta para WhatsApp'}
+          </Boton>
+        </div>
       </div>
+
+      {mostrarGestionParametros && (
+        <form onSubmit={guardarParametrosBd} className="tarjeta-blanca" style={{ marginBottom: 'var(--space-xl)', border: '2px solid var(--naranja-400)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div>
+              <h2 className="panel-titulo" style={{ margin: 0, color: 'var(--naranja-600)' }}>
+                ⚙️ Configuración Oficial de Financiamiento (Base de Datos)
+              </h2>
+              <span style={{ fontSize: '12px', color: 'var(--texto-mudo)' }}>
+                Tabla parametros_financiamiento · Los cambios se aplican de inmediato en la vitrina, el cotizador y la ficha técnica.
+              </span>
+            </div>
+            {cargandoParametros && <span style={{ fontSize: '12px', color: 'var(--naranja-600)' }}>Sincronizando...</span>}
+          </div>
+
+          {mensajeParametros && (
+            <div style={{
+              padding: '10px 14px',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '14px',
+              backgroundColor: mensajeParametros.tipo === 'exito' ? '#E8F5E9' : '#FFEBEE',
+              color: mensajeParametros.tipo === 'exito' ? '#2E7D32' : '#C62828',
+              fontSize: '13px',
+              fontWeight: 600,
+            }}>
+              {mensajeParametros.texto}
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+            <div className="campo-item">
+              <label>Tasa Mensual Oficial (%)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.1"
+                max="20"
+                value={cfgTasaMensual}
+                onChange={(e) => setCfgTasaMensual(Number(e.target.value))}
+                required
+              />
+            </div>
+            <div className="campo-item">
+              <label>Plazo Oficial (meses)</label>
+              <input
+                type="number"
+                step="1"
+                min="1"
+                max="72"
+                value={cfgPlazoMeses}
+                onChange={(e) => setCfgPlazoMeses(Number(e.target.value))}
+                required
+              />
+            </div>
+            <div className="campo-item">
+              <label>Ratio Cuota / Ingreso (%)</label>
+              <input
+                type="number"
+                step="1"
+                min="5"
+                max="60"
+                value={cfgRatioCapacidad}
+                onChange={(e) => setCfgRatioCapacidad(Number(e.target.value))}
+                required
+              />
+            </div>
+            <div className="campo-item">
+              <label>Inicial Mínima Oficial (%)</label>
+              <input
+                type="number"
+                step="1"
+                min="5"
+                max="90"
+                value={cfgInicialMinima}
+                onChange={(e) => setCfgInicialMinima(Number(e.target.value))}
+                required
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '14px' }}>
+            <Boton
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                if (parametrosBackend) {
+                  setCfgTasaMensual(+(parametrosBackend.tasaMensual * 100).toFixed(2));
+                  setCfgPlazoMeses(parametrosBackend.plazoMeses);
+                  setCfgRatioCapacidad(Math.round(parametrosBackend.ratioCuotaIngreso * 100));
+                  setCfgInicialMinima(Math.round(parametrosBackend.inicialMinima * 100));
+                }
+                setMostrarGestionParametros(false);
+              }}
+            >
+              Cancelar
+            </Boton>
+            <Boton type="submit" variant="primary" disabled={guardandoParametros}>
+              {guardandoParametros ? 'Guardando en BD...' : '💾 Guardar Parámetros en Base de Datos'}
+            </Boton>
+          </div>
+        </form>
+      )}
 
       <div className="grid-financiamiento-admin">
         {/* Columna Izquierda: Parámetros */}

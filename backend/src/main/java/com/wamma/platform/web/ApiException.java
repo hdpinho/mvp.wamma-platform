@@ -25,8 +25,24 @@ public class ApiException extends RuntimeException {
         return new ApiException(HttpStatus.NOT_FOUND, "No encontrado", detail);
     }
 
+    public static ApiException notFound(String title, String detail) {
+        return new ApiException(HttpStatus.NOT_FOUND, title, detail);
+    }
+
     public static ApiException conflict(String title, String detail) {
         return new ApiException(HttpStatus.CONFLICT, title, detail);
+    }
+
+    public static ApiException unprocessable(String title, String detail) {
+        return new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, title, detail);
+    }
+
+    public static ApiException forbidden(String title, String detail) {
+        return new ApiException(HttpStatus.FORBIDDEN, title, detail);
+    }
+
+    public static ApiException tooManyRequests(String title, String detail) {
+        return new ApiException(HttpStatus.TOO_MANY_REQUESTS, title, detail);
     }
 
     public HttpStatus status() {

@@ -34,6 +34,10 @@ public class AuditLog {
         recordAs(CurrentUser.id().orElse(null), action, entity, entityId, before, after);
     }
 
+    public void record(String action, String entity, UUID entityId, Map<String, ?> after) {
+        record(action, entity, entityId, null, after);
+    }
+
     public void recordAs(UUID actorId, String action, String entity, UUID entityId,
                          Map<String, ?> before, Map<String, ?> after) {
         jdbc.sql("""
