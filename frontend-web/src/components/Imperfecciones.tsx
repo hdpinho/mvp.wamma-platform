@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { DiagramaVehiculo } from './DiagramaVehiculo';
-import { NotaSimulada } from './NotaSimulada';
 import { imperfeccionesDe } from '../mocks/imperfecciones';
 import { useVehiculos } from '../state/vehiculosContexto';
 import type { VehiculoData, Imperfeccion } from '../types/vehiculo';
@@ -192,7 +191,7 @@ export const Imperfecciones: React.FC<ImperfeccionesProps> = ({ vehiculo, listaI
                 >
                   {vehiculo.foto ? (
                     <div
-                      aria-label={`Acercamiento simulado de: ${actual.tipo}`}
+                      aria-label={`Vista detallada de: ${actual.tipo}`}
                       role="img"
                       style={{
                         position: 'absolute',
@@ -285,13 +284,6 @@ export const Imperfecciones: React.FC<ImperfeccionesProps> = ({ vehiculo, listaI
                 Sin hallazgos declarados en el {zona}.
               </div>
             )}
-          </div>
-
-          <div style={{ marginTop: 'var(--space-lg)' }}>
-            <NotaSimulada>
-              El acercamiento se genera sobre la foto referencial del modelo. En la plataforma real
-              cada hallazgo lleva la fotografía que toma el inspector (`evidencia_url`, módulo 004).
-            </NotaSimulada>
           </div>
         </>
       )}

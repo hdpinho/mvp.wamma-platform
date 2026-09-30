@@ -32,6 +32,7 @@ import { O6_FinanciamientoBackoffice } from './screens/admin/O6_FinanciamientoBa
 import { O7_EmbudoComercial } from './screens/admin/O7_EmbudoComercial';
 import { O7_Personas } from './screens/admin/O7_Personas';
 import { O7_FichaPersona } from './screens/admin/O7_FichaPersona';
+import { O7_AnalisisCredito } from './screens/admin/O7_AnalisisCredito';
 
 function AppRutas({ rateBCV }: { rateBCV: number }) {
   const location = useLocation();
@@ -127,6 +128,14 @@ function AppRutas({ rateBCV }: { rateBCV: number }) {
               element={
                 <RequierePermiso permisos={['cotizador.usar']}>
                   <O6_FinanciamientoBackoffice rateBCV={rateBCV} />
+                </RequierePermiso>
+              }
+            />
+            <Route
+              path="solicitudes"
+              element={
+                <RequierePermiso permisos={['credito.revisar', 'cotizador.usar', 'crm.ver_todas']}>
+                  <O7_AnalisisCredito />
                 </RequierePermiso>
               }
             />

@@ -20,6 +20,7 @@ export const MENU_ADMIN: EntradaMenu[] = [
   { ruta: '/admin/embudo', icono: '📊', texto: 'Embudo Comercial', permisos: PERMISOS_CRM },
   { ruta: '/admin/personas', icono: '👤', texto: 'Personas', permisos: PERMISOS_CRM },
   { ruta: '/admin/financiamiento', icono: '💳', texto: 'Cotizador Crédito', permisos: ['cotizador.usar'] },
+  { ruta: '/admin/solicitudes', icono: '📝', texto: 'Solicitudes Crédito', permisos: ['credito.revisar', 'cotizador.usar', 'crm.ver_todas'] },
   { ruta: '/admin/tasa-bcv', icono: '💱', texto: 'Tasa BCV', permisos: ['tasa_bcv.registrar'] },
   { ruta: '/admin/usuarios', icono: '🔑', texto: 'Usuarios', permisos: ['usuarios.gestionar'] },
   { ruta: '/admin/bitacora', icono: '📜', texto: 'Bitácora', permisos: ['auditoria.ver'] },

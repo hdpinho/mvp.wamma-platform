@@ -32,6 +32,7 @@ import java.util.UUID;
  * "Publicar los listos" una vez registrada la tasa BCV del euro.
  */
 @Component
+@org.springframework.core.annotation.Order(10)
 @ConditionalOnProperty(name = "wamma.demo.cargar-inventario", havingValue = "true")
 public class DemoInventorySeeder implements ApplicationRunner {
 

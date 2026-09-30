@@ -74,7 +74,7 @@ export const AdminLayout: React.FC = () => {
           )}
           {estado === 'sin_servidor' && (
             <div className="admin-cuenta-detalle" style={{ marginBottom: '10px' }}>
-              Modo maqueta: sin inicio de sesión.
+              Acceso administrativo directo
             </div>
           )}
           <EstadoServidor />

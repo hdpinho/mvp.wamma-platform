@@ -5,7 +5,6 @@ import { useVehiculos } from '../state/vehiculosContexto';
 import { TarjetaVehiculo } from '../components/TarjetaVehiculo';
 import { ChipFiltro } from '../components/ChipFiltro';
 import { Estado } from '../components/Estado';
-import { NotaSimulada } from '../components/NotaSimulada';
 import { cuotaDesde } from '../mocks/financiamiento';
 
 interface C1CatalogoProps {
@@ -526,11 +525,8 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
                 ))}
               </div>
 
-              <div style={{ marginTop: 'var(--space-xl)' }}>
-                <NotaSimulada>
-                  La cuota "desde" asume la inicial más alta y el plazo más largo disponibles. Sujeta
-                  a aprobación crediticia.
-                </NotaSimulada>
+              <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center', fontSize: '12px', color: 'var(--texto-mudo)' }}>
+                * La cuota estimada "desde" asume la inicial referencial y el plazo máximo disponible. Sujeta a evaluación y aprobación crediticia oficial.
               </div>
             </>
           ) : (

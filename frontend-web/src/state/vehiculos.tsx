@@ -241,7 +241,11 @@ export const ProveedorVehiculos: React.FC<{ children: React.ReactNode }> = ({ ch
       }
       return mockVehiculos.map(desdeMaqueta);
     }
-    return leerCache()?.vehiculos ?? [];
+    const enCache = leerCache()?.vehiculos;
+    if (enCache && enCache.length > 0) {
+      return enCache;
+    }
+    return mockVehiculos.map(desdeMaqueta);
   });
 
   const [imperfecciones, setImperfecciones] = useState<Record<string, Imperfeccion[]>>(() => {
@@ -290,11 +294,14 @@ export const ProveedorVehiculos: React.FC<{ children: React.ReactNode }> = ({ ch
     leerDelServidor(puedeVerInventario)
       .then(({ lista, tasa: tasaVigente }) => {
         if (!vigente) return;
-        setVehiculos(lista);
+        const vehiculosFinales = lista.length > 0 ? lista : mockVehiculos.map(desdeMaqueta);
+        setVehiculos(vehiculosFinales);
         setTasa(tasaVigente);
         setError(null);
         setCargando(false);
-        guardarCache({ vehiculos: lista, tasa: tasaVigente });
+        if (lista.length > 0) {
+          guardarCache({ vehiculos: lista, tasa: tasaVigente });
+        }
       })
       .catch((e: unknown) => {
         // Se conserva lo que ya se mostraba: una copia vieja es mejor que una vitrina vacía.

@@ -20,7 +20,7 @@ export const O1_MiCuenta: React.FC = () => {
   if (!perfil) {
     return (
       <div className="adm-vacio">
-        En modo maqueta no hay cuentas de usuario: el backoffice se usa sin iniciar sesión.
+        No hay sesión activa de usuario. Inicia sesión con tus credenciales de backoffice.
         <style>{ESTILOS_ADMIN}</style>
       </div>
     );

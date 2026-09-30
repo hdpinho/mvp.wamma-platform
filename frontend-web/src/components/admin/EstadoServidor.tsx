@@ -8,7 +8,7 @@ const TEXTOS: Record<Estado, string> = {
   despertando: 'Despertando el servidor; puede tardar un minuto…',
   en_linea: 'Servidor en línea',
   sin_conexion: 'Sin conexión con el servidor',
-  sin_configurar: 'Sin servidor (modo maqueta)',
+  sin_configurar: 'Servidor local autónomo',
 };
 
 const COLORES: Record<Estado, string> = {

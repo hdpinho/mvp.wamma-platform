@@ -2,7 +2,6 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TarjetaVehiculo } from '../components/TarjetaVehiculo';
 import { Boton } from '../components/Boton';
-import { NotaSimulada } from '../components/NotaSimulada';
 import { useFavoritos } from '../state/favoritosContexto';
 import { useVehiculos } from '../state/vehiculosContexto';
 
@@ -104,12 +103,6 @@ export const C7_Favoritos: React.FC<C7FavoritosProps> = ({ rateBCV }) => {
         </>
       )}
 
-      <div style={{ marginTop: 'var(--space-xl)' }}>
-        <NotaSimulada variante="bloque">
-          Los guardados corresponden al módulo 12 (Marketplace), planificado para la Fase 2. Se muestran
-          como maqueta visual: no hay persistencia, el listado se pierde al recargar la página.
-        </NotaSimulada>
-      </div>
     </div>
   );
 };
