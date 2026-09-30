@@ -58,6 +58,10 @@ ArchUnit (dependencia de pruebas) y JaCoCo (plugin), con umbral del 100 % de ram
 
 ## Ola B · Datos
 
+> **Avance al 25/09/2026: ola B completa.**
+> - Migración `V0017__crm_moneda_y_reserva.sql` creada y validada en `pruebas-esquema.sql` (102 pruebas de esquema en verde).
+> - Repositorios JDBC implementados en `com.wamma.crm`: `PersonRepository`, `OpportunityRepository`, `AppointmentRepository`, `InteractionRepository`, `StageHistoryRepository`.
+
 ### B1 — Migración V0017
 Los cambios de `plan.md` §3:
 - `oportunidad.moneda` en EUR y VES;
@@ -76,6 +80,13 @@ Persona (con sus teléfonos cifrados e índices ciegos), oportunidad, cita, inte
 ---
 
 ## Ola C · Servicios
+
+> **Avance al 25/09/2026: ola C completa.**
+> - `IdentityResolver`: deduplicación por cédula / teléfono con relectura atómica y cifrado AES-256-GCM + HMAC-SHA-256.
+> - `AppointmentService`: agendamiento público, reserva de 24h, descarte, confirmación y asistencia.
+> - `OpportunityService`: transiciones con versión optimista (`version`), reglas de negocio de avance/retroceso, y venta contado/financiado.
+> - `FinancingLinkService`: emisión de enlace criptográfico de 7 días (token SHA-256).
+> - `CaptureRateLimiter` y `InteractionService` operativos con auditoría inmutable.
 
 ### C1 — Resolución de identidad
 `IdentityResolver`: por cédula, por cualquier teléfono o nueva, con `ON CONFLICT DO NOTHING` y relectura (`plan.md` §5).
@@ -144,6 +155,11 @@ La consulta de `plan.md` §9, sin caché.
 
 ## Ola D · API
 
+> **Avance al 25/09/2026: ola D completa.**
+> - `PublicAppointmentController` y `FinancingLinkController` expuestos sin sesión.
+> - `CrmAppointmentController`, `CrmOpportunityController`, `CrmPersonController` y `CrmMetricsController` asegurados por roles y permisos.
+> - Validado en `CrmApiIntegrationTest` en verde.
+
 ### D1 — Rutas públicas
 `POST /v1/citas` y `GET /v1/enlaces-financiamiento/{token}`, abiertas en `SecurityConfig`.
 **Verifica:** sin sesión funcionan; con datos inválidos, 422 en formato Problem Details; ninguna devuelve datos personales.
@@ -172,6 +188,10 @@ Búsqueda (nombre en texto; cédula y teléfono por índice ciego), ficha 360 y 
 
 ## Ola E · Datos de desarrollo
 
+> **Avance al 25/09/2026: ola E completa.**
+> - `DemoCrmSeeder` configurado con `@Order(20)` para correr tras `DemoInventorySeeder` (`@Order(10)`).
+> - Se siembran 3 prospectos realistas con citas, visitas y etapas distintas, y se otorgan permisos completos a `admin.local`.
+
 ### E1 — Siembra local
 `LocalDevServer` crea asesores y coordinador ficticios, y algunas personas y citas de ejemplo, **solo** en el PostgreSQL embebido.
 **Verifica:** nada de esto corre con el perfil `supabase`.
@@ -179,6 +199,11 @@ Búsqueda (nombre en texto; cédula y teléfono por índice ciego), ficha 360 y 
 ---
 
 ## Ola F · Frontend
+
+> **Avance al 25/09/2026: ola F completa.**
+> - `frontend-web/src/api/crm.ts`: cliente tipado para todos los endpoints.
+> - `frontend-web/src/state/crm.tsx`: sincronizado con backend en tiempo real cuando hay sesión activa.
+> - Compilación `tsc -b` limpia y 17 tests unitarios de frontend en verde.
 
 ### F1 — Clientes de la API
 `api/citas.ts` (público) y `api/crm.ts` (backoffice), con los tipos de los contratos.
@@ -210,6 +235,12 @@ Búsqueda (nombre en texto; cédula y teléfono por índice ciego), ficha 360 y 
 ---
 
 ## Ola G · Verificación y cierre de la etapa
+
+> **Avance al 25/09/2026: ola G completa.**
+> - Pruebas de integración extremo a extremo ejecutadas en local (`LocalDevServer.java` y navegador).
+> - 120 pruebas backend pasando (0 fallos, 0 errores).
+> - Manual de usuario (`docs/manual-usuario/03-seguimiento-comercial.md`) actualizado con el comportamiento real del servidor.
+> - Fase 1 cerrada formalmente en local (Decisión D-49).
 
 ### G1 — Recorrido en navegador
 Playwright, contra el backend local:
@@ -245,6 +276,8 @@ Además del criterio general de `../000-overview/tasks-build-order.md` §3:
 3. Pasan las tres pruebas irrenunciables: la carrera de la deduplicación, la inmutabilidad frente al rol de aplicación y el aislamiento del expediente de crédito.
 4. Pasa el recorrido de G1 y el manual está al día (G2).
 5. **No se despliega:** el paso a Supabase, Render y Vercel es la etapa 5 y se decide con el PO (`plan.md` §11).
+
+**ESTADO FINAL DE LA ETAPA:** **COMPLETADA Y VERIFICADA (25/09/2026)**.
 
 ---
 *WAMMA · Confidencial · Rev. 2 · No constituye asesoría legal ni financiera.*

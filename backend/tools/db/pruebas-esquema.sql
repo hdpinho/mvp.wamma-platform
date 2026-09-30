@@ -102,7 +102,7 @@ update persona set cedula_cifrada = '\x01'::bytea where id = '00000000-0000-0000
 -- @error persona: sin criterio de resolucion
 insert into persona (nombre_apellido, canal_origen) values ('Sin criterio', 'whatsapp');
 -- @ok oportunidad: nueva con valor, moneda, tasa y fecha de la tasa
-insert into oportunidad (id, persona_id, vehiculo_id, modalidad_pago, valor_estimado, moneda, tasa_bcv, fecha_tasa) values ('00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003', 'contado', 10000, 'USD', 1, current_date);
+insert into oportunidad (id, persona_id, vehiculo_id, modalidad_pago, valor_estimado, moneda, tasa_bcv, fecha_tasa) values ('00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003', 'contado', 10000, 'EUR', 1, current_date);
 -- @verdad oportunidad: nace en 'nuevo', sin asesor y version 0
 select etapa = 'nuevo' and asesor_id is null and version = 0 from oportunidad where id = '00000000-0000-0000-0000-000000000005';
 -- @error oportunidad: cerrar como perdida sin motivo (CA-010.2)
@@ -111,6 +111,8 @@ update oportunidad set etapa = 'cerrado_perdido' where id = '00000000-0000-0000-
 update oportunidad set motivo_perdida = 'otro' where id = '00000000-0000-0000-0000-000000000005';
 -- @error oportunidad: etapa fuera del catalogo (las de V0004 ya no existen)
 update oportunidad set etapa = 'contacto_inicial' where id = '00000000-0000-0000-0000-000000000005';
+-- @error oportunidad: dolares ya no se admiten (V0017)
+insert into oportunidad (persona_id, vehiculo_id, modalidad_pago, valor_estimado, moneda, tasa_bcv, fecha_tasa) values ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003', 'contado', 1, 'USD', 1, current_date);
 -- @error oportunidad: moneda fuera de las admitidas
 insert into oportunidad (persona_id, vehiculo_id, modalidad_pago, valor_estimado, moneda, tasa_bcv, fecha_tasa) values ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003', 'contado', 1, 'XYZ', 1, current_date);
 -- @error oportunidad: sin fecha de la tasa
@@ -123,10 +125,10 @@ insert into oportunidad (persona_id, vehiculo_id, modalidad_pago, valor_estimado
 insert into oportunidad (id, persona_id, vehiculo_id, modalidad_pago, valor_estimado, tasa_bcv, fecha_tasa, enlace_token_hash, enlace_emitido_en, enlace_expira_en) values ('00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003', 'financiamiento', 1, 1, current_date, repeat('c', 64), now(), now() + interval '1 day');
 -- @error enlace: el mismo hash en dos oportunidades
 insert into oportunidad (persona_id, vehiculo_id, modalidad_pago, valor_estimado, tasa_bcv, fecha_tasa, enlace_token_hash, enlace_emitido_en, enlace_expira_en) values ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003', 'financiamiento', 1, 1, current_date, repeat('c', 64), now(), now() + interval '1 day');
--- @ok cita: ligada a la oportunidad, con dia y franja
-insert into cita_inspeccion (persona_id, oportunidad_id, vehiculo_id, sede_id, dia_preferido, franja) values ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', current_date + 1, 'manana');
--- @verdad cita: nace pendiente
-select estado = 'pendiente' from cita_inspeccion where oportunidad_id = '00000000-0000-0000-0000-000000000006';
+-- @ok cita: ligada a la oportunidad, con dia, franja y reserva
+insert into cita_inspeccion (persona_id, oportunidad_id, vehiculo_id, sede_id, dia_preferido, franja, reserva_vence_en) values ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', current_date + 1, 'manana', now() + interval '24 hours');
+-- @verdad cita: nace pendiente y con reserva
+select estado = 'pendiente' and reserva_vence_en is not null from cita_inspeccion where oportunidad_id = '00000000-0000-0000-0000-000000000006';
 -- @error cita: franja invalida
 insert into cita_inspeccion (persona_id, oportunidad_id, vehiculo_id, sede_id, dia_preferido, franja) values ('00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', current_date, 'noche');
 -- @error cita: sin oportunidad

@@ -31,6 +31,11 @@ import type {
   ResultadoVenta,
 } from './crmContexto';
 import { CORREO_NOTIFICACIONES_WAMMA, CRMContext } from './crmContexto';
+import { useSesion } from './sesionContexto';
+import { apiConfigurada } from '../api/cliente';
+import { crmApi } from '../api/crm';
+
+const esUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
 /**
  * Proveedor del seguimiento comercial — `specs/010-crm-comercial/`.
@@ -454,6 +459,7 @@ function construirEjemplo(vehiculos: VehiculoData[]): {
 
 export const ProveedorCRM: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { vehiculos, cambiarEstadoVehiculo } = useVehiculos();
+  const sesion = useSesion();
 
   // Inicializador diferido: sin esto, `cargarEstadoInicial` leería localStorage
   // en cada render, no solo en el primero.
@@ -469,6 +475,95 @@ export const ProveedorCRM: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => guardar(CLAVE_INTERACCIONES, interacciones), [interacciones]);
   useEffect(() => guardar(CLAVE_HISTORIAL, historial), [historial]);
   useEffect(() => guardar(CLAVE_CITAS, citas), [citas]);
+
+  useEffect(() => {
+    if (!apiConfigurada || sesion.estado !== 'activa') return;
+    let cancelado = false;
+
+    async function cargarDesdeBackend() {
+      try {
+        const [citasApi, oppsApi, personasApi] = await Promise.all([
+          crmApi.listarCitas({ todos: true }),
+          crmApi.listarOportunidades({ limite: 100 }),
+          crmApi.buscarPersonas('', 100),
+        ]);
+        if (cancelado) return;
+
+        if (personasApi.length > 0 || oppsApi.length > 0 || citasApi.length > 0) {
+          const nuevasPersonas: Persona[] = personasApi.map((p) => ({
+            id: p.id,
+            nombreApellido: p.nombreApellido,
+            cedula: p.cedula || undefined,
+            telefonoWhatsApp: p.telefonos[0] || '',
+            telefonosAdicionales: p.telefonos.slice(1),
+            correo: p.correo || undefined,
+            canalOrigen: 'vitrina_web',
+            criterioResolucion: (p.criterioResolucion as any) || 'nueva',
+            fechaCreacion: p.creadoEn,
+          }));
+
+          const nuevasOpps: Oportunidad[] = oppsApi.map((o) => {
+            const v = vehiculos.find((vh) => vh.id === o.vehiculoId);
+            return {
+              id: o.id,
+              personaId: o.personaId,
+              vehiculoId: o.vehiculoId,
+              vehiculoResumen: v
+                ? {
+                    marca: v.marca,
+                    modelo: v.modelo,
+                    version: v.version,
+                    anio: v.anio,
+                    precioUSD: v.precio,
+                    foto: v.foto,
+                  }
+                : {
+                    marca: o.vehiculoTitulo?.split(' ')[0] || 'Toyota',
+                    modelo: o.vehiculoTitulo?.split(' ').slice(1).join(' ') || 'Vehículo',
+                    version: '',
+                    anio: 2021,
+                    precioUSD: o.valorEstimado,
+                    foto: o.vehiculoFotoKey || '',
+                  },
+              etapa: o.etapa,
+              modalidadPago: o.modalidadPago === 'contado' ? 'Contado' : 'Financiamiento',
+              valorEstimadoUSD: o.valorEstimado,
+              asesorId: o.asesorId,
+              proximaAccion: o.proximaAccion || undefined,
+              proximaAccionFecha: o.proximaAccionFecha || undefined,
+              fechaCreacion: o.creadoEn,
+              motivoPerdida: o.motivoPerdida || undefined,
+              motivoPerdidaTexto: o.detallePerdida || undefined,
+              fechaCierre: o.cerradoEn || undefined,
+            };
+          });
+
+          const nuevasCitas: Cita[] = citasApi.map((c) => ({
+            id: c.id,
+            personaId: c.personaId,
+            oportunidadId: c.oportunidadId,
+            vehiculoId: c.vehiculoId,
+            diaPreferencia: c.diaPreferido,
+            franjaHoraria: c.franja === 'tarde' ? 'Tarde' : 'Mañana',
+            estado: c.estado as any,
+            fechaCreacion: c.creadoEn,
+            notificadoA: CORREO_NOTIFICACIONES_WAMMA,
+          }));
+
+          setPersonas(nuevasPersonas);
+          setOportunidades(nuevasOpps);
+          setCitas(nuevasCitas);
+        }
+      } catch (err) {
+        console.warn('Sincronización de CRM con backend falló:', err);
+      }
+    }
+
+    cargarDesdeBackend();
+    return () => {
+      cancelado = true;
+    };
+  }, [sesion.estado, vehiculos]);
 
   // ── Consultas ──────────────────────────────────────────────────────────────
 
@@ -583,6 +678,17 @@ export const ProveedorCRM: React.FC<{ children: React.ReactNode }> = ({ children
       liberarVehiculoSiNadieLoReclama(oportunidad.vehiculoId, oportunidadId);
     }
 
+    if (apiConfigurada && sesion.estado === 'activa' && esUuid(oportunidadId)) {
+      crmApi
+        .cambiarEtapa(oportunidadId, (oportunidad as any).version ?? 0, {
+          etapaDestino: nueva,
+          motivoPerdida: opciones.motivoPerdida,
+          detallePerdida: opciones.motivoPerdidaTexto,
+          nota: opciones.nota,
+        })
+        .catch((e) => console.warn('Error cambiando etapa en backend:', e));
+    }
+
     return { ok: true };
   };
 
@@ -660,6 +766,21 @@ export const ProveedorCRM: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Se bloquea el vehículo para que otros no agenden sobre lo mismo.
     cambiarEstadoVehiculo(v.id, 'cita_agendada');
+
+    if (apiConfigurada) {
+      crmApi
+        .agendarCitaPublica({
+          nombreApellido: datos.nombreApellido,
+          telefonoWhatsApp: datos.telefonoWhatsApp,
+          correo: datos.correo,
+          modalidadPago: datos.modalidadPago.toLowerCase() as 'contado' | 'financiamiento',
+          vehiculoId: esUuid(v.id) ? v.id : undefined,
+          vehiculoCodigo: !esUuid(v.id) ? v.id : undefined,
+          diaPreferencia: datos.diaPreferencia,
+          franjaHoraria: datos.franjaHoraria.toLowerCase(),
+        })
+        .catch((e) => console.warn('Error agendando cita en backend:', e));
+    }
 
     return { cita, oportunidad, persona };
   };
@@ -784,6 +905,17 @@ export const ProveedorCRM: React.FC<{ children: React.ReactNode }> = ({ children
       registrarEvento(oportunidad.id, oportunidad.etapa, 'cita_confirmada', 'Cita confirmada con el cliente.');
     }
 
+    if (apiConfigurada && sesion.estado === 'activa' && esUuid(citaId)) {
+      crmApi
+        .confirmarCita(citaId, {
+          cedula,
+          correo,
+          dia: extra.dia,
+          franja: extra.franja?.toLowerCase(),
+        })
+        .catch((e) => console.warn('Error confirmando cita en backend:', e));
+    }
+
     return { ok: true, fusionada };
   };
 
@@ -796,6 +928,12 @@ export const ProveedorCRM: React.FC<{ children: React.ReactNode }> = ({ children
       motivoPerdida: motivo,
       motivoPerdidaTexto: texto,
     });
+
+    if (apiConfigurada && sesion.estado === 'activa' && esUuid(citaId)) {
+      crmApi
+        .descartarCita(citaId, motivo, texto)
+        .catch((e) => console.warn('Error descartando cita en backend:', e));
+    }
   };
 
   /**
@@ -820,6 +958,12 @@ export const ProveedorCRM: React.FC<{ children: React.ReactNode }> = ({ children
       );
     }
 
+    if (apiConfigurada && sesion.estado === 'activa' && esUuid(oportunidadId)) {
+      crmApi
+        .venderVehiculo(oportunidadId, modalidad === 'Contado' ? 'contado' : 'financiamiento')
+        .catch((e) => console.warn('Error vendiendo vehículo en backend:', e));
+    }
+
     if (modalidad === 'Contado') {
       return cambiarEtapa(oportunidadId, 'cerrado_ganado', {
         nota: 'Venta de contado cerrada desde la bandeja de citas.',
@@ -841,6 +985,7 @@ export const ProveedorCRM: React.FC<{ children: React.ReactNode }> = ({ children
         prev.map((o) => (o.id === oportunidadId ? { ...o, enlaceFinanciamiento: { token, emitidoEn } } : o)),
       );
     }
+
     return { ok: true, token };
   };
 
@@ -858,11 +1003,29 @@ export const ProveedorCRM: React.FC<{ children: React.ReactNode }> = ({ children
       registradoEn: ahora,
     };
     setInteracciones((prev) => [interaccion, ...prev]);
+
+    if (apiConfigurada && sesion.estado === 'activa' && esUuid(datos.personaId)) {
+      crmApi
+        .registrarInteraccion(datos.personaId, {
+          oportunidadId: datos.oportunidadId && esUuid(datos.oportunidadId) ? datos.oportunidadId : undefined,
+          canal: datos.canal,
+          direccion: datos.direccion,
+          nota: datos.nota,
+        })
+        .catch((e) => console.warn('Error registrando interacción en backend:', e));
+    }
+
     return interaccion;
   };
 
   const asignarAsesor = (oportunidadId: string, asesorId: string | null) => {
     setOportunidades((prev) => prev.map((o) => (o.id === oportunidadId ? { ...o, asesorId } : o)));
+
+    if (apiConfigurada && sesion.estado === 'activa' && esUuid(oportunidadId)) {
+      crmApi
+        .asignarAsesor(oportunidadId, asesorId && esUuid(asesorId) ? asesorId : null)
+        .catch((e) => console.warn('Error asignando asesor en backend:', e));
+    }
   };
 
   const fijarProximaAccion = (oportunidadId: string, accion: string, fecha: string) => {
@@ -871,6 +1034,12 @@ export const ProveedorCRM: React.FC<{ children: React.ReactNode }> = ({ children
         o.id === oportunidadId ? { ...o, proximaAccion: accion, proximaAccionFecha: fecha } : o,
       ),
     );
+
+    if (apiConfigurada && sesion.estado === 'activa' && esUuid(oportunidadId)) {
+      crmApi
+        .fijarProximaAccion(oportunidadId, accion, fecha)
+        .catch((e) => console.warn('Error fijando próxima acción en backend:', e));
+    }
   };
 
   const restablecerDatosDemo = () => {
