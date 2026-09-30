@@ -84,11 +84,12 @@ Patrón: cada integración detrás de una interfaz propia (adaptador), para sust
 
 ## 6. Reglas técnicas transversales (de la Constitución)
 
-- **Multi-moneda:** montos en USD con equivalencia BCV; cada operación registra moneda **y** tasa aplicada. Nunca `float`/`double` para dinero: se usa `BigDecimal` con escala fija o `long` en céntimos.
-- **Idempotencia** en toda operación de pago.
-- **Auditoría** inmutable de transacciones financieras y cambios de estado de inventario.
-- **Cifrado** en reposo y tránsito; **2FA** para roles administrativos.
+- **Multi-moneda:** montos en EUR con equivalencia BCV (Constitución v3.0.0); cada operación registra moneda **y** tasa aplicada. Nunca `float`/`double` para dinero: se usa `BigDecimal` con escala fija o `long` en céntimos.
+- **Idempotencia** en toda operación sensible y de pago.
+- **Auditoría** inmutable de transacciones financieras y cambios de estado de inventario/CRM.
+- **Cifrado** en reposo y tránsito (AES-256-GCM y blind index HMAC-SHA-256 para PII); **2FA** para roles administrativos.
 - **API** `/v1` versionada; migraciones Flyway idempotentes; ledger append-only.
+- **Estado de dominios en backend:** `platform` (001), `catalog`/`inventory` (004/005), `crm` (010) implementados y enlazados a frontend. En desarrollo: motor de parámetros de financiamiento.
 
 ## 7. Plan de pruebas
 

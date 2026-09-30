@@ -37,6 +37,16 @@
 | **3 — Evaluación y Dinero** | 006, 007 | Scoring/riesgo (006) y contabilidad inmutable en ledger + pagos C2P (007). |
 | **Transversal** | 009 | Tablero y tesorería para administración de inventario y liquidaciones. |
 
+### Estado de Ejecución en Desarrollo (Septiembre 2026)
+
+| Módulo / Fase | Componentes Clave | Estado | Verificación |
+|---|---|---|---|
+| **001 — Seguridad y Accesos** | Auth, RBAC, auditoría inmutable, cifrado AES-GCM | **Listo** (servidor) | Tests de seguridad y endpoints `/v1/auth`, `/v1/usuarios`, `/v1/auditoria` |
+| **004 / 005 — Catálogo e Inventario** | Publicación, fotos S3/disco, tasa BCV diaria | **Listo** (servidor + web) | Endpoints `/v1/catalogo`, `/v1/inventario/vehiculos`, `/v1/tasa-bcv` |
+| **010 — CRM Comercial y Citas (Fase 1)** | Citas públicas, bandeja backoffice, embudo Kanban, 360 personas, enlaces seguros 7d, reserva 24h | **Listo** (servidor + web) | Flyway V0017, 102 tests esquema, 120 tests backend, frontend sincronizado |
+| **Fase 3 — Solicitud de Crédito Digital** | Captura WMA-F-FIN-001, enlace seguro CRM, expediente en BD, recaudos digitales, pantallas C9 y O7 | **Listo** (servidor + web) | Flyway V0018 (EUR), `com.wamma.credit.application`, 125 tests Maven, 17 tests npm, build Vite |
+| **Fase 4 — Motor de Riesgo y Scoring (006)** | Motor de scoring (0-1000 pts en 5 factores), buró crediticio, screening AML (OFAC/PEP), resolución de alertas | **Listo** (servidor + web) | Paquete `com.wamma.risk`, endpoints `/v1/riesgo/*`, 133 tests Maven, 17 tests npm, UI `O7_AnalisisCredito` |
+
 > **Qué se puede construir antes del 001.** El grafo describe dependencias de *módulo terminado*, no de *cada tarea*. Varios módulos tienen un núcleo puro —sin I/O, sin identidad, sin persistencia— que no depende del 001 y se puede escribir hoy: `solicitud-credito` tuvo un núcleo puro en Go (`calc` y `validation`, 100 % de cobertura), archivado en `backend/_legacy-go/` como referencia para la reescritura en Java. El 010 declara sus olas 1 y 2 en la misma condición. Lo que el 001 bloquea es **dar un módulo por terminado**, no empezarlo por donde no toca persistencia.
 
 ## 3. Criterio de "terminado" por módulo (Definition of Done)
