@@ -42,7 +42,10 @@ public abstract class PostgresIntegrationTest {
     }
 
     /** Carpeta de fotos de las pruebas: el adaptador de disco, igual que en local. */
-    public static final Path PHOTOS = createPhotosFolder();
+    public static final Path PHOTOS = createTempFolder("wamma-fotos-pruebas");
+
+    /** Carpeta privada de recaudos de las pruebas, distinta de la de fotos (D-59). */
+    public static final Path DOCUMENTS = createTempFolder("wamma-recaudos-pruebas");
 
     /** URL del PostgreSQL embebido compartido, para pruebas que abren su propia conexión. */
     public static String jdbcUrl() {
@@ -54,11 +57,11 @@ public abstract class PostgresIntegrationTest {
         return POSTGRES.getJdbcUrl("postgres", database);
     }
 
-    private static Path createPhotosFolder() {
+    private static Path createTempFolder(String prefix) {
         try {
-            return Files.createTempDirectory("wamma-fotos-pruebas");
+            return Files.createTempDirectory(prefix);
         } catch (IOException e) {
-            throw new UncheckedIOException("No se pudo crear la carpeta de fotos de las pruebas", e);
+            throw new UncheckedIOException("No se pudo crear la carpeta temporal " + prefix, e);
         }
     }
 
@@ -72,8 +75,6 @@ public abstract class PostgresIntegrationTest {
         registry.add("spring.flyway.password", () -> "postgres");
         registry.add("wamma.security.encryption-key", () -> TEST_ENCRYPTION_KEY);
         registry.add("wamma.security.index-key", () -> TEST_INDEX_KEY);
-        // Las pruebas hacen muchos ingresos desde 127.0.0.1; el límite por IP se prueba aparte.
-        registry.add("wamma.security.login-attempts-per-ip", () -> "100000");
         registry.add("wamma.bootstrap-admin.username", () -> ADMIN_USERNAME);
         registry.add("wamma.bootstrap-admin.first-name", () -> "Admin");
         registry.add("wamma.bootstrap-admin.last-name", () -> "Pruebas");
@@ -82,5 +83,10 @@ public abstract class PostgresIntegrationTest {
         registry.add("wamma.fotos.almacen", () -> "disco");
         registry.add("wamma.fotos.disco.carpeta", PHOTOS::toString);
         registry.add("wamma.fotos.url-publica", () -> "http://localhost/archivos");
+        // El motor de riesgo está apagado por defecto (D-63). Aquí se enciende para que el código que se conserva siga
+        // probado; el apagado por defecto lo prueba RiskEngineSwitchTest sin levantar la aplicación.
+        registry.add("wamma.riesgo.motor-habilitado", () -> "true");
+        registry.add("wamma.recaudos.almacen", () -> "disco");
+        registry.add("wamma.recaudos.disco.carpeta", DOCUMENTS::toString);
     }
 }

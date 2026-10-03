@@ -1,7 +1,9 @@
 package com.wamma.credit.application;
 
+import com.wamma.platform.crypto.FieldCipher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -11,7 +13,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,7 +26,8 @@ public class CreditApplicationRepository {
     public record RiskDecisionRecord(
             UUID id,
             UUID applicationId,
-            int internalScore,
+            /** Nulo en el dictamen manual: el puntaje solo existe si un motor o el analista lo informó (D-63). */
+            Integer internalScore,
             Integer bureauScore,
             String riskLevel,
             String result,
@@ -36,29 +42,34 @@ public class CreditApplicationRepository {
     ) {
     }
 
-    private final JdbcClient jdbc;
+    /** Contexto del cifrado (dato asociado de GCM): un cifrado copiado a otra columna no se abre. */
+    public static final String CONTEXT_DOSSIER = "solicitud_credito.expediente";
 
-    public CreditApplicationRepository(JdbcClient jdbc) {
+    private final JdbcClient jdbc;
+    private final FieldCipher cipher;
+    private final ObjectMapper json;
+
+    public CreditApplicationRepository(JdbcClient jdbc, FieldCipher cipher, ObjectMapper json) {
         this.jdbc = jdbc;
+        this.cipher = cipher;
+        this.json = json;
     }
 
+    /** El expediente se cifra entero antes de salir hacia la base (V0019, hallazgo S-06). */
     public void insert(CreditApplicationRecord r) {
+        byte[] dossier = cipher.encrypt(json.writeValueAsString(r.dossier()), CONTEXT_DOSSIER);
         jdbc.sql("""
                 INSERT INTO solicitud_credito (
                     id, numero_solicitud, oportunidad_id, persona_id, vehiculo_id,
                     monto_solicitado, cuota_inicial, plazo_meses, moneda, tasa_bcv, fecha_tasa,
-                    datos_laborales_json, datos_financieros_json, capacidad_pago_mensual,
+                    expediente_cifrado, capacidad_pago_mensual,
                     estado, enviada_en, creado_en, actualizado_en,
-                    datos_personales_json, datos_contacto_json, referencias_json,
-                    datos_bancarios_json, declaraciones_json, evidencia_aceptacion_json,
                     cuota_estimada, frecuencia_pago
                 ) VALUES (
                     :id, :num, :oppId, :personId, :vehId,
                     :monto, :inicial, :plazo, :moneda, :tasa, :fechaTasa,
-                    CAST(:laborales AS jsonb), CAST(:financieros AS jsonb), :capacidad,
+                    :expediente, :capacidad,
                     :estado, :enviadaEn, :creadoEn, :actualizadoEn,
-                    CAST(:personales AS jsonb), CAST(:contacto AS jsonb), CAST(:referencias AS jsonb),
-                    CAST(:bancarios AS jsonb), CAST(:declaraciones AS jsonb), CAST(:evidencia AS jsonb),
                     :cuotaEstimada, :frecuencia
                 )
                 """)
@@ -73,19 +84,12 @@ public class CreditApplicationRepository {
                 .param("moneda", r.currency())
                 .param("tasa", r.bcvRate())
                 .param("fechaTasa", r.bcvRateDate())
-                .param("laborales", r.employmentDataJson() != null ? r.employmentDataJson() : "{}")
-                .param("financieros", r.financialDataJson() != null ? r.financialDataJson() : "{}")
+                .param("expediente", dossier, Types.BINARY)
                 .param("capacidad", r.monthlyCapacity())
                 .param("estado", r.status())
                 .param("enviadaEn", toOffsetDateTime(r.submittedAt()))
                 .param("creadoEn", toOffsetDateTime(r.createdAt()))
                 .param("actualizadoEn", toOffsetDateTime(r.updatedAt()))
-                .param("personales", r.personalDataJson() != null ? r.personalDataJson() : "{}")
-                .param("contacto", r.contactDataJson() != null ? r.contactDataJson() : "{}")
-                .param("referencias", r.referencesJson() != null ? r.referencesJson() : "[]")
-                .param("bancarios", r.bankingDataJson() != null ? r.bankingDataJson() : "{}")
-                .param("declaraciones", r.declarationsJson() != null ? r.declarationsJson() : "{}")
-                .param("evidencia", r.acceptanceEvidenceJson() != null ? r.acceptanceEvidenceJson() : "{}")
                 .param("cuotaEstimada", r.estimatedPayment())
                 .param("frecuencia", r.paymentFrequency() != null ? r.paymentFrequency() : "Mensual")
                 .update();
@@ -94,13 +98,6 @@ public class CreditApplicationRepository {
     public Optional<CreditApplicationRecord> findById(UUID id) {
         return jdbc.sql("SELECT * FROM solicitud_credito WHERE id = :id")
                 .param("id", id)
-                .query(this::mapRow)
-                .optional();
-    }
-
-    public Optional<CreditApplicationRecord> findByApplicationNumber(String number) {
-        return jdbc.sql("SELECT * FROM solicitud_credito WHERE UPPER(numero_solicitud) = UPPER(:num)")
-                .param("num", number.trim())
                 .query(this::mapRow)
                 .optional();
     }
@@ -160,17 +157,17 @@ public class CreditApplicationRepository {
     public void insertDocument(CreditDocumentRecord doc) {
         jdbc.sql("""
                 INSERT INTO solicitud_recaudo (
-                    id, solicitud_id, tipo_documento, archivo_url, nombre_archivo,
+                    id, solicitud_id, tipo_documento, archivo_clave, nombre_archivo,
                     tamano_bytes, mime_type, estado_validacion, observaciones, creado_en
                 ) VALUES (
-                    :id, :solId, :tipo, :url, :nombre,
+                    :id, :solId, :tipo, :clave, :nombre,
                     :tamano, :mime, :estado, :obs, :creadoEn
                 )
                 """)
                 .param("id", doc.id())
                 .param("solId", doc.applicationId())
                 .param("tipo", normalizeDocType(doc.documentType()))
-                .param("url", doc.fileUrl())
+                .param("clave", doc.fileKey())
                 .param("nombre", doc.fileName())
                 .param("tamano", doc.fileSizeBytes())
                 .param("mime", doc.mimeType())
@@ -180,7 +177,7 @@ public class CreditApplicationRepository {
                 .update();
     }
 
-    private static String normalizeDocType(String type) {
+    static String normalizeDocType(String type) {
         if (type == null) return "otro";
         String lower = type.trim().toLowerCase();
         return switch (lower) {
@@ -201,27 +198,77 @@ public class CreditApplicationRepository {
                 .list();
     }
 
-    public void updateDocumentStatus(UUID documentId, String status, String notes) {
-        jdbc.sql("UPDATE solicitud_recaudo SET estado_validacion = :status, observaciones = :obs WHERE id = :id")
+    /** Cuántos recaudos tiene cada solicitud, en una sola consulta (la bandeja del analista los muestra). */
+    public Map<UUID, Integer> countDocuments(Collection<UUID> applicationIds) {
+        if (applicationIds.isEmpty()) {
+            return Map.of();
+        }
+        StringBuilder literal = new StringBuilder("{");
+        for (UUID id : applicationIds) {
+            if (literal.length() > 1) {
+                literal.append(',');
+            }
+            literal.append(id);
+        }
+        literal.append('}');
+        Map<UUID, Integer> counts = new HashMap<>();
+        jdbc.sql("""
+                        select solicitud_id, count(*) as total
+                        from solicitud_recaudo
+                        where solicitud_id = any (cast(:ids as uuid[]))
+                        group by solicitud_id
+                        """)
+                .param("ids", literal.toString(), Types.VARCHAR)
+                .query((rs, n) -> {
+                    counts.put(rs.getObject("solicitud_id", UUID.class), rs.getInt("total"));
+                    return null;
+                })
+                .list();
+        return counts;
+    }
+
+    /** El recaudo, solo si pertenece a esa solicitud. */
+    public Optional<CreditDocumentRecord> findDocument(UUID applicationId, UUID documentId) {
+        return jdbc.sql("SELECT * FROM solicitud_recaudo WHERE id = :id AND solicitud_id = :solId")
+                .param("id", documentId)
+                .param("solId", applicationId)
+                .query(this::mapDocRow)
+                .optional();
+    }
+
+    /** El recaudo registrado con esa clave; un archivo cargado y nunca enviado no tiene fila. */
+    public Optional<CreditDocumentRecord> findDocumentByKey(String key) {
+        return jdbc.sql("SELECT * FROM solicitud_recaudo WHERE archivo_clave = :clave ORDER BY creado_en LIMIT 1")
+                .param("clave", key)
+                .query(this::mapDocRow)
+                .optional();
+    }
+
+    /** Cambia el estado de un recaudo de esa solicitud; 0 filas si el recaudo es de otra. */
+    public int updateDocumentStatus(UUID applicationId, UUID documentId, String status, String notes) {
+        return jdbc.sql("""
+                UPDATE solicitud_recaudo SET estado_validacion = :status, observaciones = :obs
+                WHERE id = :id AND solicitud_id = :solId
+                """)
                 .param("status", status)
                 .param("obs", notes)
                 .param("id", documentId)
+                .param("solId", applicationId)
                 .update();
     }
 
+    /**
+     * Siguiente número de solicitud del año. El contador se incrementa en una sola sentencia atómica: dos envíos
+     * simultáneos nunca reciben el mismo número (antes se calculaba con {@code MAX()+1}, hallazgo C-11). Si la
+     * transacción se revierte, el número se devuelve con ella.
+     */
     public String generateNextApplicationNumber(int year) {
         Long nextVal = jdbc.sql("""
-                SELECT COALESCE(MAX(
-                    CASE
-                        WHEN numero_solicitud ~* '^SOL-[0-9]{4}-[0-9]+$'
-                        THEN CAST(SPLIT_PART(numero_solicitud, '-', 3) AS BIGINT)
-                        ELSE 0
-                    END
-                ), 0) + 1
-                FROM solicitud_credito
-                WHERE numero_solicitud LIKE :prefix
+                INSERT INTO contador_solicitud (anio, ultimo) VALUES (:year, 1)
+                ON CONFLICT (anio) DO UPDATE SET ultimo = contador_solicitud.ultimo + 1
+                RETURNING ultimo
                 """)
-                .param("prefix", "SOL-" + year + "-%")
+                .param("year", year)
                 .query(Long.class)
                 .single();
 
@@ -276,7 +323,7 @@ public class CreditApplicationRepository {
                 .query((rs, rowNum) -> new RiskDecisionRecord(
                         (UUID) rs.getObject("id"),
                         (UUID) rs.getObject("solicitud_id"),
-                        rs.getInt("score_interno"),
+                        (Integer) rs.getObject("score_interno"),
                         (Integer) rs.getObject("score_buro"),
                         rs.getString("riesgo_nivel"),
                         rs.getString("resultado"),
@@ -305,14 +352,7 @@ public class CreditApplicationRepository {
                 rs.getString("moneda"),
                 rs.getBigDecimal("tasa_bcv"),
                 rs.getObject("fecha_tasa", LocalDate.class),
-                rs.getString("datos_personales_json"),
-                rs.getString("datos_contacto_json"),
-                rs.getString("datos_laborales_json"),
-                rs.getString("datos_financieros_json"),
-                rs.getString("referencias_json"),
-                rs.getString("datos_bancarios_json"),
-                rs.getString("declaraciones_json"),
-                rs.getString("evidencia_aceptacion_json"),
+                json.readValue(cipher.decrypt(rs.getBytes("expediente_cifrado"), CONTEXT_DOSSIER), CreditDossier.class),
                 rs.getBigDecimal("capacidad_pago_mensual"),
                 rs.getBigDecimal("cuota_estimada"),
                 rs.getString("frecuencia_pago"),
@@ -328,7 +368,7 @@ public class CreditApplicationRepository {
                 (UUID) rs.getObject("id"),
                 (UUID) rs.getObject("solicitud_id"),
                 rs.getString("tipo_documento"),
-                rs.getString("archivo_url"),
+                rs.getString("archivo_clave"),
                 rs.getString("nombre_archivo"),
                 (Long) rs.getObject("tamano_bytes"),
                 rs.getString("mime_type"),

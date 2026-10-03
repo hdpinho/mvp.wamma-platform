@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCRM } from '../../state/crmContexto';
+import { AvisoCargaCRM } from '../../components/crm/AvisoCargaCRM';
 import { ESTILOS_CRM } from '../../components/crm/estilos';
 import { haceCuanto } from '../../components/crm/formato';
 import { definicionEtapa, normalizarCedula, telefonosDe } from '../../types/crm';
@@ -12,7 +13,8 @@ import { definicionEtapa, normalizarCedula, telefonosDe } from '../../types/crm'
  * Se busca por nombre, cédula o cualquiera de sus teléfonos.
  */
 export const O7_Personas: React.FC = () => {
-  const { personas, oportunidadesDePersona, interaccionesDePersona, ultimaActividad } = useCRM();
+  const { origen, cargando, error, personas, oportunidadesDePersona, interaccionesDePersona, ultimaActividad } =
+    useCRM();
   const navigate = useNavigate();
   const [busqueda, setBusqueda] = useState('');
 
@@ -26,11 +28,14 @@ export const O7_Personas: React.FC = () => {
   const filas = personas
     .map((p) => {
       const ops = oportunidadesDePersona(p.id);
-      const actividad = [
-        p.fechaCreacion,
-        ...ops.map((o) => ultimaActividad(o.id)),
-        ...interaccionesDePersona(p.id).map((i) => i.ocurridoEn),
-      ].reduce((a, b) => (a > b ? a : b));
+      // Con servidor, el último movimiento lo calcula él; en la maqueta sale de lo que hay en el navegador.
+      const actividad =
+        p.ultimaActividadEn ??
+        [
+          p.fechaCreacion,
+          ...ops.map((o) => ultimaActividad(o.id)),
+          ...interaccionesDePersona(p.id).map((i) => i.ocurridoEn),
+        ].reduce((a, b) => (a > b ? a : b));
       return {
         p,
         total: ops.length,
@@ -67,18 +72,30 @@ export const O7_Personas: React.FC = () => {
         />
       </div>
 
+      <AvisoCargaCRM />
+
       {personas.length === 0 ? (
-        <div className="crm-vacio">
-          <div style={{ fontSize: '32px' }}>👤</div>
-          <h3>Aún no hay personas</h3>
-          <p>
-            Se crean cuando un cliente agenda una cita en el catálogo. Si quieres ver cómo luce con datos, puedes
-            cargar prospectos de ejemplo desde el embudo.
-          </p>
-          <Link to="/admin/embudo" className="crm-enlace-boton">
-            Ir al embudo comercial
-          </Link>
-        </div>
+        // Con servidor, «aún no hay personas» solo se afirma si la lectura terminó bien.
+        !cargando &&
+        !error && (
+          <div className="crm-vacio">
+            <div style={{ fontSize: '32px' }}>👤</div>
+            <h3>Aún no hay personas</h3>
+            {origen === 'servidor' ? (
+              <p>Se crean cuando un cliente agenda una cita en el catálogo.</p>
+            ) : (
+              <>
+                <p>
+                  Se crean cuando un cliente agenda una cita en el catálogo. Si quieres ver cómo luce con datos,
+                  puedes cargar prospectos de ejemplo desde el embudo.
+                </p>
+                <Link to="/admin/embudo" className="crm-enlace-boton">
+                  Ir al embudo comercial
+                </Link>
+              </>
+            )}
+          </div>
+        )
       ) : filas.length === 0 ? (
         <div className="crm-vacio">
           <h3>Sin resultados</h3>

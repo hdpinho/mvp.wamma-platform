@@ -5,8 +5,11 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * Datos de la petición en curso para la bitácora y el límite por IP. Tras Render, la IP
- * del cliente la resuelve {@code server.forward-headers-strategy: framework}.
+ * Datos de la petición en curso para la bitácora y el límite por IP. Tras un proxy, la IP
+ * del cliente la resuelve {@code server.forward-headers-strategy: native}: Tomcat recorre
+ * {@code X-Forwarded-For} de derecha a izquierda y solo acepta lo que reenvían los proxies de
+ * confianza ({@code WAMMA_PROXIES_CONFIABLES}). Una cabecera inventada por el cliente no
+ * cambia la IP (spec 011 §6.3).
  */
 public final class RequestInfo {
 

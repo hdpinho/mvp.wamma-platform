@@ -4,6 +4,7 @@ import './App.css';
 import { BarraNavegacion } from './components/BarraNavegacion';
 import { PiePagina } from './components/PiePagina';
 import { ProveedorFavoritos } from './state/favoritos';
+import { ProveedorParametros } from './state/parametros';
 import { ProveedorVehiculos } from './state/vehiculos';
 import { useVehiculos } from './state/vehiculosContexto';
 import { ProveedorCRM } from './state/crm';
@@ -134,7 +135,7 @@ function AppRutas({ rateBCV }: { rateBCV: number }) {
             <Route
               path="solicitudes"
               element={
-                <RequierePermiso permisos={['credito.revisar', 'cotizador.usar', 'crm.ver_todas']}>
+                <RequierePermiso permisos={['credito.revisar', 'credito.ver']}>
                   <O7_AnalisisCredito />
                 </RequierePermiso>
               }
@@ -190,14 +191,17 @@ function App() {
     <BrowserRouter>
       {/* La sesión envuelve todo: el backoffice la exige y la pantalla de ingreso la inicia. */}
       <ProveedorSesion>
-        {/* El CRM va dentro del inventario: necesita bloquear y liberar vehículos. */}
-        <ProveedorVehiculos>
-          <ProveedorCRM>
-            <ProveedorFavoritos>
-              <Contenido />
-            </ProveedorFavoritos>
-          </ProveedorCRM>
-        </ProveedorVehiculos>
+        {/* La política de financiamiento es pública y una sola para toda la aplicación. */}
+        <ProveedorParametros>
+          {/* El CRM va dentro del inventario: necesita bloquear y liberar vehículos. */}
+          <ProveedorVehiculos>
+            <ProveedorCRM>
+              <ProveedorFavoritos>
+                <Contenido />
+              </ProveedorFavoritos>
+            </ProveedorCRM>
+          </ProveedorVehiculos>
+        </ProveedorParametros>
       </ProveedorSesion>
     </BrowserRouter>
   );

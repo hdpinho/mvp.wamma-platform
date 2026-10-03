@@ -82,11 +82,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/v1/catalogo", "/v1/catalogo/**", "/v1/tasa-bcv/vigente",
                         "/archivos/**", "/v1/enlaces-financiamiento/**",
                         "/v1/parametros-financiamiento", "/v1/financiamiento/parametros",
-                        "/v1/solicitudes-credito/enlace/**", "/v1/solicitudes-credito/*/estado").permitAll()
+                        "/v1/solicitudes-credito/enlace/**").permitAll()
+                // Recaudos: sin sesión, pero solo abren con un enlace firmado y vigente (D-59).
+                .requestMatchers(HttpMethod.GET, "/v1/recaudos/archivo").permitAll()
                 .requestMatchers(HttpMethod.HEAD, "/v1/catalogo", "/v1/catalogo/**", "/v1/tasa-bcv/vigente",
                         "/archivos/**", "/v1/enlaces-financiamiento/**",
                         "/v1/parametros-financiamiento", "/v1/financiamiento/parametros",
-                        "/v1/solicitudes-credito/enlace/**", "/v1/solicitudes-credito/*/estado").permitAll()
+                        "/v1/solicitudes-credito/enlace/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/v1/auth/ingreso", "/v1/citas",
                         "/v1/solicitudes-credito", "/v1/solicitudes-credito/recaudos").permitAll()
                 .requestMatchers("/v1/auth/contrasena-inicial", "/v1/auth/2fa", "/v1/auth/2fa/**")

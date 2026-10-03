@@ -18,6 +18,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * El motor de riesgo está fuera de alcance (D-63) y apagado por defecto; las pruebas lo encienden (ver
+ * {@code PostgresIntegrationTest}) para comprobar que el código que se conserva sigue funcionando y respetando los
+ * permisos. {@link RiskEngineSwitchTest} prueba el apagado por defecto.
+ */
 class RiskIntegrationTest extends ApiIntegrationTest {
 
     @Autowired
@@ -74,6 +79,8 @@ class RiskIntegrationTest extends ApiIntegrationTest {
         TestAccounts.Account advisor = accounts.createAndLogin("asesor_com", "ASESOR_COMERCIAL");
         api.post("/v1/crm/citas/" + citaId + "/confirmacion", advisor.token(),
                 Map.of("cedula", "V" + (20000000 + (int)(Math.random() * 9999999)), "correo", "carlos.riesgo." + uid + "@example.com"));
+        // Vender es después de la visita (spec 010 §8.8).
+        api.post("/v1/crm/citas/" + citaId + "/asistencia", advisor.token(), null);
 
         UUID oppId = jdbc.sql("select oportunidad_id from cita_inspeccion where id = :id")
                 .param("id", UUID.fromString(citaId), java.sql.Types.OTHER)
@@ -87,22 +94,18 @@ class RiskIntegrationTest extends ApiIntegrationTest {
         // Enviar solicitud de crédito
         TestApi.Response appRes = api.post("/v1/solicitudes-credito", null, Map.ofEntries(
                 Map.entry("token", token),
-                Map.entry("vehiculoId", vehicleId.toString()),
-                Map.entry("montoSolicitado", 10000.00),
+                // El servidor calcula el monto, la cuota y la capacidad; solo la inicial y el ingreso son del cliente.
                 Map.entry("cuotaInicial", 4000.00),
                 Map.entry("plazoMeses", 24),
-                Map.entry("frecuenciaPago", "MENSUAL"),
-                Map.entry("cuotaEstimada", 350.00),
-                Map.entry("capacidadPagoMensual", 1800.00),
                 Map.entry("datosPersonales", Map.of("primerNombre", "Carlos", "primerApellido", "Riesgo", "cargasFamiliares", 1)),
                 Map.entry("datosContacto", Map.of("tipoVivienda", "PROPIA")),
                 Map.entry("datosLaborales", Map.of("tipoOcupacion", "EMPLEADO_PRIVADO", "antiguedadAnios", 5)),
-                Map.entry("datosFinancieros", Map.of("ingresoMensual", 1800.00)),
+                Map.entry("datosFinancieros", Map.of("sueldoMensual", 9000.00, "ingresoMensual", 9000.00)),
                 Map.entry("referencias", List.of(Map.of("nombre", "Ref Uno", "telefono", "0412"))),
                 Map.entry("datosBancarios", Map.of("banco", "Banesco", "tipoCuenta", "CORRIENTE")),
                 Map.entry("declaraciones", Map.of("esPep", false)),
                 Map.entry("recaudos", List.of()),
-                Map.entry("otpVerificado", true)
+                Map.entry("versionTexto", "WMA-F-FIN-001 v1")
         ));
 
         assertThat(appRes.status()).isEqualTo(200);
@@ -131,6 +134,28 @@ class RiskIntegrationTest extends ApiIntegrationTest {
 
         assertThat(scoreDb).isNotNull();
         assertThat(scoreDb).isEqualTo(score);
+    }
+
+    /** Hallazgo C-03: una consulta no escribe. Abrir el resumen no cambia el dictamen ni crea alertas. */
+    @Test
+    @DisplayName("Consultar el resumen no escribe: el dictamen humano no se sobrescribe")
+    void readingTheSummaryNeverChangesAnything() {
+        assertThat(api.post("/v1/solicitudes-credito/" + applicationId + "/evaluacion", analyst.token(), Map.of(
+                "resultado", "rechazado",
+                "justificacion", "Dictamen del comité: no cumple la política.")).status()).isEqualTo(200);
+
+        TestApi.Response summary = api.get("/v1/riesgo/solicitudes/" + applicationId + "/resumen", analyst.token());
+        assertThat(summary.status()).isEqualTo(200);
+
+        assertThat(jdbc.sql("SELECT resultado FROM decision_riesgo WHERE solicitud_id = :id")
+                .param("id", applicationId, java.sql.Types.OTHER).query(String.class).single()).isEqualTo("rechazado");
+        assertThat(jdbc.sql("SELECT justificacion FROM decision_riesgo WHERE solicitud_id = :id")
+                .param("id", applicationId, java.sql.Types.OTHER).query(String.class).single())
+                .isEqualTo("Dictamen del comité: no cumple la política.");
+        assertThat(jdbc.sql("SELECT estado FROM solicitud_credito WHERE id = :id")
+                .param("id", applicationId, java.sql.Types.OTHER).query(String.class).single()).isEqualTo("rechazada");
+        assertThat(jdbc.sql("SELECT count(*) FROM auditoria_evento WHERE accion = 'riesgo.evaluacion_motor' AND entidad_id = :id")
+                .param("id", applicationId, java.sql.Types.OTHER).query(Long.class).single()).isZero();
     }
 
     @Test
@@ -166,5 +191,44 @@ class RiskIntegrationTest extends ApiIntegrationTest {
                 .single();
 
         assertThat(resolucionDb).isEqualTo("falso_positivo");
+    }
+
+    /**
+     * Ejecutar el motor y resolver alertas escribe decisiones: solo el analista. El administrador
+     * de usuarios no toca el crédito y el auditor solo lee (Principio I).
+     */
+    @Test
+    @DisplayName("Solo el analista ejecuta el motor y resuelve alertas")
+    void onlyTheAnalystRunsTheEngineAndResolvesAlerts() {
+        UUID alertId = UUID.randomUUID();
+        jdbc.sql("""
+                INSERT INTO alerta_aml (id, solicitud_id, persona_id, regla_coincidencia, severidad, origen_lista, resolucion, creado_en)
+                SELECT :aId, s.id, s.persona_id, 'Regla de permisos', 'media', 'PEP_NACIONAL', 'pendiente', now()
+                FROM solicitud_credito s WHERE s.id = :sId
+                """)
+                .param("aId", alertId, java.sql.Types.OTHER)
+                .param("sId", applicationId, java.sql.Types.OTHER)
+                .update();
+        Map<String, Object> resolucion = Map.of("resolucion", "falso_positivo", "notas", "prueba de permisos");
+
+        for (String rol : List.of("ADMINISTRADOR", "AUDITOR", "ASESOR_COMERCIAL")) {
+            // El administrador es el de arranque: crear otro rompería la regla de «al menos un
+            // administrador» que UserAdminIntegrationTest prueba en la base compartida.
+            String token = "ADMINISTRADOR".equals(rol)
+                    ? accounts.adminToken()
+                    : accounts.createAndLogin("sin_motor", rol).token();
+            assertThat(api.post("/v1/riesgo/solicitudes/" + applicationId + "/evaluar-motor", token, Map.of()).status())
+                    .as(rol).isEqualTo(403);
+            assertThat(api.get("/v1/riesgo/solicitudes/" + applicationId + "/resumen", token).status())
+                    .as(rol).isEqualTo(403);
+            assertThat(api.patch("/v1/riesgo/alertas-aml/" + alertId + "/resolucion", token, resolucion).status())
+                    .as(rol).isEqualTo(403);
+        }
+        assertThat(jdbc.sql("SELECT count(*) FROM decision_riesgo WHERE solicitud_id = :id")
+                .param("id", applicationId, java.sql.Types.OTHER)
+                .query(Long.class).single()).isZero();
+        assertThat(jdbc.sql("SELECT resolucion FROM alerta_aml WHERE id = :id")
+                .param("id", alertId, java.sql.Types.OTHER)
+                .query(String.class).single()).isEqualTo("pendiente");
     }
 }

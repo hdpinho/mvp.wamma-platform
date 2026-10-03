@@ -100,7 +100,11 @@ const imperfeccionDesdeApi = (imperfeccion: ImperfeccionApi): Imperfeccion => ({
   y: imperfeccion.y,
 });
 
-const precioValido = (id: string, precioOriginal: unknown): number => {
+/**
+ * Solo para la maqueta: un precio ausente o inválido se repone con el del ejemplo. Con servidor el precio es el que él
+ * dice, sin inventar (hallazgo F-08): un vehículo con un precio que el servidor nunca dio engaña al cliente y al asesor.
+ */
+const precioDeMaqueta = (id: string, precioOriginal: unknown): number => {
   if (typeof precioOriginal === 'number' && Number.isFinite(precioOriginal) && precioOriginal > 0) {
     return precioOriginal;
   }
@@ -118,7 +122,7 @@ const comun = (v: VehiculoVitrina | VehiculoInventario) => ({
   modelo: v.modelo,
   version: v.version ?? '',
   anio: v.anio,
-  precio: precioValido(v.codigo, v.precio),
+  precio: v.precio,
   kilometraje: v.kilometraje,
   transmision: transmisionDesdeApi(v.transmision),
   combustible: combustibleDesdeApi(v.combustible),
@@ -152,7 +156,7 @@ const desdeMaqueta = (v: VehiculoMaqueta): VehiculoData => {
   const credito = creditosFotos[v.id];
   return {
     ...v,
-    precio: precioValido(v.id, v.precio),
+    precio: precioDeMaqueta(v.id, v.precio),
     estadoDisponibilidad: v.estadoDisponibilidad ?? 'disponible',
     fotos: v.foto
       ? [
@@ -241,11 +245,9 @@ export const ProveedorVehiculos: React.FC<{ children: React.ReactNode }> = ({ ch
       }
       return mockVehiculos.map(desdeMaqueta);
     }
-    const enCache = leerCache()?.vehiculos;
-    if (enCache && enCache.length > 0) {
-      return enCache;
-    }
-    return mockVehiculos.map(desdeMaqueta);
+    // Con servidor nunca se arranca con los vehículos de ejemplo: no existen allá y agendar uno daría 404. Se muestra
+    // la última copia del servidor que guardó este navegador, o nada mientras carga.
+    return leerCache()?.vehiculos ?? [];
   });
 
   const [imperfecciones, setImperfecciones] = useState<Record<string, Imperfeccion[]>>(() => {
@@ -294,14 +296,13 @@ export const ProveedorVehiculos: React.FC<{ children: React.ReactNode }> = ({ ch
     leerDelServidor(puedeVerInventario)
       .then(({ lista, tasa: tasaVigente }) => {
         if (!vigente) return;
-        const vehiculosFinales = lista.length > 0 ? lista : mockVehiculos.map(desdeMaqueta);
-        setVehiculos(vehiculosFinales);
+        // Una lista vacía es una respuesta válida («no hay vehículos publicados») y se muestra como tal; la copia
+        // guardada se actualiza también, para no resucitar vehículos que ya se vendieron o se despublicaron.
+        setVehiculos(lista);
         setTasa(tasaVigente);
         setError(null);
         setCargando(false);
-        if (lista.length > 0) {
-          guardarCache({ vehiculos: lista, tasa: tasaVigente });
-        }
+        guardarCache({ vehiculos: lista, tasa: tasaVigente });
       })
       .catch((e: unknown) => {
         // Se conserva lo que ya se mostraba: una copia vieja es mejor que una vitrina vacía.
@@ -365,18 +366,19 @@ export const ProveedorVehiculos: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const guardarVehiculo = useCallback(
     async (vehiculo: VehiculoData, nuevasImperfecciones?: Imperfeccion[]) => {
-      const vehiculoSaneado: VehiculoData = {
-        ...vehiculo,
-        precio: precioValido(vehiculo.id, vehiculo.precio),
-      };
-      const lista = nuevasImperfecciones ?? vehiculoSaneado.imperfecciones ?? [];
+      const lista = nuevasImperfecciones ?? vehiculo.imperfecciones ?? [];
       if (conServidor) {
-        const entrada = aEntrada(vehiculoSaneado, lista);
-        const guardado = vehiculoSaneado.actualizadoEn
-          ? await actualizarVehiculo(vehiculoSaneado.id, entrada)
+        // El precio se envía tal cual: si es inválido, el servidor lo rechaza y el formulario muestra el motivo.
+        const entrada = aEntrada(vehiculo, lista);
+        const guardado = vehiculo.actualizadoEn
+          ? await actualizarVehiculo(vehiculo.id, entrada)
           : await crearVehiculo(entrada);
         return reemplazar(guardado);
       }
+      const vehiculoSaneado: VehiculoData = {
+        ...vehiculo,
+        precio: precioDeMaqueta(vehiculo.id, vehiculo.precio),
+      };
       setVehiculos((prev) => {
         const existe = prev.some((v) => v.id === vehiculoSaneado.id);
         return existe

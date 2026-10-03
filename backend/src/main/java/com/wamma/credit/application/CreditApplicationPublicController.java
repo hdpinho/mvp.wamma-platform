@@ -41,9 +41,4 @@ public class CreditApplicationPublicController {
         String userAgent = servletRequest.getHeader("User-Agent");
         return ResponseEntity.ok(creditApplicationService.submitApplication(request, ip, userAgent));
     }
-
-    @GetMapping("/v1/solicitudes-credito/{numeroSolicitud}/estado")
-    public ResponseEntity<CreditApplicationDtos.StatusLookupResponse> lookupStatus(@PathVariable String numeroSolicitud) {
-        return ResponseEntity.ok(creditApplicationService.lookupStatus(numeroSolicitud));
-    }
 }

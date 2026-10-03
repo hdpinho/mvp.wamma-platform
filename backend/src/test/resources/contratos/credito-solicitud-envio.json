@@ -1,0 +1,86 @@
+{
+  "token": "TOKEN_DE_EJEMPLO",
+  "montoSolicitado": 14400.00,
+  "cuotaInicial": 3600.00,
+  "plazoMeses": 24,
+  "frecuenciaPago": "Mensual",
+  "cuotaEstimada": 944.45,
+  "capacidadPagoMensual": 1140.00,
+  "datosPersonales": {
+    "primerNombre": "Carlos",
+    "segundoNombre": "Alberto",
+    "primerApellido": "Rodríguez",
+    "segundoApellido": "Pérez",
+    "tipoDocumento": "V",
+    "numeroDocumento": "12345678",
+    "rif": "V-12345678-5",
+    "nacionalidad": "Venezolana",
+    "estadoCivil": "Casado(a)",
+    "fechaNacimiento": "1988-05-14",
+    "lugarNacimiento": "Caracas",
+    "nivelAcademico": "Universitario",
+    "cargasFamiliares": 2,
+    "condicionVivienda": "Propia"
+  },
+  "datosContacto": {
+    "direccionHabitacion": "Av. Francisco de Miranda, Chacao, Caracas",
+    "puntoReferencia": "Frente a la plaza",
+    "estado": "Miranda",
+    "municipio": "Chacao",
+    "codigoPostal": "1060",
+    "telefonoHabitacion": "0212-1234567",
+    "telefonoCelular": "0412-1234567",
+    "correo": "carlos@ejemplo.invalid"
+  },
+  "datosLaborales": {
+    "situacionLaboral": "Empleado Fijo",
+    "empresa": "Soluciones Tecnológicas C.A.",
+    "rifEmpresa": "J-12345678-0",
+    "cargo": "Gerente de Proyectos",
+    "antiguedadAnios": 5,
+    "antiguedadMeses": 3,
+    "direccionEmpresa": "Av. Libertador, Caracas",
+    "telefonoOficina": "0212-7654321",
+    "nombreJefeInmediato": "María González"
+  },
+  "datosFinancieros": {
+    "sueldoMensual": 3500,
+    "otrosIngresos": 300,
+    "conceptoOtrosIngresos": "Alquiler de un local",
+    "alquilerHipoteca": 400,
+    "alimentacionServicios": 500,
+    "pagosDeudas": 100
+  },
+  "referencias": [
+    { "nombre": "María Rodríguez", "parentesco": "Hermana", "telefono": "0414-9876543" },
+    { "nombre": "Pedro Gómez", "parentesco": "Colega", "telefono": "0424-5551234" },
+    { "nombre": "Luisa Pérez", "parentesco": "Madre", "telefono": "0416-1112233" }
+  ],
+  "datosBancarios": {
+    "banco": "0134",
+    "tipoCuenta": "Corriente",
+    "numeroCuenta": "01340000000000000000"
+  },
+  "declaraciones": {
+    "veracidad": true,
+    "centralesRiesgo": true,
+    "origenFondos": true,
+    "compromisoPago": true,
+    "esPep": true,
+    "vinculoPep": false,
+    "cargoPep": "Concejal",
+    "institucionPep": "Alcaldía de Chacao",
+    "periodoPep": "2019 – 2023",
+    "consentimientoDatos": true
+  },
+  "recaudos": [
+    {
+      "documentType": "cedula",
+      "fileKey": "recaudos/00000000-0000-0000-0000-000000000000/00000000-0000-0000-0000-000000000001.jpg",
+      "fileName": "cedula.jpg",
+      "fileSizeBytes": 123456,
+      "mimeType": "image/jpeg"
+    }
+  ],
+  "versionTexto": "WMA-F-FIN-001 v1"
+}

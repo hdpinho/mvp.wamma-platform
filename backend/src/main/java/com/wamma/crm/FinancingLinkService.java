@@ -71,7 +71,7 @@ public class FinancingLinkService {
             return new LinkDetails(false, "vencido", null, opp.paymentMethod(), opp.estimatedValue(), opp.id());
         }
 
-        var vehicleOpt = vehicles.findAll().stream().filter(v -> v.id().equals(opp.vehicleId())).findFirst();
+        var vehicleOpt = vehicles.findById(opp.vehicleId());
         var pubOpt = publications.findByVehicle(opp.vehicleId());
 
         VehicleSummary summary = null;

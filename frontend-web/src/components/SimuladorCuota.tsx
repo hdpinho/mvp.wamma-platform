@@ -5,7 +5,7 @@ import {
   formatoEUR,
   NOTA_BLOQUEO_VEHICULO,
 } from '../services/financiamientoMotor';
-import { useParametrosFinanciamiento } from '../services/parametrosFinanciamiento';
+import { useParametros } from '../state/parametrosContexto';
 
 export interface DatosSimulacion {
   precio: number;
@@ -48,7 +48,7 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
   botonDeshabilitado = false,
   motivoDeshabilitado,
 }) => {
-  const { parametros, error } = useParametrosFinanciamiento();
+  const { parametros, error, cargando } = useParametros();
 
   const [precioEditado, setPrecioEditado] = useState<number | null>(null);
   const precio = precioEditado ?? (Number.isFinite(precioInicial) && precioInicial > 0 ? precioInicial : 15400);
@@ -214,12 +214,13 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
         </div>
       )}
 
-      {/* Botón principal «Agendar» con nota de bloqueo */}
+      {/* Botón principal «Agendar» con nota de bloqueo. Agendar una visita no depende de la cotización: si los
+          parámetros de crédito no cargan, el cliente igual puede pedir su cita. */}
       <div>
         <Boton
           variant="primary"
           fullWidth
-          disabled={botonDeshabilitado || !calculoDisponible}
+          disabled={botonDeshabilitado}
           onClick={handleAccion}
         >
           {textoBoton}
@@ -270,7 +271,12 @@ export const SimuladorCuota: React.FC<SimuladorCuotaProps> = ({
       )}
 
       {/* Estado: Cálculo no disponible (Requisito B.5) */}
-      {!calculoDisponible && (
+      {!calculoDisponible && cargando && (
+        <p role="status" style={{ fontSize: '12px', color: 'var(--texto-mudo)', margin: 0, textAlign: 'center' }}>
+          Cargando los parámetros de financiamiento…
+        </p>
+      )}
+      {!calculoDisponible && !cargando && (
         <div
           style={{
             backgroundColor: '#FFF7ED',

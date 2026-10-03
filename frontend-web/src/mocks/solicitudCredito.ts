@@ -105,8 +105,12 @@ export const NIVELES_ACADEMICOS = ['Primaria', 'Bachiller', 'T.S.U.', 'Universit
 export const CONDICIONES_VIVIENDA = ['Propia', 'Alquilada', 'Familiar', 'Hipoteca'] as const;
 export const NACIONALIDADES = ['Venezolana', 'Extranjera'] as const;
 export const TIPOS_CUENTA = ['Corriente', 'Ahorros'] as const;
-export const FRECUENCIAS_PAGO = ['Semanal', 'Quincenal', 'Mensual'] as const;
-export const PLAZOS_MESES = [6, 12, 18, 24, 36] as const;
+
+/**
+ * Versión del texto de las declaraciones que se muestra y se acepta. Viaja con la solicitud y queda en la evidencia de
+ * aceptación (D-57): si el texto cambia, cambia esta versión. Sin OTP, esto y la fecha, la IP y el agente son la prueba.
+ */
+export const VERSION_TEXTO_DECLARACIONES = 'WMA-F-FIN-001 v1';
 
 /** Los seis recaudos del formato original. */
 export const RECAUDOS = [
@@ -202,7 +206,7 @@ export const MOTIVOS: string[] = [
   'Comparamos ingresos y egresos para proponerte una cuota que puedas sostener.',
   'Las referencias y la cuenta son requisitos del expediente de crédito.',
   'Estos documentos respaldan lo que declaraste. Puedes enviarlos después si no los tienes ahora.',
-  'Lee y acepta cada declaración. Al final verificamos tu teléfono con un código.',
+  'Lee y acepta cada declaración. Al enviar, tu solicitud queda registrada con la fecha y la hora de la aceptación.',
 ];
 
 /** Genera un número de solicitud con el formato del expediente. */

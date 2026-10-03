@@ -5,7 +5,8 @@ import { useVehiculos } from '../state/vehiculosContexto';
 import { TarjetaVehiculo } from '../components/TarjetaVehiculo';
 import { ChipFiltro } from '../components/ChipFiltro';
 import { Estado } from '../components/Estado';
-import { cuotaDesde } from '../mocks/financiamiento';
+import { NotaSimulada } from '../components/NotaSimulada';
+import { useParametros } from '../state/parametrosContexto';
 
 interface C1CatalogoProps {
   rateBCV: number;
@@ -110,7 +111,10 @@ const GrupoFiltro: React.FC<{ titulo: string; children: React.ReactNode }> = ({
 export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { vehiculos } = useVehiculos();
+  const { vehiculos, cargando, error, recargar, origen } = useVehiculos();
+  const { cuotaDesde, parametros, cargando: cargandoParametros } = useParametros();
+  // Sin parámetros vigentes no hay cuota que filtrar: los filtros por cuota se ignoran y se avisa (no se inventan).
+  const hayCuotas = parametros !== null;
 
   // Filtro sembrado desde el Home (?q=) o por cuota máxima (?cuotaMax=)
   const [busqueda, setBusqueda] = useState(params.get('q') ?? '');
@@ -134,14 +138,16 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
       const cuota = cuotaDesde(v.precio);
       const rangoCuotaObj = RANGOS_CUOTA.find((r) => r.id === rangoCuota);
       const rangoObj = RANGOS_INGRESO.find((r) => r.id === rangoIngreso);
-      if (rangoCuotaObj) {
-        if (rangoCuotaObj.cuotaMin !== undefined && cuota < rangoCuotaObj.cuotaMin) return false;
-        if (rangoCuotaObj.cuotaMax !== undefined && cuota > rangoCuotaObj.cuotaMax) return false;
-      } else if (rangoObj) {
-        if (rangoObj.cuotaMin !== undefined && cuota < rangoObj.cuotaMin) return false;
-        if (rangoObj.cuotaMax !== undefined && cuota > rangoObj.cuotaMax) return false;
-      } else if (cuotaMax && cuota > Number(cuotaMax)) {
-        return false;
+      if (cuota !== null) {
+        if (rangoCuotaObj) {
+          if (rangoCuotaObj.cuotaMin !== undefined && cuota < rangoCuotaObj.cuotaMin) return false;
+          if (rangoCuotaObj.cuotaMax !== undefined && cuota > rangoCuotaObj.cuotaMax) return false;
+        } else if (rangoObj) {
+          if (rangoObj.cuotaMin !== undefined && cuota < rangoObj.cuotaMin) return false;
+          if (rangoObj.cuotaMax !== undefined && cuota > rangoObj.cuotaMax) return false;
+        } else if (cuotaMax && cuota > Number(cuotaMax)) {
+          return false;
+        }
       }
       if (anioMin && v.anio < Number(anioMin)) return false;
       return true;
@@ -202,6 +208,7 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
     return ordenados;
   }, [
     vehiculos,
+    cuotaDesde,
     busqueda,
     marcas,
     transmisiones,
@@ -237,6 +244,53 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
           Todos los vehículos están certificados con Estándar WAMMA: inspeccionados en más de 200 puntos, reacondicionados y con validación legal de documentos. Disponibles ahora, listos para agendar cita.
         </p>
       </header>
+
+      {origen === 'servidor' && error && (
+        <div
+          role="alert"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 'var(--space-md)',
+            backgroundColor: 'var(--peligro-fondo)',
+            color: 'var(--peligro-texto)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '10px 14px',
+            fontSize: '13px',
+            marginBottom: 'var(--space-lg)',
+          }}
+        >
+          <span>
+            No pudimos actualizar la vitrina desde el servidor.{' '}
+            {vehiculos.length > 0 ? 'Lo que ves puede estar desactualizado.' : ''}
+          </span>
+          <button
+            type="button"
+            onClick={recargar}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'inherit',
+              fontWeight: 700,
+              textDecoration: 'underline',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {!hayCuotas && !cargandoParametros && (
+        <p
+          role="status"
+          style={{ fontSize: '12px', color: 'var(--texto-secundario)', margin: '0 0 var(--space-md)' }}
+        >
+          Las cuotas no están disponibles por ahora, así que los filtros por cuota o ingreso no se aplican.
+        </p>
+      )}
 
       {/* Buscador y orden */}
       <div
@@ -525,10 +579,27 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
                 ))}
               </div>
 
-              <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center', fontSize: '12px', color: 'var(--texto-mudo)' }}>
-                * La cuota estimada "desde" asume la inicial referencial y el plazo máximo disponible. Sujeta a evaluación y aprobación crediticia oficial.
+              <div style={{ marginTop: 'var(--space-xl)' }}>
+                <NotaSimulada>
+                  La cuota "desde" asume la inicial más alta y el plazo más largo disponibles. Sujeta
+                  a aprobación crediticia.
+                </NotaSimulada>
               </div>
             </>
+          ) : vehiculos.length === 0 && cargando ? (
+            <Estado type="loading" />
+          ) : vehiculos.length === 0 && error ? (
+            <Estado
+              type="error"
+              message="No pudimos cargar la vitrina. Revisa tu conexión e inténtalo de nuevo."
+              onRetry={recargar}
+            />
+          ) : vehiculos.length === 0 ? (
+            // Sin filtros que quitar: la vitrina de verdad no tiene vehículos publicados.
+            <div className="catalogo-sin-vehiculos">
+              <h3>Por ahora no hay vehículos publicados</h3>
+              <p>Estamos preparando nuevas unidades certificadas. Vuelve pronto.</p>
+            </div>
           ) : (
             <Estado
               type="empty"
@@ -546,6 +617,15 @@ export const C1_Catalogo: React.FC<C1CatalogoProps> = ({ rateBCV }) => {
           align-items: start;
         }
         .panel-filtros { position: sticky; top: 104px; }
+        .catalogo-sin-vehiculos {
+          background-color: var(--blanco);
+          border: 1px dashed var(--borde);
+          border-radius: var(--radius-lg);
+          padding: 48px 20px;
+          text-align: center;
+        }
+        .catalogo-sin-vehiculos h3 { font-size: 18px; margin: 0 0 8px; }
+        .catalogo-sin-vehiculos p { font-size: 14px; color: var(--texto-secundario); margin: 0; }
         .btn-rango-ingreso:not(.activo):hover {
           border-color: var(--naranja-300) !important;
           background-color: var(--naranja-50, #fff7ed) !important;

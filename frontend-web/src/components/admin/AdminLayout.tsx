@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Logo } from '../Logo';
-import { useCRM, CORREO_NOTIFICACIONES_WAMMA } from '../../state/crmContexto';
+import { useCRM } from '../../state/crmContexto';
 import { useSesion } from '../../state/sesionContexto';
 import { estaEstancada } from '../../types/crm';
 import { nombreRol } from '../../types/seguridad';
@@ -74,16 +74,10 @@ export const AdminLayout: React.FC = () => {
           )}
           {estado === 'sin_servidor' && (
             <div className="admin-cuenta-detalle" style={{ marginBottom: '10px' }}>
-              Acceso administrativo directo
+              Modo maqueta: sin inicio de sesión.
             </div>
           )}
           <EstadoServidor />
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
-            Alertas de correo a:
-            <div style={{ color: 'var(--blanco)', fontWeight: 600, wordBreak: 'break-all' }}>
-              {CORREO_NOTIFICACIONES_WAMMA}
-            </div>
-          </div>
           <button
             type="button"
             className="btn-volver-web"

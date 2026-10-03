@@ -1,173 +1,39 @@
 /**
- * Servicio de carga y sincronización de parámetros de financiamiento desde Supabase / Backend.
+ * Lectura y actualización de los parámetros de financiamiento, que gobierna el servidor (D-14, D-26).
  *
- * Cumple con el requisito B:
- * "Si los parámetros no cargan, no muestres cuotas calculadas con valores de respaldo.
- * Muestra un estado de 'cálculo no disponible'. Mostrar una cuota con parámetros viejos es un riesgo."
+ * Solo hay una fuente: el backend (`/v1/parametros-financiamiento`). El navegador no consulta la base de datos ni
+ * conoce a su proveedor: la arquitectura tiene que poder cambiar de proveedor sin tocar la interfaz.
+ *
+ * Si los parámetros no cargan, no se muestran cuotas calculadas con valores de respaldo: una cuota con una política
+ * vieja es un riesgo. Quien los usa muestra «cálculo no disponible» (`state/parametros.tsx`).
  */
-import { useEffect, useState } from 'react';
+import { apiConfigurada, pedirJson } from '../api/cliente';
+import { PARAMETROS_APROBADOS } from './financiamientoMotor';
 import {
-  PARAMETROS_APROBADOS,
-  type ParametrosFinanciamiento,
-} from './financiamientoMotor';
+  parametrosDesdeApi,
+  type ActualizarParametrosPayload,
+  type ParametrosDb,
+  type ParametrosFinanciamientoCompletos,
+} from './parametrosServidor';
 
-export interface ParametrosDb {
-  id?: string;
-  tasa_mensual: number;
-  plazo_meses: number;
-  ratio_cuota_ingreso: number;
-  opciones_inicial: number[];
-  inicial_minima: number;
-  moneda_base?: string;
-  vigente_desde?: string;
-  activo?: boolean;
+export type { ActualizarParametrosPayload, ParametrosDb, ParametrosFinanciamientoCompletos };
+export { parametrosDesdeApi };
+
+const RUTA = '/v1/parametros-financiamiento';
+
+/**
+ * La política vigente. Sin servidor (demostración) rige la política aprobada del motor; con servidor, únicamente lo
+ * que este responda: si falla, falla (no se sustituye por valores de respaldo).
+ */
+export async function obtenerParametrosFinanciamiento(): Promise<ParametrosFinanciamientoCompletos> {
+  if (!apiConfigurada) return PARAMETROS_APROBADOS;
+  // Es de lectura pública: se pide sin credencial, para que una sesión vencida no impida cotizar.
+  return parametrosDesdeApi(await pedirJson<ParametrosDb>(RUTA, { token: null }));
 }
 
-export interface ParametrosFinanciamientoCompletos extends ParametrosFinanciamiento {
-  monedaBase?: string;
-  vigenteDesde?: string;
-  activo?: boolean;
-}
-
-export interface ActualizarParametrosPayload {
-  tasa_mensual: number;
-  plazo_meses: number;
-  ratio_cuota_ingreso: number;
-  opciones_inicial: number[];
-  inicial_minima: number;
-  moneda_base?: string;
-}
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, '');
-
-export async function obtenerParametrosFinanciamiento(): Promise<ParametrosFinanciamiento> {
-  // 1. Si Supabase está configurado con anon key (lectura pública con RLS)
-  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-    const url = `${SUPABASE_URL.replace(/\/+$/, '')}/rest/v1/parametros_financiamiento?activo=eq.true&order=vigente_desde.desc&limit=1`;
-    const res = await fetch(url, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        Accept: 'application/json',
-      },
-    });
-
-    if (!res.ok) {
-      throw new Error(`Error al consultar parámetros en Supabase (código HTTP ${res.status})`);
-    }
-
-    const data = (await res.json()) as ParametrosDb[];
-    if (!data || data.length === 0) {
-      throw new Error('No se encontraron parámetros de financiamiento activos en la base de datos');
-    }
-
-    const row = data[0];
-    return {
-      tasaMensual: Number(row.tasa_mensual),
-      plazoMeses: Number(row.plazo_meses),
-      ratioCuotaIngreso: Number(row.ratio_cuota_ingreso),
-      opcionesInicial: Array.isArray(row.opciones_inicial)
-        ? row.opciones_inicial.map(Number)
-        : [0.20, 0.30, 0.40],
-      inicialMinima: Number(row.inicial_minima),
-    };
-  }
-
-  // 2. Si hay backend Spring Boot configurado
-  if (API_URL) {
-    const res = await fetch(`${API_URL}/v1/parametros-financiamiento`, {
-      headers: { Accept: 'application/json' },
-    });
-    if (!res.ok) {
-      throw new Error(`Error al consultar parámetros en el backend (código HTTP ${res.status})`);
-    }
-    const row = (await res.json()) as ParametrosDb;
-    return {
-      tasaMensual: Number(row.tasa_mensual),
-      plazoMeses: Number(row.plazo_meses),
-      ratioCuotaIngreso: Number(row.ratio_cuota_ingreso),
-      opcionesInicial: Array.isArray(row.opciones_inicial)
-        ? row.opciones_inicial.map(Number)
-        : [0.20, 0.30, 0.40],
-      inicialMinima: Number(row.inicial_minima),
-    };
-  }
-
-  // 3. Modo local sin servicios remotos configurados: retorna la política aprobada oficial
-  return PARAMETROS_APROBADOS;
-}
-
+/** Cambia la política. Solo quien administra parámetros (`parametros.gestionar`); el servidor lo verifica. */
 export async function actualizarParametrosFinanciamiento(
   payload: ActualizarParametrosPayload,
-  token?: string | null
 ): Promise<ParametrosFinanciamientoCompletos> {
-  const base = API_URL || 'http://localhost:8080';
-  const res = await fetch(`${base}/v1/financiamiento/parametros`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}));
-    throw new Error(errorBody.detail || errorBody.message || `Error al actualizar parámetros (código HTTP ${res.status})`);
-  }
-
-  const row = (await res.json()) as ParametrosDb;
-  return {
-    tasaMensual: Number(row.tasa_mensual),
-    plazoMeses: Number(row.plazo_meses),
-    ratioCuotaIngreso: Number(row.ratio_cuota_ingreso),
-    opcionesInicial: Array.isArray(row.opciones_inicial)
-      ? row.opciones_inicial.map(Number)
-      : [0.20, 0.30, 0.40],
-    inicialMinima: Number(row.inicial_minima),
-    monedaBase: row.moneda_base,
-    vigenteDesde: row.vigente_desde,
-    activo: row.activo,
-  };
-}
-
-export interface EstadoParametrosFinanciamiento {
-  parametros: ParametrosFinanciamiento | null;
-  cargando: boolean;
-  error: string | null;
-  recargar: () => Promise<void>;
-}
-
-export function useParametrosFinanciamiento(): EstadoParametrosFinanciamiento {
-  const [parametros, setParametros] = useState<ParametrosFinanciamiento | null>(PARAMETROS_APROBADOS);
-  const [cargando, setCargando] = useState<boolean>(Boolean(SUPABASE_URL || API_URL));
-  const [error, setError] = useState<string | null>(null);
-
-  const cargar = async () => {
-    if (!SUPABASE_URL && !API_URL) {
-      setParametros(PARAMETROS_APROBADOS);
-      setCargando(false);
-      return;
-    }
-    try {
-      setCargando(true);
-      setError(null);
-      const params = await obtenerParametrosFinanciamiento();
-      setParametros(params);
-    } catch (err: unknown) {
-      setParametros(null);
-      setError(err instanceof Error ? err.message : 'Error desconocido al cargar parámetros');
-    } finally {
-      setCargando(false);
-    }
-  };
-
-  useEffect(() => {
-    cargar();
-  }, []);
-
-  return { parametros, cargando, error, recargar: cargar };
+  return parametrosDesdeApi(await pedirJson<ParametrosDb>(RUTA, { method: 'PUT', cuerpo: payload }));
 }

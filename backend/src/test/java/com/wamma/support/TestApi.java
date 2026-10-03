@@ -9,13 +9,19 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /** Cliente mínimo de la API para las pruebas de integración. */
 public class TestApi {
 
-    public record Response(int status, Object body) {
+    public record Response(int status, Object body, Map<String, String> headers) {
+
+        /** Cabecera de la respuesta, o {@code null} si no vino. */
+        public String header(String name) {
+            return headers == null ? null : headers.get(name);
+        }
 
         @SuppressWarnings("unchecked")
         public Map<String, Object> map() {
@@ -72,6 +78,15 @@ public class TestApi {
         return send(MockMvcRequestBuilders.multipart(path).file(file), token, null);
     }
 
+    /** Sube un archivo en el campo {@code archivo} junto con otros campos del formulario. */
+    public Response upload(String path, String token, String fileName, String contentType, byte[] content,
+                           Map<String, String> fields) {
+        MockMultipartFile file = new MockMultipartFile("archivo", fileName, contentType, content);
+        var request = MockMvcRequestBuilders.multipart(path).file(file);
+        fields.forEach(request::param);
+        return send(request, token, null);
+    }
+
     private Response send(AbstractMockHttpServletRequestBuilder<?> request, String token, Object body) {
         try {
             if (token != null) {
@@ -82,7 +97,12 @@ public class TestApi {
             }
             MockHttpServletResponse response = mvc.perform(request).andReturn().getResponse();
             String text = response.getContentAsString(StandardCharsets.UTF_8);
-            return new Response(response.getStatus(), text.isBlank() ? null : json.readValue(text, Object.class));
+            Map<String, String> headers = new LinkedHashMap<>();
+            for (String name : response.getHeaderNames()) {
+                headers.put(name, response.getHeader(name));
+            }
+            return new Response(response.getStatus(),
+                    text.isBlank() ? null : json.readValue(text, Object.class), headers);
         } catch (Exception e) {
             throw new IllegalStateException("La petición de prueba falló", e);
         }

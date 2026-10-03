@@ -68,41 +68,45 @@ public class AppointmentRepository {
                 .optional();
     }
 
-    public List<AppointmentRecord> list(String status, UUID advisorId, boolean viewAll) {
-        StringBuilder sql = new StringBuilder("select " + SELECT_COLS + """
-                from cita_inspeccion c
-                join oportunidad o on o.id = c.oportunidad_id
-                where 1=1
-                """);
+    private static final String SELECT_VIEW = """
+            select c.id, c.persona_id, p.nombre_apellido as persona_nombre, c.oportunidad_id, c.vehiculo_id,
+                   v.codigo as vehiculo_codigo, v.marca as vehiculo_marca, v.modelo as vehiculo_modelo,
+                   v.anio as vehiculo_anio, c.dia_preferido, c.franja, c.estado, c.notas,
+                   c.reserva_vence_en, c.creado_en
+            from cita_inspeccion c
+            join persona p on p.id = c.persona_id
+            join vehiculo v on v.id = c.vehiculo_id
+            join oportunidad o on o.id = c.oportunidad_id
+            """;
 
-        if (status != null && !status.isBlank()) {
-            sql.append(" and c.estado = :status ");
-        }
-        if (!viewAll) {
-            sql.append(" and (o.asesor_id = :advisorId or o.asesor_id is null) ");
-        }
-
-        sql.append(" order by c.dia_preferido desc, c.creado_en desc ");
-
-        var statement = jdbc.sql(sql.toString());
-        if (status != null && !status.isBlank()) {
-            statement = statement.param("status", status);
-        }
-        if (!viewAll) {
-            statement = statement.param("advisorId", advisorId, Types.OTHER);
-        }
-
-        return statement.query(AppointmentRepository::map).list();
+    /**
+     * La bandeja de citas. Con {@code visibleTo} (crm.ver_propias) solo las de oportunidades de ese asesor o sin
+     * dueño; nulo, todas.
+     */
+    public List<AppointmentView> listViews(String status, UUID visibleTo) {
+        return jdbc.sql(SELECT_VIEW + """
+                        where (cast(:status as varchar) is null or c.estado = cast(:status as varchar))
+                          and (cast(:visibleTo as uuid) is null
+                               or o.asesor_id = cast(:visibleTo as uuid) or o.asesor_id is null)
+                        order by c.dia_preferido desc, c.creado_en desc
+                        """)
+                .param("status", status == null || status.isBlank() ? null : status, Types.VARCHAR)
+                .param("visibleTo", visibleTo, Types.OTHER)
+                .query(AppointmentRepository::mapView)
+                .list();
     }
 
-    public List<AppointmentRecord> listByPersonId(UUID personId) {
-        return jdbc.sql("select " + SELECT_COLS + """
-                        from cita_inspeccion c
+    /** Las citas de una persona; con {@code visibleTo}, solo las de oportunidades que ese asesor puede ver. */
+    public List<AppointmentView> viewsByPerson(UUID personId, UUID visibleTo) {
+        return jdbc.sql(SELECT_VIEW + """
                         where c.persona_id = :personId
+                          and (cast(:visibleTo as uuid) is null
+                               or o.asesor_id = cast(:visibleTo as uuid) or o.asesor_id is null)
                         order by c.creado_en desc
                         """)
                 .param("personId", personId, Types.OTHER)
-                .query(AppointmentRepository::map)
+                .param("visibleTo", visibleTo, Types.OTHER)
+                .query(AppointmentRepository::mapView)
                 .list();
     }
 
@@ -153,6 +157,26 @@ public class AppointmentRepository {
                 instant(rs, "reserva_vence_en"),
                 instant(rs, "creado_en"),
                 instant(rs, "actualizado_en")
+        );
+    }
+
+    private static AppointmentView mapView(ResultSet rs, int rowNum) throws SQLException {
+        return new AppointmentView(
+                rs.getObject("id", UUID.class),
+                rs.getObject("persona_id", UUID.class),
+                rs.getString("persona_nombre"),
+                rs.getObject("oportunidad_id", UUID.class),
+                rs.getObject("vehiculo_id", UUID.class),
+                rs.getString("vehiculo_codigo"),
+                rs.getString("vehiculo_marca"),
+                rs.getString("vehiculo_modelo"),
+                rs.getInt("vehiculo_anio"),
+                rs.getObject("dia_preferido", LocalDate.class),
+                rs.getString("franja"),
+                rs.getString("estado"),
+                rs.getString("notas"),
+                instant(rs, "reserva_vence_en"),
+                instant(rs, "creado_en")
         );
     }
 

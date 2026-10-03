@@ -5,7 +5,7 @@ import type { Imperfeccion } from '../types/vehiculo';
  *
  * DATOS SIMULADOS. Corresponden a la entidad `inspeccion_punto` con resultado
  * no conforme (data-model, módulo 004). En la plataforma real los genera el
- * inspector desde la app de inspección y cada uno lleva su `evidencia_url`;
+ * inspector desde la app de inspección y cada uno lleva su `evidencia_clave`;
  * aquí el acercamiento se simula sobre la propia fotografía del vehículo.
  *
  * Publicar el desgaste real es lo que sostiene el Principio de confianza: el

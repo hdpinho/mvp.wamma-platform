@@ -6,13 +6,10 @@ import com.wamma.platform.audit.AuditLog;
 import com.wamma.platform.web.ApiException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,7 +23,6 @@ public class RiskEvaluationService {
     private final AmlScreeningEngine amlScreeningEngine;
     private final AuditLog audit;
     private final Clock clock;
-    private final ObjectMapper json;
 
     public RiskEvaluationService(
             CreditApplicationRepository creditApplications,
@@ -34,8 +30,7 @@ public class RiskEvaluationService {
             CreditScoringEngine scoringEngine,
             AmlScreeningEngine amlScreeningEngine,
             AuditLog audit,
-            Clock clock,
-            ObjectMapper json
+            Clock clock
     ) {
         this.creditApplications = creditApplications;
         this.amlAlerts = amlAlerts;
@@ -43,40 +38,55 @@ public class RiskEvaluationService {
         this.amlScreeningEngine = amlScreeningEngine;
         this.audit = audit;
         this.clock = clock;
-        this.json = json;
     }
 
+    /**
+     * Ejecuta el motor y **registra** su resultado (alertas AML y pre-dictamen). Es una acción del analista (POST).
+     * Fuera de alcance por D-63: el endpoint está apagado por la bandera {@code wamma.riesgo.motor-habilitado}.
+     */
     @Transactional
     public RiskDtos.RiskEngineEvaluationResponse evaluateApplication(UUID applicationId) {
+        return run(applicationId, true);
+    }
+
+    /** Consulta: calcula lo mismo sin escribir nada. Una lectura jamás cambia un dictamen (hallazgo C-03). */
+    @Transactional(readOnly = true)
+    public RiskDtos.RiskEngineEvaluationResponse getApplicationRiskSummary(UUID applicationId) {
+        return run(applicationId, false);
+    }
+
+    private RiskDtos.RiskEngineEvaluationResponse run(UUID applicationId, boolean persist) {
         CreditApplicationRecord app = creditApplications.findById(applicationId)
                 .orElseThrow(() -> ApiException.notFound("Solicitud no encontrada", "No existe la solicitud " + applicationId));
 
-        Map<String, Object> personal = parseJson(app.personalDataJson());
-        Map<String, Object> contact = parseJson(app.contactDataJson());
-        Map<String, Object> employment = parseJson(app.employmentDataJson());
-        Map<String, Object> financial = parseJson(app.financialDataJson());
-        List<Map<String, Object>> references = parseListJson(app.referencesJson());
-        Map<String, Object> banking = parseJson(app.bankingDataJson());
-        Map<String, Object> declarations = parseJson(app.declarationsJson());
+        Map<String, Object> personal = app.dossier().datosPersonales();
+        Map<String, Object> contact = app.dossier().datosContacto();
+        Map<String, Object> employment = app.dossier().datosLaborales();
+        Map<String, Object> financial = app.dossier().datosFinancieros();
+        List<Map<String, Object>> references = app.dossier().referencias();
+        Map<String, Object> banking = app.dossier().datosBancarios();
+        Map<String, Object> declarations = app.dossier().declaraciones();
 
         String fullName = (personal.get("primerNombre") != null ? personal.get("primerNombre") + " " : "")
                 + (personal.get("primerApellido") != null ? personal.get("primerApellido") : "");
         String nationalId = personal.get("numeroDocumento") != null ? String.valueOf(personal.get("numeroDocumento")) : "";
 
-        // 1. Ejecutar Screening AML
-        amlAlerts.deletePendingByApplicationId(applicationId);
-        List<AmlAlertRecord> detectedAlerts = amlScreeningEngine.screenApplicant(
-                applicationId,
-                app.personId(),
-                fullName,
-                nationalId,
-                personal,
-                employment,
-                declarations
-        );
+        // 1. Screening AML: solo al ejecutar el motor se registran alertas; una consulta lee las que ya hay.
+        if (persist) {
+            amlAlerts.deletePendingByApplicationId(applicationId);
+            List<AmlAlertRecord> detectedAlerts = amlScreeningEngine.screenApplicant(
+                    applicationId,
+                    app.personId(),
+                    fullName,
+                    nationalId,
+                    personal,
+                    employment,
+                    declarations
+            );
 
-        for (AmlAlertRecord alert : detectedAlerts) {
-            amlAlerts.insert(alert);
+            for (AmlAlertRecord alert : detectedAlerts) {
+                amlAlerts.insert(alert);
+            }
         }
 
         // Obtener todas las alertas AML registradas para esta solicitud
@@ -119,39 +129,41 @@ public class RiskEvaluationService {
                     + "% comprometido). Score crediticio favorable (" + scoringResult.scoreInterno() + " pts) y screening AML limpio.";
         }
 
-        // 4. Actualizar o Registrar Pre-dictamen en decision_riesgo
-        Instant now = clock.instant();
-        String resultadoDb = switch (recomendacion.toUpperCase()) {
-            case "APROBAR" -> "aprobado";
-            case "CONDICIONAR" -> "condicionado";
-            default -> "rechazado";
-        };
+        if (persist) {
+            // 4. Registrar el pre-dictamen en decision_riesgo (con la tasa de la propia solicitud: nunca una inventada)
+            Instant now = clock.instant();
+            String resultadoDb = switch (recomendacion.toUpperCase()) {
+                case "APROBAR" -> "aprobado";
+                case "CONDICIONAR" -> "condicionado";
+                default -> "rechazado";
+            };
 
-        CreditApplicationRepository.RiskDecisionRecord decisionRecord = new CreditApplicationRepository.RiskDecisionRecord(
-                UUID.randomUUID(),
-                applicationId,
-                scoringResult.scoreInterno(),
-                scoringResult.scoreBuro(),
-                scoringResult.riesgoNivel(),
-                resultadoDb,
-                scoringResult.alertaCapacidad() ? app.requestedAmount().multiply(new BigDecimal("0.85")) : app.requestedAmount(),
-                scoringResult.cuotaMaximaPermitida(),
-                justificacion,
-                null,
-                now,
-                app.currency() != null ? app.currency() : "EUR",
-                app.bcvRate() != null ? app.bcvRate() : new BigDecimal("54.25000000"),
-                app.bcvRateDate() != null ? app.bcvRateDate() : LocalDate.now()
-        );
-        creditApplications.insertRiskDecision(decisionRecord);
+            CreditApplicationRepository.RiskDecisionRecord decisionRecord = new CreditApplicationRepository.RiskDecisionRecord(
+                    UUID.randomUUID(),
+                    applicationId,
+                    scoringResult.scoreInterno(),
+                    scoringResult.scoreBuro(),
+                    scoringResult.riesgoNivel(),
+                    resultadoDb,
+                    scoringResult.alertaCapacidad() ? app.requestedAmount().multiply(new BigDecimal("0.85")) : app.requestedAmount(),
+                    scoringResult.cuotaMaximaPermitida(),
+                    justificacion,
+                    null,
+                    now,
+                    app.currency(),
+                    app.bcvRate(),
+                    app.bcvRateDate()
+            );
+            creditApplications.insertRiskDecision(decisionRecord);
 
-        // 5. Auditoría
-        audit.record("riesgo.evaluacion_motor", "solicitud_credito", applicationId, Map.of(
-                "score_interno", scoringResult.scoreInterno(),
-                "riesgo_nivel", scoringResult.riesgoNivel(),
-                "recomendacion", recomendacion,
-                "bloqueo_aml", hasBlockingAlert
-        ));
+            // 5. Auditoría
+            audit.record("riesgo.evaluacion_motor", "solicitud_credito", applicationId, Map.of(
+                    "score_interno", scoringResult.scoreInterno(),
+                    "riesgo_nivel", scoringResult.riesgoNivel(),
+                    "recomendacion", recomendacion,
+                    "bloqueo_aml", hasBlockingAlert
+            ));
+        }
 
         // Mapear alertas DTO
         List<RiskDtos.AmlAlertDto> alertDtos = allAppAlerts.stream()
@@ -176,11 +188,6 @@ public class RiskEvaluationService {
                 recomendacion,
                 justificacion
         );
-    }
-
-    @Transactional
-    public RiskDtos.RiskEngineEvaluationResponse getApplicationRiskSummary(UUID applicationId) {
-        return evaluateApplication(applicationId);
     }
 
     @Transactional(readOnly = true)
@@ -223,25 +230,5 @@ public class RiskEvaluationService {
                 r.resolvedAt(),
                 r.reviewedBy()
         );
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> parseJson(String jsonStr) {
-        if (jsonStr == null || jsonStr.isBlank()) return Collections.emptyMap();
-        try {
-            return (Map<String, Object>) json.readValue(jsonStr, Map.class);
-        } catch (Exception e) {
-            return Collections.emptyMap();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> parseListJson(String jsonStr) {
-        if (jsonStr == null || jsonStr.isBlank()) return Collections.emptyList();
-        try {
-            return (List<Map<String, Object>>) json.readValue(jsonStr, List.class);
-        } catch (Exception e) {
-            return Collections.emptyList();
-        }
     }
 }

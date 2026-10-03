@@ -25,6 +25,42 @@ public class OpportunityRepository {
             cerrado_en, version, creado_en, actualizado_en
             """;
 
+    /**
+     * La oportunidad con todo lo que la pantalla muestra. «Última actividad» es el momento más reciente
+     * entre su alta, un cambio de etapa y una nota suya; «entró a la etapa» es el último cambio hacia la
+     * etapa actual (spec 010 §8.6).
+     */
+    private static final String SELECT_VIEW = """
+            select o.id, o.persona_id, p.nombre_apellido as persona_nombre,
+                   o.vehiculo_id, v.codigo as vehiculo_codigo, v.marca as vehiculo_marca,
+                   v.modelo as vehiculo_modelo, v.version as vehiculo_version, v.anio as vehiculo_anio,
+                   (select f.clave from publicacion pub
+                      join publicacion_foto f on f.publicacion_id = pub.id
+                     where pub.vehiculo_id = v.id and f.es_principal limit 1) as foto_clave,
+                   o.modalidad_pago, o.valor_estimado, o.moneda, o.tasa_bcv, o.fecha_tasa,
+                   o.etapa, o.motivo_perdida, o.detalle_perdida,
+                   o.asesor_id, nullif(trim(coalesce(u.nombre, '') || ' ' || coalesce(u.apellido, '')), '') as asesor_nombre,
+                   o.proxima_accion, o.proxima_accion_fecha, o.solicitud_credito_id,
+                   sc.numero_solicitud as numero_solicitud, sc.estado as estado_credito,
+                   (o.enlace_token_hash is not null) as tiene_enlace,
+                   o.enlace_emitido_en, o.enlace_expira_en, o.enlace_usado_en,
+                   o.cerrado_en, o.version as version_oportunidad, o.creado_en, o.actualizado_en,
+                   greatest(
+                       o.creado_en,
+                       coalesce((select max(h.creado_en) from etapa_historial h
+                                  where h.oportunidad_id = o.id and h.etapa_anterior is distinct from h.etapa_nueva), o.creado_en),
+                       coalesce((select max(i.ocurrido_en) from interaccion i where i.oportunidad_id = o.id), o.creado_en)
+                   ) as ultima_actividad,
+                   coalesce((select max(h.creado_en) from etapa_historial h
+                              where h.oportunidad_id = o.id and h.etapa_nueva = o.etapa
+                                and h.etapa_anterior is distinct from h.etapa_nueva), o.creado_en) as entro_etapa_en
+            from oportunidad o
+            join persona p on p.id = o.persona_id
+            join vehiculo v on v.id = o.vehiculo_id
+            left join usuario u on u.id = o.asesor_id
+            left join solicitud_credito sc on sc.id = o.solicitud_credito_id
+            """;
+
     private final JdbcClient jdbc;
 
     public OpportunityRepository(JdbcClient jdbc) {
@@ -100,6 +136,20 @@ public class OpportunityRepository {
                 .single();
     }
 
+    /** Si la persona tiene alguna oportunidad del asesor o sin dueño: lo que ve con crm.ver_propias. */
+    public boolean hasOpportunityVisibleTo(UUID personId, UUID advisorId) {
+        return jdbc.sql("""
+                        select exists (
+                            select 1 from oportunidad
+                            where persona_id = :personId and (asesor_id = :advisorId or asesor_id is null)
+                        )
+                        """)
+                .param("personId", personId, Types.OTHER)
+                .param("advisorId", advisorId, Types.OTHER)
+                .query(Boolean.class)
+                .single();
+    }
+
     public boolean updateStage(UUID id, String newStage, String lossReason, String lossDetail,
                                Instant closedAt, int expectedVersion) {
         int updated = jdbc.sql("""
@@ -166,38 +216,66 @@ public class OpportunityRepository {
                 .optional();
     }
 
-    public List<OpportunityRecord> list(String stage, UUID advisorId, boolean unassignedOnly,
-                                        Integer offset, int limit) {
-        StringBuilder sql = new StringBuilder("select ").append(SELECT_FIELDS).append(" from oportunidad where 1=1 ");
-
+    /**
+     * Las oportunidades para el embudo, con lo que la pantalla necesita ya resuelto.
+     *
+     * @param advisorId      solo las de ese asesor (filtro del coordinador)
+     * @param unassignedOnly solo las que no tienen dueño
+     * @param visibleTo      con {@code crm.ver_propias}: las de ese asesor y las que no tienen dueño; nulo, todas
+     */
+    public List<OpportunityView> listViews(String stage, UUID advisorId, boolean unassignedOnly, UUID visibleTo,
+                                           int limit) {
+        StringBuilder where = new StringBuilder(" where 1 = 1 ");
         if (stage != null && !stage.isBlank()) {
-            sql.append(" and etapa = :stage ");
+            where.append(" and o.etapa = :stage ");
         }
         if (unassignedOnly) {
-            sql.append(" and asesor_id is null ");
+            where.append(" and o.asesor_id is null ");
         } else if (advisorId != null) {
-            sql.append(" and asesor_id = :advisorId ");
+            where.append(" and o.asesor_id = :advisorId ");
         }
-
-        sql.append(" order by creado_en desc limit :limit ");
-        if (offset != null && offset > 0) {
-            sql.append(" offset :offset ");
+        if (visibleTo != null) {
+            where.append(" and (o.asesor_id = :visibleTo or o.asesor_id is null) ");
         }
-
-        var statement = jdbc.sql(sql.toString())
+        JdbcClient.StatementSpec statement = jdbc.sql(SELECT_VIEW + where + " order by o.creado_en desc limit :limit")
                 .param("limit", limit);
-
         if (stage != null && !stage.isBlank()) {
             statement = statement.param("stage", stage);
         }
         if (!unassignedOnly && advisorId != null) {
             statement = statement.param("advisorId", advisorId, Types.OTHER);
         }
-        if (offset != null && offset > 0) {
-            statement = statement.param("offset", offset);
+        if (visibleTo != null) {
+            statement = statement.param("visibleTo", visibleTo, Types.OTHER);
         }
+        return statement.query(OpportunityRepository::mapView).list();
+    }
 
-        return statement.query(OpportunityRepository::map).list();
+    /** Las oportunidades de una persona; con {@code visibleTo}, solo las que ese asesor puede ver. */
+    public List<OpportunityView> viewsByPerson(UUID personId, UUID visibleTo) {
+        String scope = visibleTo == null ? "" : " and (o.asesor_id = :visibleTo or o.asesor_id is null) ";
+        JdbcClient.StatementSpec statement = jdbc
+                .sql(SELECT_VIEW + " where o.persona_id = :personId " + scope + " order by o.creado_en desc")
+                .param("personId", personId, Types.OTHER);
+        if (visibleTo != null) {
+            statement = statement.param("visibleTo", visibleTo, Types.OTHER);
+        }
+        return statement.query(OpportunityRepository::mapView).list();
+    }
+
+    public Optional<OpportunityView> viewById(UUID id) {
+        return jdbc.sql(SELECT_VIEW + " where o.id = :id")
+                .param("id", id, Types.OTHER)
+                .query(OpportunityRepository::mapView)
+                .optional();
+    }
+
+    /** La forma de pago con la que de verdad se cerró la venta puede ser otra que la que pidió el cliente. */
+    public void updatePaymentMethod(UUID id, String paymentMethod) {
+        jdbc.sql("update oportunidad set modalidad_pago = :method where id = :id")
+                .param("method", paymentMethod)
+                .param("id", id, Types.OTHER)
+                .update();
     }
 
     public List<OpportunityRecord> listAll() {
@@ -238,6 +316,46 @@ public class OpportunityRepository {
                 rs.getInt("version"),
                 instant(rs, "creado_en"),
                 instant(rs, "actualizado_en")
+        );
+    }
+
+    private static OpportunityView mapView(ResultSet rs, int rowNum) throws SQLException {
+        return new OpportunityView(
+                rs.getObject("id", UUID.class),
+                rs.getObject("persona_id", UUID.class),
+                rs.getString("persona_nombre"),
+                rs.getObject("vehiculo_id", UUID.class),
+                rs.getString("vehiculo_codigo"),
+                rs.getString("vehiculo_marca"),
+                rs.getString("vehiculo_modelo"),
+                rs.getString("vehiculo_version"),
+                rs.getInt("vehiculo_anio"),
+                rs.getString("foto_clave"),
+                rs.getString("modalidad_pago"),
+                rs.getBigDecimal("valor_estimado"),
+                rs.getString("moneda"),
+                rs.getBigDecimal("tasa_bcv"),
+                rs.getObject("fecha_tasa", LocalDate.class),
+                rs.getString("etapa"),
+                rs.getString("motivo_perdida"),
+                rs.getString("detalle_perdida"),
+                rs.getObject("asesor_id", UUID.class),
+                rs.getString("asesor_nombre"),
+                rs.getString("proxima_accion"),
+                rs.getObject("proxima_accion_fecha", LocalDate.class),
+                rs.getObject("solicitud_credito_id", UUID.class),
+                rs.getString("numero_solicitud"),
+                rs.getString("estado_credito"),
+                rs.getBoolean("tiene_enlace"),
+                instant(rs, "enlace_emitido_en"),
+                instant(rs, "enlace_expira_en"),
+                instant(rs, "enlace_usado_en"),
+                instant(rs, "cerrado_en"),
+                rs.getInt("version_oportunidad"),
+                instant(rs, "creado_en"),
+                instant(rs, "actualizado_en"),
+                instant(rs, "ultima_actividad"),
+                instant(rs, "entro_etapa_en")
         );
     }
 

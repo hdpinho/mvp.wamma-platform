@@ -1,0 +1,10 @@
+{
+  "valid": false,
+  "invalidReason": "vencido",
+  "opportunityId": "0b8f0b1e-4c1a-4a52-9d57-0c3a4d4a1111",
+  "vehicle": null,
+  "applicant": null,
+  "financingParams": null,
+  "bcvRate": null,
+  "bcvDate": null
+}

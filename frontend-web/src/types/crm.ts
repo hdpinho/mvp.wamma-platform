@@ -107,8 +107,12 @@ export interface Persona {
   canalOrigen: string;
   criterioResolucion: CriterioResolucion;
   fechaCreacion: string;
+  /** Con servidor, su último movimiento (alta, etapa, nota u oportunidad), que calcula él. */
+  ultimaActividadEn?: string;
   /** Copias de las personas absorbidas al consolidar por cédula (`plan.md` §5.1). */
   fusionadaDesde?: PersonaAbsorbida[];
+  /** Solo con servidor: si este registro fue absorbido por otro, el de la persona vigente. */
+  fusionadaCon?: string;
 }
 
 /**
@@ -172,12 +176,54 @@ export interface Oportunidad {
    * con pago financiado (`spec.md` §8.8).
    */
   enlaceFinanciamiento?: EnlaceFinanciamiento;
+  /** Versión del servidor para el control de concurrencia (If-Match); ausente en la maqueta. */
+  version?: number;
+  /** Nombre del asesor responsable; solo con servidor. */
+  asesorNombre?: string;
+  /** Con servidor, lo que él calcula: último movimiento y cuándo entró a la etapa actual (`spec.md` §8.6). */
+  ultimaActividadEn?: string;
+  entroEtapaEn?: string;
+  /** Solicitud de crédito vinculada: la capa comercial ve su número y su estado, nada más (CA-010.7). */
+  solicitudCredito?: SolicitudCreditoVinculada;
 }
 
 export interface EnlaceFinanciamiento {
-  token: string;
+  /**
+   * El enlace completo. El servidor guarda solo su huella: únicamente se conoce en el momento de emitirlo, así que
+   * tras recargar la pantalla no existe y hay que emitir uno nuevo, que invalida el anterior.
+   */
+  token?: string;
   emitidoEn: string;
+  venceEn?: string;
+  usadoEn?: string;
 }
+
+/** Estados de una solicitud de crédito que el servidor informa al seguimiento comercial. */
+export type EstadoSolicitudCredito =
+  | 'borrador'
+  | 'enviada'
+  | 'en_evaluacion'
+  | 'aprobada'
+  | 'rechazada'
+  | 'condicionada'
+  | 'desembolsada';
+
+export interface SolicitudCreditoVinculada {
+  id: string;
+  numero: string | null;
+  estado: EstadoSolicitudCredito | null;
+}
+
+/** Lo que el asesor lee del estado del crédito de su cliente. */
+export const ETIQUETA_ESTADO_CREDITO: Record<EstadoSolicitudCredito, string> = {
+  borrador: 'Solicitud en borrador',
+  enviada: 'Solicitud enviada, en espera de análisis',
+  en_evaluacion: 'En análisis de crédito',
+  aprobada: 'Crédito aprobado',
+  rechazada: 'Crédito rechazado',
+  condicionada: 'Crédito condicionado: faltan recaudos o ajustes',
+  desembolsada: 'Crédito desembolsado',
+};
 
 /** Append-only: corregir es añadir, nunca editar (`spec.md` RF-010.10). */
 export interface Interaccion {
@@ -214,7 +260,6 @@ export interface Cita {
   franjaHoraria: 'Mañana' | 'Tarde';
   estado: 'pendiente' | 'confirmada' | 'descartada';
   fechaCreacion: string;
-  notificadoA: string;
 }
 
 // ── Máquina de estados ───────────────────────────────────────────────────────

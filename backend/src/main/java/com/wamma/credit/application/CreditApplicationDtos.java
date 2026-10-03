@@ -12,10 +12,13 @@ public final class CreditApplicationDtos {
     private CreditApplicationDtos() {
     }
 
+    /**
+     * Lo que el enlace ya sabe de la persona, para no volver a pedírselo. El nombre va completo: partirlo en nombre
+     * y apellido por espacios acierta solo con dos palabras, y el formulario deja que la persona lo ordene.
+     */
     public record ApplicantPrefillDto(
             UUID personId,
-            String firstName,
-            String lastName,
+            String fullName,
             String nationalId,
             String phone,
             String email
@@ -56,18 +59,26 @@ public final class CreditApplicationDtos {
     ) {
     }
 
+    /**
+     * Recaudo cargado por el cliente. {@code fileKey} es la clave que devolvió la carga en el
+     * contenedor privado; el envío solo admite claves de la propia oportunidad.
+     */
     public record DocumentSubmissionDto(
             String documentType,
-            String fileUrl,
+            String fileKey,
             String fileName,
             Long fileSizeBytes,
             String mimeType
     ) {
     }
 
+    /**
+     * Solicitud que el cliente envía con su enlace personal. El vehículo no viaja aquí: lo fija la oportunidad del
+     * enlace. Sin OTP (D-57): la aceptación queda registrada con fecha, IP, agente y la versión del texto que el
+     * cliente aceptó.
+     */
     public record SubmitCreditApplicationRequest(
             String token,
-            UUID vehiculoId,
             BigDecimal montoSolicitado,
             BigDecimal cuotaInicial,
             int plazoMeses,
@@ -82,8 +93,7 @@ public final class CreditApplicationDtos {
             Map<String, Object> datosBancarios,
             Map<String, Object> declaraciones,
             List<DocumentSubmissionDto> recaudos,
-            String codigoOtp,
-            boolean otpVerificado
+            String versionTexto
     ) {
     }
 
@@ -101,7 +111,9 @@ public final class CreditApplicationDtos {
             String numeroSolicitud,
             String estado,
             UUID vehiculoId,
+            String vehiculoCodigo,
             String vehiculoDescripcion,
+            int totalRecaudos,
             BigDecimal montoSolicitado,
             BigDecimal cuotaInicial,
             int plazoMeses,
@@ -114,10 +126,10 @@ public final class CreditApplicationDtos {
     ) {
     }
 
+    /** Sin dirección ni clave: el archivo se abre pidiendo un enlace firmado (D-59). */
     public record DocumentDetailDto(
             UUID id,
             String documentType,
-            String fileUrl,
             String fileName,
             Long fileSizeBytes,
             String mimeType,
@@ -127,9 +139,16 @@ public final class CreditApplicationDtos {
     ) {
     }
 
+    /** Enlace firmado para abrir un recaudo: ruta relativa a la API y hora de vencimiento. */
+    public record DocumentLinkDto(
+            String ruta,
+            Instant venceEn
+    ) {
+    }
+
     public record RiskDecisionDto(
             UUID id,
-            int internalScore,
+            Integer internalScore,
             Integer bureauScore,
             String riskLevel,
             String result,
@@ -174,57 +193,29 @@ public final class CreditApplicationDtos {
     ) {
     }
 
+    /**
+     * Dictamen manual del analista (D-17, D-63). Sin puntajes: el scoring está fuera de alcance y un dictamen no se
+     * completa con valores por omisión. La justificación es obligatoria y queda con el usuario del analista.
+     *
+     * @param resultado            {@code aprobado}, {@code condicionado} o {@code rechazado}
+     * @param justificacion        sustento de la decisión (al menos {@link #MIN_JUSTIFICATION} caracteres)
+     * @param limiteAprobado       solo al aprobar: lo que se aprueba, sin pasar de lo solicitado
+     * @param cuotaMaximaPermitida solo al aprobar
+     */
     public record EvaluateCreditApplicationRequest(
-            String resultado, // 'aprobado', 'rechazado', 'condicionado'
-            String nuevoEstado,
-            Integer scoreInterno,
-            Integer scoreCrediticio,
-            Integer scoreBuro,
-            String riesgoNivel, // 'bajo', 'medio', 'alto', 'no_asegurable'
-            BigDecimal limiteAprobado,
-            BigDecimal cuotaMaximaPermitida,
+            String resultado,
             String justificacion,
-            String observaciones
+            BigDecimal limiteAprobado,
+            BigDecimal cuotaMaximaPermitida
     ) {
-        public String effectiveOutcome() {
-            if (resultado != null && !resultado.isBlank()) return resultado.trim().toLowerCase();
-            if (nuevoEstado != null && !nuevoEstado.isBlank()) return nuevoEstado.trim().toLowerCase();
-            return "";
+        public static final int MIN_JUSTIFICATION = 10;
+
+        public String normalizedOutcome() {
+            return resultado == null ? "" : resultado.trim().toLowerCase();
         }
 
-        public String effectiveJustification() {
-            if (justificacion != null && !justificacion.isBlank()) return justificacion.trim();
-            if (observaciones != null && !observaciones.isBlank()) return observaciones.trim();
-            return "Evaluación de analista de crédito";
+        public String trimmedJustification() {
+            return justificacion == null ? "" : justificacion.trim();
         }
-
-        public int effectiveScore() {
-            if (scoreInterno != null && scoreInterno >= 0 && scoreInterno <= 1000) return scoreInterno;
-            if (scoreCrediticio != null && scoreCrediticio >= 0 && scoreCrediticio <= 1000) return scoreCrediticio;
-            return 700;
-        }
-
-        public String effectiveRiskLevel() {
-            if (riesgoNivel != null && !riesgoNivel.isBlank()) {
-                String r = riesgoNivel.trim().toLowerCase();
-                if (r.contains("bajo")) return "bajo";
-                if (r.contains("alto")) return "alto";
-                if (r.contains("asegurable")) return "no_asegurable";
-                return "medio";
-            }
-            return "medio";
-        }
-    }
-
-    public record StatusLookupResponse(
-            String numeroSolicitud,
-            String estado,
-            Instant enviadaEn,
-            String vehiculoDescripcion,
-            BigDecimal montoSolicitado,
-            int plazoMeses,
-            BigDecimal cuotaEstimada,
-            String mensaje
-    ) {
     }
 }

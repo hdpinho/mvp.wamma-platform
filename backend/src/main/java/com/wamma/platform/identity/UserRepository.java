@@ -176,6 +176,20 @@ public class UserRepository {
                 .update();
     }
 
+    /** Los usuarios activos con un rol, para listas de asignación (el coordinador reparte oportunidades). */
+    public List<UserAccount> activeWithRole(String roleCode) {
+        return jdbc.sql("select " + COLUMNS + """
+                         from usuario
+                         where estado = 'activo'
+                           and id in (select ur.usuario_id from usuario_rol ur
+                                      join rol r on r.id = ur.rol_id where r.codigo = :role)
+                         order by nombre, apellido
+                        """)
+                .param("role", roleCode)
+                .query(UserRepository::map)
+                .list();
+    }
+
     public List<String> rolesOf(UUID id) {
         return jdbc.sql("""
                         select r.codigo from usuario_rol ur join rol r on r.id = ur.rol_id

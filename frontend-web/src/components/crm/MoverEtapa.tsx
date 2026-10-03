@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import type { Etapa, MotivoPerdida, Oportunidad } from '../../types/crm';
-import { ETAPAS, MOTIVOS_PERDIDA, definicionEtapa, evaluarTransicion } from '../../types/crm';
+import {
+  ETAPAS,
+  ETIQUETA_ESTADO_CREDITO,
+  MOTIVOS_PERDIDA,
+  definicionEtapa,
+  evaluarTransicion,
+} from '../../types/crm';
 import { useCRM } from '../../state/crmContexto';
 import { Boton } from '../Boton';
 
@@ -20,6 +26,12 @@ interface MoverEtapaProps {
   onHecho?: (mensaje: string) => void;
 }
 
+/** Un crédito solo respalda el cierre de la venta si está aprobado o ya se desembolsó. */
+const creditoRespaldaLaVenta = (oportunidad: Oportunidad): boolean => {
+  const estado = oportunidad.solicitudCredito?.estado;
+  return estado === 'aprobada' || estado === 'desembolsada';
+};
+
 export const MoverEtapa: React.FC<MoverEtapaProps> = ({ oportunidad, onHecho }) => {
   const { cambiarEtapa } = useCRM();
   const [destino, setDestino] = useState<Etapa | ''>('');
@@ -27,6 +39,7 @@ export const MoverEtapa: React.FC<MoverEtapaProps> = ({ oportunidad, onHecho }) 
   const [motivoTexto, setMotivoTexto] = useState('');
   const [nota, setNota] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
   if (definicionEtapa(oportunidad.etapa).esTerminal) {
     return <span className="mover-terminal">Etapa final. Para retomar el contacto se abre una oportunidad nueva.</span>;
@@ -39,12 +52,14 @@ export const MoverEtapa: React.FC<MoverEtapaProps> = ({ oportunidad, onHecho }) 
     setError(null);
   };
 
-  const aplicar = (hacia: Etapa) => {
-    const resultado = cambiarEtapa(oportunidad.id, hacia, {
+  const aplicar = async (hacia: Etapa) => {
+    setEnviando(true);
+    const resultado = await cambiarEtapa(oportunidad.id, hacia, {
       motivoPerdida: hacia === 'cerrado_perdido' ? motivo : undefined,
       motivoPerdidaTexto: hacia === 'cerrado_perdido' ? motivoTexto.trim() || undefined : undefined,
       nota: nota.trim() || undefined,
     });
+    setEnviando(false);
     if (!resultado.ok) {
       setError(resultado.error ?? 'No se pudo cambiar la etapa.');
       return;
@@ -66,7 +81,7 @@ export const MoverEtapa: React.FC<MoverEtapaProps> = ({ oportunidad, onHecho }) 
       setDestino(hacia);
       return;
     }
-    aplicar(hacia);
+    void aplicar(hacia);
   };
 
   const evaluacion = destino ? evaluarTransicion(oportunidad.etapa, destino) : null;
@@ -141,12 +156,26 @@ export const MoverEtapa: React.FC<MoverEtapaProps> = ({ oportunidad, onHecho }) 
               El vehículo pasará a <strong>Vendido</strong> y saldrá del catálogo.
             </p>
           )}
+          {destino === 'cerrado_ganado' && oportunidad.modalidadPago === 'Financiamiento' && !creditoRespaldaLaVenta(oportunidad) && (
+            <p className="mover-aviso" role="alert">
+              <strong>El crédito de esta venta no está aprobado</strong>
+              {oportunidad.solicitudCredito?.estado
+                ? ` (${ETIQUETA_ESTADO_CREDITO[oportunidad.solicitudCredito.estado].toLowerCase()})`
+                : ': todavía no hay solicitud de crédito enviada'}
+              . Cierra la venta solo si ya está acordado de otra forma.
+            </p>
+          )}
 
           <div className="mover-acciones">
-            <Boton variant="primary" size="small" onClick={() => aplicar(destino)} disabled={!puedeConfirmar}>
-              Confirmar
+            <Boton
+              variant="primary"
+              size="small"
+              onClick={() => void aplicar(destino)}
+              disabled={!puedeConfirmar || enviando}
+            >
+              {enviando ? 'Guardando…' : 'Confirmar'}
             </Boton>
-            <button type="button" className="mover-cancelar" onClick={reiniciar}>
+            <button type="button" className="mover-cancelar" onClick={reiniciar} disabled={enviando}>
               Cancelar
             </button>
           </div>

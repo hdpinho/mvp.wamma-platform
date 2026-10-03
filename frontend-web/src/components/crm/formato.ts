@@ -1,8 +1,8 @@
 /** Utilidades de presentación del backoffice comercial (módulo 010). */
 
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-
-export const formatoUSD = (valor: number) => usd.format(valor);
+// La moneda de referencia de los precios es el euro (Constitución v3.0.0): un monto del CRM nunca se rotula con «$».
+// Es el mismo formato que usan los simuladores, para que una cifra se lea igual en toda la aplicación.
+export { formatoEUR } from '../../services/financiamientoMotor';
 
 export const fechaCorta = (iso: string) =>
   new Date(iso).toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });

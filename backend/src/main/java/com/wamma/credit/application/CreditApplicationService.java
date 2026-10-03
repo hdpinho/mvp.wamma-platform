@@ -1,5 +1,8 @@
 package com.wamma.credit.application;
 
+import com.wamma.credit.application.documents.DocumentFileType;
+import com.wamma.credit.application.documents.DocumentStorage;
+import com.wamma.credit.application.documents.DocumentStorageProperties;
 import com.wamma.crm.FinancingLinkService;
 import com.wamma.crm.OpportunityRecord;
 import com.wamma.crm.OpportunityRepository;
@@ -10,15 +13,17 @@ import com.wamma.exchangerate.BcvRate;
 import com.wamma.exchangerate.ExchangeRateService;
 import com.wamma.financing.FinancingParameters;
 import com.wamma.financing.FinancingParametersService;
+import com.wamma.financing.LoanCalculator;
 import com.wamma.inventory.PublicationRepository;
 import com.wamma.inventory.VehicleRepository;
 import com.wamma.inventory.photos.PhotoStorage;
 import com.wamma.platform.audit.AuditLog;
+import com.wamma.platform.crypto.SignedLinks;
 import com.wamma.platform.web.ApiException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import tools.jackson.databind.ObjectMapper;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -26,15 +31,31 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class CreditApplicationService {
+
+    /** Estados de validación de un recaudo (CHECK de solicitud_recaudo, V0006). */
+    private static final Set<String> DOCUMENT_STATUSES = Set.of("pendiente", "conforme", "ilegible", "rechazado");
+
+    /** Estados con dictamen final: ya no se vuelve a dictaminar la solicitud. */
+    private static final Set<String> FINAL_STATUSES = Set.of("aprobada", "rechazada", "desembolsada");
+
+    /** Única puerta de salida de un recaudo: pública, pero solo abre con una firma vigente (D-59). */
+    public static final String SIGNED_DOCUMENT_PATH = "/v1/recaudos/archivo";
+
+    /** Un recaudo abierto por su enlace firmado, con el tipo reconocido por su contenido. */
+    public record SignedDocument(byte[] content, DocumentFileType type) {
+    }
 
     private final CreditApplicationRepository creditApplications;
     private final FinancingLinkService financingLinkService;
@@ -45,9 +66,11 @@ public class CreditApplicationService {
     private final FinancingParametersService financingParameters;
     private final ExchangeRateService exchangeRates;
     private final PhotoStorage photoStorage;
+    private final DocumentStorage documents;
+    private final DocumentStorageProperties documentProperties;
+    private final SignedLinks signedLinks;
     private final AuditLog audit;
     private final Clock clock;
-    private final ObjectMapper json;
 
     public CreditApplicationService(
             CreditApplicationRepository creditApplications,
@@ -59,9 +82,11 @@ public class CreditApplicationService {
             FinancingParametersService financingParameters,
             ExchangeRateService exchangeRates,
             PhotoStorage photoStorage,
+            DocumentStorage documents,
+            DocumentStorageProperties documentProperties,
+            SignedLinks signedLinks,
             AuditLog audit,
-            Clock clock,
-            ObjectMapper json) {
+            Clock clock) {
         this.creditApplications = creditApplications;
         this.financingLinkService = financingLinkService;
         this.opportunities = opportunities;
@@ -71,9 +96,11 @@ public class CreditApplicationService {
         this.financingParameters = financingParameters;
         this.exchangeRates = exchangeRates;
         this.photoStorage = photoStorage;
+        this.documents = documents;
+        this.documentProperties = documentProperties;
+        this.signedLinks = signedLinks;
         this.audit = audit;
         this.clock = clock;
-        this.json = json;
     }
 
     @Transactional(readOnly = true)
@@ -91,14 +118,9 @@ public class CreditApplicationService {
         PersonRecord person = persons.findById(opp.personId()).orElse(null);
         CreditApplicationDtos.ApplicantPrefillDto applicantDto = null;
         if (person != null) {
-            String fullName = person.fullName() != null ? person.fullName() : "";
-            String[] parts = fullName.split("\\s+");
-            String firstName = parts.length > 0 ? parts[0] : "";
-            String lastName = parts.length > 1 ? parts[1] : "";
             applicantDto = new CreditApplicationDtos.ApplicantPrefillDto(
                     person.id(),
-                    firstName,
-                    lastName,
+                    person.fullName(),
                     person.cedula(),
                     person.primaryPhone(),
                     person.email()
@@ -114,15 +136,16 @@ public class CreditApplicationService {
                 params.paymentToIncomeRatio()
         );
 
+        // Sin tasa registrada no se inventa una: el enlace se informa sin equivalencia en bolívares.
         BcvRate rate = exchangeRates.currentEuroRate().orElse(null);
-        BigDecimal bcvValue = rate != null ? rate.vesPerUnit() : new BigDecimal("54.25000000");
-        LocalDate bcvDate = rate != null ? rate.date() : exchangeRates.today();
+        BigDecimal bcvValue = rate != null ? rate.vesPerUnit() : null;
+        LocalDate bcvDate = rate != null ? rate.date() : null;
 
         CreditApplicationDtos.VehicleDetailDto vehicleDto = null;
         if (details.vehicle() != null) {
             var v = details.vehicle();
             BigDecimal priceEur = v.price();
-            BigDecimal priceVes = priceEur.multiply(bcvValue).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal priceVes = bcvValue != null ? priceEur.multiply(bcvValue).setScale(2, RoundingMode.HALF_UP) : null;
             String photoUrl = v.photoKey() != null ? photoStorage.publicUrl(v.photoKey()) : null;
             vehicleDto = new CreditApplicationDtos.VehicleDetailDto(
                     v.id(), v.code(), v.brand(), v.model(), v.year(), v.version(), priceEur, priceVes, photoUrl
@@ -134,36 +157,84 @@ public class CreditApplicationService {
         );
     }
 
+    /**
+     * Carga pública de un recaudo, solo con un enlace de financiamiento vigente y sin usar. El
+     * archivo va al contenedor PRIVADO (D-59) bajo la oportunidad del enlace; su tipo se reconoce
+     * por el contenido, no por el nombre ni por lo que declara el navegador.
+     */
     public CreditApplicationDtos.DocumentSubmissionDto uploadDocument(String token, String tipoDocumento, MultipartFile file) {
-        if (!FinancingLinkToken.hasValidShape(token)) {
-            throw ApiException.badRequest("Token inválido", "El formato del token no es válido.");
-        }
-        if (file.isEmpty()) {
+        OpportunityRecord opp = requireOpenLink(token);
+        if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("Archivo vacío", "Debe subir un archivo válido.");
         }
-
-        String safeType = tipoDocumento != null ? tipoDocumento.replaceAll("[^a-zA-Z0-9_-]", "") : "otro";
-        String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "documento";
-        String ext = "jpg";
-        int dotIdx = originalFilename.lastIndexOf('.');
-        if (dotIdx > 0 && dotIdx < originalFilename.length() - 1) {
-            String candidate = originalFilename.substring(dotIdx + 1).toLowerCase();
-            if (candidate.matches("[a-z0-9]{2,5}")) {
-                ext = candidate;
-            }
-        }
-
-        String key = "recaudos/" + token + "/" + safeType + "-" + UUID.randomUUID() + "." + ext;
+        byte[] content;
         try {
-            photoStorage.put(key, file.getBytes(), file.getContentType());
+            content = file.getBytes();
         } catch (IOException e) {
-            throw ApiException.unprocessable("Error de almacenamiento", "No se pudo guardar el archivo del recaudo.");
+            throw ApiException.unprocessable("Archivo ilegible", "No se pudo leer el archivo del recaudo.");
         }
+        DocumentFileType type = DocumentFileType.detect(content)
+                .orElseThrow(() -> ApiException.unprocessable("Tipo de archivo no admitido",
+                        "El recaudo debe ser un PDF, JPG o PNG."));
 
-        String url = photoStorage.publicUrl(key);
+        String key = DocumentStorage.keyFor(opp.id(), UUID.randomUUID(), type);
+        documents.put(key, content, type.mimeType());
+        audit.record("solicitud_recaudo.cargado", "oportunidad", opp.id(),
+                Map.of("clave", key, "tipo", type.mimeType(), "tamano_bytes", content.length));
+
         return new CreditApplicationDtos.DocumentSubmissionDto(
-                safeType, url, originalFilename, file.getSize(), file.getContentType()
-        );
+                CreditApplicationRepository.normalizeDocType(tipoDocumento), key,
+                displayName(file.getOriginalFilename(), type), (long) content.length, type.mimeType());
+    }
+
+    /**
+     * Precio de lista sobre el que se calcula el crédito: el de la publicación, que es el que vio la persona al validar
+     * su enlace; si ya no hay publicación, el que fijó la oportunidad.
+     */
+    private BigDecimal listPrice(OpportunityRecord opp) {
+        return publications.findByVehicle(opp.vehicleId())
+                .map(PublicationRepository.PublicationRecord::price)
+                .orElse(opp.estimatedValue());
+    }
+
+    /** Un monto libre del expediente (número o texto numérico); lo que no se puede leer cuenta como cero. */
+    private static BigDecimal decimalOf(Object value) {
+        try {
+            if (value instanceof Number number) {
+                return new BigDecimal(number.toString());
+            }
+            if (value instanceof String text && !text.isBlank()) {
+                return new BigDecimal(text.trim());
+            }
+        } catch (NumberFormatException ignored) {
+            // Se trata como no informado.
+        }
+        return BigDecimal.ZERO;
+    }
+
+    /** La oportunidad del enlace, si está vigente y sin usar (spec 010 §8.8). */
+    private OpportunityRecord requireOpenLink(String token) {
+        if (token == null || !FinancingLinkToken.hasValidShape(token)) {
+            throw ApiException.badRequest("Enlace inválido", "El enlace no es válido o ha expirado.");
+        }
+        OpportunityRecord opp = opportunities.findByFinancingLinkHash(FinancingLinkToken.hash(token))
+                .orElseThrow(() -> ApiException.notFound("Enlace no encontrado", "El enlace no existe o es inválido."));
+        if (opp.financingLinkUsedAt() != null) {
+            throw ApiException.unprocessable("Enlace ya utilizado", "Esta solicitud ya fue enviada con este enlace.");
+        }
+        if (opp.financingLinkExpiresAt() != null && opp.financingLinkExpiresAt().isBefore(clock.instant())) {
+            throw ApiException.unprocessable("Enlace vencido", "El enlace ha caducado. Contacte a su asesor para recibir uno nuevo.");
+        }
+        return opp;
+    }
+
+    /** Nombre para mostrar: sin rutas ni caracteres de control, y con la extensión del tipo real. */
+    private static String displayName(String original, DocumentFileType type) {
+        String name = original == null ? "" : original.replaceAll(".*[/\\\\]", "").replaceAll("\\p{Cntrl}", "").trim();
+        if (name.isEmpty()) {
+            name = "documento." + type.extension();
+        }
+        return name.length() > 120 ? name.substring(0, 120) : name;
     }
 
     @Transactional
@@ -171,51 +242,84 @@ public class CreditApplicationService {
             CreditApplicationDtos.SubmitCreditApplicationRequest req,
             String ipAddress,
             String userAgent) {
-        if (req.token() == null || !FinancingLinkToken.hasValidShape(req.token())) {
-            throw ApiException.badRequest("Enlace inválido", "El enlace no es válido o ha expirado.");
-        }
-
-        String hash = FinancingLinkToken.hash(req.token());
-        OpportunityRecord opp = opportunities.findByFinancingLinkHash(hash)
-                .orElseThrow(() -> ApiException.notFound("Enlace no encontrado", "El enlace no existe o es inválido."));
-
+        OpportunityRecord opp = requireOpenLink(req.token());
         Instant now = clock.instant();
-        if (opp.financingLinkUsedAt() != null) {
-            throw ApiException.unprocessable("Enlace ya utilizado", "Esta solicitud ya fue enviada con este enlace.");
-        }
-        if (opp.financingLinkExpiresAt() != null && opp.financingLinkExpiresAt().isBefore(now)) {
-            throw ApiException.unprocessable("Enlace vencido", "El enlace ha caducado. Contacte a su asesor para recibir uno nuevo.");
+
+        // Cada recaudo tiene que haberse cargado con este mismo enlace: la clave empieza por la
+        // oportunidad del enlace y el archivo existe en el contenedor privado.
+        String ownPrefix = DocumentStorage.prefixFor(opp.id());
+        List<CreditApplicationDtos.DocumentSubmissionDto> submittedDocs =
+                req.recaudos() != null ? req.recaudos() : List.of();
+        for (CreditApplicationDtos.DocumentSubmissionDto doc : submittedDocs) {
+            String key = doc.fileKey();
+            if (!DocumentStorage.isValidKey(key) || !key.startsWith(ownPrefix) || !documents.exists(key)) {
+                throw ApiException.unprocessable("Recaudo no válido",
+                        "Uno de los recaudos no se cargó con este enlace. Vuelve a adjuntarlo.");
+            }
         }
 
+        // La tasa BCV de la operación es la vigente; si no hay, la que ya tenía la oportunidad (real, del día de la
+        // publicación). Sin ninguna de las dos no se inventa un valor: el envío se rechaza (Principio V).
         BcvRate rate = exchangeRates.currentEuroRate().orElse(null);
-        BigDecimal bcvRate = rate != null ? rate.vesPerUnit() : new BigDecimal("54.25000000");
-        LocalDate bcvDate = rate != null ? rate.date() : exchangeRates.today();
+        BigDecimal bcvRate = rate != null ? rate.vesPerUnit() : opp.bcvRate();
+        LocalDate bcvDate = rate != null ? rate.date() : opp.rateDate();
+        if (bcvRate == null || bcvDate == null) {
+            throw ApiException.conflict("Sin tasa BCV registrada",
+                    "No hay una tasa BCV registrada para esta operación. Inténtalo más tarde o avisa a tu asesor.");
+        }
+
+        // D-55: el plazo es el de la política vigente (24 meses), sin selector y sin otro valor.
+        FinancingParameters policy = financingParameters.getActiveParameters();
+        int term = policy.termMonths();
+        if (req.plazoMeses() != term) {
+            throw ApiException.unprocessable("Plazo no admitido", "El financiamiento es a " + term + " meses.");
+        }
+
+        // Las cifras las calcula el servidor (hallazgos C-01, C-02, C-08): del navegador solo se toma la inicial y lo
+        // que la persona declaró. El monto, la cuota y la capacidad que él mande se ignoran.
+        BigDecimal price = listPrice(opp);
+        BigDecimal downPayment = req.cuotaInicial() != null ? req.cuotaInicial().setScale(2, RoundingMode.HALF_UP) : null;
+        if (downPayment == null || downPayment.signum() <= 0) {
+            throw ApiException.unprocessable("Inicial no válida", "Indica la cuota inicial que vas a aportar.");
+        }
+        if (downPayment.compareTo(price) >= 0) {
+            throw ApiException.unprocessable("Inicial no válida", "La inicial debe ser menor que el precio del vehículo.");
+        }
+        BigDecimal minimumDown = LoanCalculator.minimumDownPayment(price, policy.minimumDownPayment());
+        if (downPayment.compareTo(minimumDown) < 0) {
+            throw ApiException.unprocessable("Inicial insuficiente",
+                    "La inicial mínima es el " + policy.minimumDownPayment().movePointRight(2).stripTrailingZeros().toPlainString()
+                            + " % del precio: " + minimumDown.toPlainString() + " EUR.");
+        }
+        Map<String, Object> financial = req.datosFinancieros() != null ? req.datosFinancieros() : Map.of();
+        BigDecimal monthlyIncome = decimalOf(financial.get("sueldoMensual")).add(decimalOf(financial.get("otrosIngresos")));
+        if (decimalOf(financial.get("sueldoMensual")).signum() <= 0) {
+            throw ApiException.unprocessable("Ingreso no válido", "El ingreso mensual es obligatorio.");
+        }
+        BigDecimal requested = price.subtract(downPayment);
+        BigDecimal estimatedPayment = LoanCalculator.monthlyPayment(requested, policy.monthlyRate(), term);
+        BigDecimal monthlyCapacity = LoanCalculator.paymentCapacity(monthlyIncome, policy.paymentToIncomeRatio());
 
         int year = bcvDate.getYear();
         String applicationNumber = creditApplications.generateNextApplicationNumber(year);
         UUID applicationId = UUID.randomUUID();
 
-        BigDecimal requested = req.montoSolicitado() != null ? req.montoSolicitado() : BigDecimal.ZERO;
-        BigDecimal downPayment = req.cuotaInicial() != null ? req.cuotaInicial() : BigDecimal.ZERO;
-        int term = req.plazoMeses() > 0 ? req.plazoMeses() : 24;
-        BigDecimal monthlyCapacity = req.capacidadPagoMensual() != null ? req.capacidadPagoMensual() : BigDecimal.ZERO;
-        BigDecimal estimatedPayment = req.cuotaEstimada() != null ? req.cuotaEstimada() : BigDecimal.ZERO;
+        // Evidencia de la aceptación (D-57): lo que el servidor vio, sin valores de relleno ni «verificados» inventados.
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("aceptadoEn", now.toString());
+        evidence.put("ip", ipAddress);
+        evidence.put("userAgent", userAgent);
+        evidence.put("versionTexto", req.versionTexto());
 
-        Map<String, Object> evidence = new HashMap<>();
-        evidence.put("ip", ipAddress != null ? ipAddress : "127.0.0.1");
-        evidence.put("userAgent", userAgent != null ? userAgent : "Browser");
-        evidence.put("otpVerificado", req.otpVerificado());
-        evidence.put("codigoOtpIngresado", req.codigoOtp() != null ? "VERIFICADO" : "OMITIDO");
-        evidence.put("timestampAceptacion", now.toString());
-
-        String personalJson = toJson(req.datosPersonales());
-        String contactJson = toJson(req.datosContacto());
-        String employmentJson = toJson(req.datosLaborales());
-        String financialJson = toJson(req.datosFinancieros());
-        String referencesJson = toJson(req.referencias());
-        String bankingJson = toJson(req.datosBancarios());
-        String declarationsJson = toJson(req.declaraciones());
-        String evidenceJson = toJson(evidence);
+        CreditDossier dossier = new CreditDossier(
+                req.datosPersonales(),
+                req.datosContacto(),
+                req.datosLaborales(),
+                req.datosFinancieros(),
+                req.referencias(),
+                req.datosBancarios(),
+                req.declaraciones(),
+                evidence);
 
         CreditApplicationRecord record = new CreditApplicationRecord(
                 applicationId,
@@ -229,17 +333,11 @@ public class CreditApplicationService {
                 "EUR",
                 bcvRate,
                 bcvDate,
-                personalJson,
-                contactJson,
-                employmentJson,
-                financialJson,
-                referencesJson,
-                bankingJson,
-                declarationsJson,
-                evidenceJson,
+                dossier,
                 monthlyCapacity,
                 estimatedPayment,
-                req.frecuenciaPago() != null ? req.frecuenciaPago() : "Mensual",
+                // El financiamiento es de cuotas mensuales (sistema francés): no hay otra frecuencia.
+                "Mensual",
                 "enviada",
                 now,
                 now,
@@ -248,24 +346,19 @@ public class CreditApplicationService {
 
         creditApplications.insert(record);
 
-        if (req.recaudos() != null) {
-            for (CreditApplicationDtos.DocumentSubmissionDto doc : req.recaudos()) {
-                if (doc.fileUrl() != null && !doc.fileUrl().isBlank()) {
-                    CreditDocumentRecord docRecord = new CreditDocumentRecord(
-                            UUID.randomUUID(),
-                            applicationId,
-                            doc.documentType() != null ? doc.documentType() : "otro",
-                            doc.fileUrl(),
-                            doc.fileName(),
-                            doc.fileSizeBytes(),
-                            doc.mimeType(),
-                            "pendiente",
-                            null,
-                            now
-                    );
-                    creditApplications.insertDocument(docRecord);
-                }
-            }
+        for (CreditApplicationDtos.DocumentSubmissionDto doc : submittedDocs) {
+            creditApplications.insertDocument(new CreditDocumentRecord(
+                    UUID.randomUUID(),
+                    applicationId,
+                    doc.documentType() != null ? doc.documentType() : "otro",
+                    doc.fileKey(),
+                    doc.fileName(),
+                    doc.fileSizeBytes(),
+                    doc.mimeType(),
+                    "pendiente",
+                    null,
+                    now
+            ));
         }
 
         opportunities.markFinancingLinkUsed(opp.id(), applicationId, now);
@@ -299,14 +392,20 @@ public class CreditApplicationService {
 
         List<CreditApplicationRecord> records = creditApplications.listAll(status, limit, offset);
         List<CreditApplicationDtos.CreditApplicationSummaryDto> summaries = new ArrayList<>();
+        // Una sola lectura de vehículos y de recaudos para toda la bandeja, no una por solicitud.
+        Map<UUID, VehicleRepository.VehicleRecord> vehiclesById = new HashMap<>();
+        for (VehicleRepository.VehicleRecord v : vehicles.findAll()) {
+            vehiclesById.put(v.id(), v);
+        }
+        Map<UUID, Integer> documentCounts = creditApplications.countDocuments(records.stream().map(CreditApplicationRecord::id).toList());
 
         for (CreditApplicationRecord r : records) {
             PersonRecord p = persons.findById(r.personId()).orElse(null);
-            var vehOpt = vehicles.findAll().stream().filter(v -> v.id().equals(r.vehicleId())).findFirst();
+            var vehOpt = Optional.ofNullable(vehiclesById.get(r.vehicleId()));
             String vehDesc = vehOpt.map(v -> v.year() + " " + v.brand() + " " + v.model()).orElse("Vehículo");
 
-            Map<String, Object> personal = fromJson(r.personalDataJson());
-            Map<String, Object> contact = fromJson(r.contactDataJson());
+            Map<String, Object> personal = r.dossier().datosPersonales();
+            Map<String, Object> contact = r.dossier().datosContacto();
 
             String name = (personal.get("primerNombre") != null ? personal.get("primerNombre") + " " : "")
                     + (personal.get("primerApellido") != null ? personal.get("primerApellido") : "");
@@ -321,7 +420,9 @@ public class CreditApplicationService {
                     r.applicationNumber(),
                     r.status(),
                     r.vehicleId(),
+                    vehOpt.map(VehicleRepository.VehicleRecord::code).orElse(null),
                     vehDesc,
+                    documentCounts.getOrDefault(r.id(), 0),
                     r.requestedAmount(),
                     r.downPayment(),
                     r.termMonths(),
@@ -337,12 +438,18 @@ public class CreditApplicationService {
         return summaries;
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * Expediente completo. Leerlo deja huella en la bitácora —quién lo abrió y cuándo—, porque contiene datos
+     * personales y financieros: por eso no es una transacción de solo lectura.
+     */
+    @Transactional
     public CreditApplicationDtos.CreditApplicationDetailDto getApplication(UUID id) {
         CreditApplicationRecord r = creditApplications.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Solicitud no encontrada", "No existe solicitud con ID " + id));
+        audit.record("solicitud_credito.consultada", "solicitud_credito", id,
+                Map.of("numero_solicitud", r.applicationNumber()));
 
-        var vehOpt = vehicles.findAll().stream().filter(v -> v.id().equals(r.vehicleId())).findFirst();
+        var vehOpt = vehicles.findById(r.vehicleId());
         var pubOpt = publications.findByVehicle(r.vehicleId());
 
         CreditApplicationDtos.VehicleDetailDto vehDto = null;
@@ -364,10 +471,11 @@ public class CreditApplicationService {
         List<CreditDocumentRecord> docs = creditApplications.listDocuments(id);
         List<CreditApplicationDtos.DocumentDetailDto> docDtos = docs.stream()
                 .map(d -> new CreditApplicationDtos.DocumentDetailDto(
-                        d.id(), d.documentType(), d.fileUrl(), d.fileName(), d.fileSizeBytes(),
+                        d.id(), d.documentType(), d.fileName(), d.fileSizeBytes(),
                         d.mimeType(), d.validationStatus(), d.notes(), d.createdAt()
                 ))
                 .toList();
+        CreditDossier dossier = r.dossier();
 
         CreditApplicationDtos.RiskDecisionDto decisionDto = creditApplications.findRiskDecision(id)
                 .map(d -> new CreditApplicationDtos.RiskDecisionDto(
@@ -393,14 +501,14 @@ public class CreditApplicationService {
                 r.estimatedPayment(),
                 r.monthlyCapacity(),
                 r.paymentFrequency(),
-                fromJson(r.personalDataJson()),
-                fromJson(r.contactDataJson()),
-                fromJson(r.employmentDataJson()),
-                fromJson(r.financialDataJson()),
-                fromListJson(r.referencesJson()),
-                fromJson(r.bankingDataJson()),
-                fromJson(r.declarationsJson()),
-                fromJson(r.acceptanceEvidenceJson()),
+                dossier.datosPersonales(),
+                dossier.datosContacto(),
+                dossier.datosLaborales(),
+                dossier.datosFinancieros(),
+                dossier.referencias(),
+                dossier.datosBancarios(),
+                dossier.declaraciones(),
+                dossier.evidenciaAceptacion(),
                 docDtos,
                 decisionDto,
                 r.submittedAt(),
@@ -409,72 +517,65 @@ public class CreditApplicationService {
         );
     }
 
-    @Transactional(readOnly = true)
-    public CreditApplicationDtos.StatusLookupResponse lookupStatus(String numeroSolicitud) {
-        CreditApplicationRecord r = creditApplications.findByApplicationNumber(numeroSolicitud)
-                .orElseThrow(() -> ApiException.notFound("Solicitud no encontrada", "El número " + numeroSolicitud + " no fue encontrado."));
-
-        var vehOpt = vehicles.findAll().stream().filter(v -> v.id().equals(r.vehicleId())).findFirst();
-        String vehDesc = vehOpt.map(v -> v.year() + " " + v.brand() + " " + v.model()).orElse("Vehículo");
-
-        String mensaje;
-        switch (r.status()) {
-            case "enviada", "borrador" -> mensaje = "Tu solicitud está en cola de revisión por el equipo de crédito.";
-            case "en_evaluacion" -> mensaje = "El analista de crédito está verificando tus recaudos y capacidad de pago.";
-            case "aprobada" -> mensaje = "¡Felicidades! Tu financiamiento ha sido aprobado. Tu asesor se comunicará para la firma.";
-            case "condicionada" -> mensaje = "Solicitud condicionada. Revisa los recaudos pendientes solicitados.";
-            case "rechazada" -> mensaje = "En este momento no ha sido posible aprobar el financiamiento solicitado.";
-            case "desembolsada" -> mensaje = "Crédito liquidado y vehículo listo para entrega.";
-            default -> mensaje = "Estado: " + r.status();
-        }
-
-        return new CreditApplicationDtos.StatusLookupResponse(
-                r.applicationNumber(),
-                r.status(),
-                r.submittedAt(),
-                vehDesc,
-                r.requestedAmount(),
-                r.termMonths(),
-                r.estimatedPayment(),
-                mensaje
-        );
-    }
-
     @Transactional
     public void evaluateApplication(UUID id, CreditApplicationDtos.EvaluateCreditApplicationRequest req, UUID evaluatorUserId) {
         CreditApplicationRecord app = creditApplications.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Solicitud no encontrada", "No existe solicitud con ID " + id));
 
-        String rawOutcome = req.effectiveOutcome();
-        String newStatus;
-        String decisionOutcome;
-        if ("aprobado".equalsIgnoreCase(rawOutcome) || "aprobada".equalsIgnoreCase(rawOutcome)) {
-            newStatus = "aprobada";
-            decisionOutcome = "aprobado";
-        } else if ("rechazado".equalsIgnoreCase(rawOutcome) || "rechazada".equalsIgnoreCase(rawOutcome)) {
-            newStatus = "rechazada";
-            decisionOutcome = "rechazado";
-        } else if ("condicionado".equalsIgnoreCase(rawOutcome) || "condicionada".equalsIgnoreCase(rawOutcome) || "devuelta".equalsIgnoreCase(rawOutcome)) {
-            newStatus = "condicionada";
-            decisionOutcome = "condicionado";
-        } else if ("en_analisis".equalsIgnoreCase(rawOutcome) || "en_evaluacion".equalsIgnoreCase(rawOutcome)) {
-            newStatus = "en_evaluacion";
-            decisionOutcome = "condicionado";
-        } else {
-            throw ApiException.badRequest("Resultado inválido", "El resultado debe ser aprobado, rechazado o condicionado.");
+        // Un dictamen final no se cambia desde aquí: aprobar o rechazar es una decisión con consecuencias (la venta, el
+        // desembolso) y revertirla pide una nueva solicitud, no un nuevo clic.
+        if (FINAL_STATUSES.contains(app.status())) {
+            throw ApiException.conflict("Dictamen final",
+                    "La solicitud " + app.applicationNumber() + " ya fue " + app.status()
+                            + ". Para cambiarlo hace falta una solicitud nueva.");
         }
 
+        String outcome = req.normalizedOutcome();
+        String newStatus = switch (outcome) {
+            case "aprobado" -> "aprobada";
+            case "rechazado" -> "rechazada";
+            case "condicionado" -> "condicionada";
+            default -> throw ApiException.badRequest("Resultado inválido",
+                    "El resultado debe ser aprobado, rechazado o condicionado.");
+        };
+
+        // Sin justificación no hay dictamen (D-63): queda con el usuario del analista en la bitácora.
+        String justification = req.trimmedJustification();
+        if (justification.length() < CreditApplicationDtos.EvaluateCreditApplicationRequest.MIN_JUSTIFICATION) {
+            throw ApiException.unprocessable("Justificación obligatoria",
+                    "Escribe la justificación del dictamen (al menos "
+                            + CreditApplicationDtos.EvaluateCreditApplicationRequest.MIN_JUSTIFICATION + " caracteres).");
+        }
+
+        // Lo aprobado se dice expresamente: no se completa con lo solicitado ni con la cuota estimada.
+        BigDecimal approvedLimit = null;
+        BigDecimal maxPayment = null;
+        if ("aprobado".equals(outcome)) {
+            approvedLimit = req.limiteAprobado();
+            maxPayment = req.cuotaMaximaPermitida();
+            if (approvedLimit == null || approvedLimit.signum() <= 0 || maxPayment == null || maxPayment.signum() <= 0) {
+                throw ApiException.unprocessable("Condiciones de la aprobación",
+                        "Indica el límite aprobado y la cuota máxima permitida, mayores que cero.");
+            }
+            if (approvedLimit.compareTo(app.requestedAmount()) > 0) {
+                throw ApiException.unprocessable("Condiciones de la aprobación",
+                        "El límite aprobado no puede superar el monto solicitado (" + app.requestedAmount().toPlainString()
+                                + " " + app.currency() + ").");
+            }
+        }
+
+        String decisionOutcome = outcome;
         Instant now = clock.instant();
         CreditApplicationRepository.RiskDecisionRecord decision = new CreditApplicationRepository.RiskDecisionRecord(
                 UUID.randomUUID(),
                 id,
-                req.effectiveScore(),
-                req.scoreBuro(),
-                req.effectiveRiskLevel(),
+                null,
+                null,
+                null,
                 decisionOutcome,
-                req.limiteAprobado() != null ? req.limiteAprobado() : app.requestedAmount(),
-                req.cuotaMaximaPermitida() != null ? req.cuotaMaximaPermitida() : app.estimatedPayment(),
-                req.effectiveJustification(),
+                approvedLimit,
+                maxPayment,
+                justification,
                 evaluatorUserId,
                 now,
                 app.currency(),
@@ -482,37 +583,74 @@ public class CreditApplicationService {
                 app.bcvRateDate()
         );
 
+        // La tabla guarda el dictamen vigente; el historial de cambios (condicionada → aprobada, por ejemplo) vive en la
+        // bitácora, que es de solo agregar: por eso se anota aquí lo que había antes.
+        String previousOutcome = creditApplications.findRiskDecision(id)
+                .map(CreditApplicationRepository.RiskDecisionRecord::result).orElse("ninguno");
         creditApplications.insertRiskDecision(decision);
         creditApplications.updateStatus(id, newStatus);
 
         Map<String, Object> auditDetails = new HashMap<>();
         auditDetails.put("resultado", decisionOutcome);
-        auditDetails.put("score_interno", req.effectiveScore());
+        auditDetails.put("resultado_anterior", previousOutcome);
+        auditDetails.put("estado_anterior", app.status());
+        auditDetails.put("estado_nuevo", newStatus);
+        auditDetails.put("justificacion", justification);
         auditDetails.put("evaluado_por", evaluatorUserId != null ? evaluatorUserId.toString() : "sistema");
         audit.record("solicitud_credito.evaluada", "solicitud_credito", id, auditDetails);
     }
 
     @Transactional
     public void validateDocument(UUID applicationId, UUID documentId, String status, String notes) {
-        creditApplications.updateDocumentStatus(documentId, status, notes);
+        if (status == null || !DOCUMENT_STATUSES.contains(status)) {
+            throw ApiException.unprocessable("Estado de recaudo no válido",
+                    "El estado debe ser pendiente, conforme, ilegible o rechazado.");
+        }
+        if (creditApplications.updateDocumentStatus(applicationId, documentId, status, notes) == 0) {
+            throw ApiException.notFound("Recaudo no encontrado", "La solicitud no tiene ese recaudo.");
+        }
         audit.record("solicitud_recaudo.validado", "solicitud_recaudo", documentId,
                 Map.of("solicitud_id", applicationId.toString(), "estado", status));
     }
 
-    private String toJson(Object obj) {
-        if (obj == null) return "{}";
-        return json.writeValueAsString(obj);
+    /**
+     * Enlace firmado para abrir un recaudo (D-59): vale solo para ese archivo y vence a los pocos
+     * minutos. Queda en la bitácora quién lo pidió.
+     */
+    @Transactional
+    public CreditApplicationDtos.DocumentLinkDto issueDocumentLink(UUID applicationId, UUID documentId) {
+        CreditDocumentRecord doc = creditApplications.findDocument(applicationId, documentId)
+                .orElseThrow(() -> ApiException.notFound("Recaudo no encontrado", "La solicitud no tiene ese recaudo."));
+        Instant expiresAt = clock.instant().plus(documentProperties.vigenciaEnlace()).truncatedTo(ChronoUnit.SECONDS);
+        long expires = expiresAt.getEpochSecond();
+        String path = UriComponentsBuilder.fromPath(SIGNED_DOCUMENT_PATH)
+                .queryParam("clave", doc.fileKey())
+                .queryParam("vence", expires)
+                .queryParam("firma", signedLinks.sign(doc.fileKey(), expires))
+                .encode()
+                .build()
+                .toUriString();
+        audit.record("solicitud_recaudo.enlace_emitido", "solicitud_recaudo", documentId,
+                Map.of("solicitud_id", applicationId.toString(), "vence_en", expiresAt.toString()));
+        return new CreditApplicationDtos.DocumentLinkDto(path, expiresAt);
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> fromJson(String jsonStr) {
-        if (jsonStr == null || jsonStr.isBlank()) return Collections.emptyMap();
-        return json.readValue(jsonStr, Map.class);
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> fromListJson(String jsonStr) {
-        if (jsonStr == null || jsonStr.isBlank()) return Collections.emptyList();
-        return json.readValue(jsonStr, List.class);
+    /** Abre un recaudo por su enlace firmado. Una firma alterada o vencida no abre nada. */
+    @Transactional
+    public SignedDocument openSignedDocument(String key, long expires, String signature) {
+        if (!DocumentStorage.isValidKey(key) || !signedLinks.verify(key, expires, signature, clock.instant())) {
+            throw ApiException.forbidden("Enlace vencido o no válido",
+                    "El enlace del recaudo venció o fue alterado. Ábrelo de nuevo desde el expediente.");
+        }
+        CreditDocumentRecord doc = creditApplications.findDocumentByKey(key)
+                .orElseThrow(() -> ApiException.notFound("Recaudo no encontrado", "Ninguna solicitud tiene ese recaudo."));
+        byte[] content = documents.read(key)
+                .orElseThrow(() -> ApiException.notFound("Recaudo no encontrado", "El archivo ya no está en el almacén."));
+        DocumentFileType type = DocumentFileType.detect(content)
+                .orElseThrow(() -> ApiException.unprocessable("Tipo de archivo no admitido",
+                        "El archivo guardado no es un PDF, JPG ni PNG."));
+        audit.record("solicitud_recaudo.abierto", "solicitud_recaudo", doc.id(),
+                Map.of("solicitud_id", doc.applicationId().toString()));
+        return new SignedDocument(content, type);
     }
 }

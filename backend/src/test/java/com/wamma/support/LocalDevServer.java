@@ -13,11 +13,18 @@ import java.nio.file.Files;
  * <pre>mvn spring-boot:test-run -Dspring-boot.run.main-class=com.wamma.support.LocalDevServer</pre>
  * Cada arranque parte de una base vacía: Flyway aplica todas las migraciones y se crea el
  * administrador local. Las claves y la contraseña de abajo solo sirven para esa base.
+ * <p>
+ * El acceso rápido (token fijo {@code dev-admin-token} con los seis roles, sin contraseña ni
+ * 2FA) está apagado por defecto. Se enciende solo con
+ * {@code -Dspring-boot.run.arguments=--wamma.dev.acceso-rapido=true}. Sin él se ingresa como en
+ * producción, y cada rol se prueba con su propio usuario.
  */
 public final class LocalDevServer {
 
     public static final String ADMIN_USERNAME = "admin.local";
     public static final String ADMIN_INITIAL_PASSWORD = "Clave local de desarrollo 2026";
+    /** Propiedad que enciende el acceso rápido de desarrollo. Nunca existe fuera de este servidor. */
+    public static final String ACCESO_RAPIDO = "wamma.dev.acceso-rapido";
 
     private LocalDevServer() {
     }
@@ -51,6 +58,10 @@ public final class LocalDevServer {
         System.setProperty("wamma.fotos.disco.carpeta",
                 Files.createTempDirectory("wamma-fotos-local").toString());
         System.setProperty("wamma.fotos.url-publica", "http://localhost:8080/archivos");
+        // Recaudos en otra carpeta temporal, privada: solo salen por el enlace firmado (D-59).
+        System.setProperty("wamma.recaudos.almacen", "disco");
+        System.setProperty("wamma.recaudos.disco.carpeta",
+                Files.createTempDirectory("wamma-recaudos-local").toString());
         System.setProperty("wamma.demo.cargar-inventario", "true");
 
         org.springframework.context.ConfigurableApplicationContext context = SpringApplication.run(
@@ -63,7 +74,8 @@ public final class LocalDevServer {
             com.wamma.platform.identity.UserRepository users = context.getBean(com.wamma.platform.identity.UserRepository.class);
 
             java.util.UUID adminId = users.findByUsername(ADMIN_USERNAME).map(com.wamma.platform.identity.UserAccount::id).orElse(null);
-            if (adminId != null) {
+            boolean accesoRapido = context.getEnvironment().getProperty(ACCESO_RAPIDO, Boolean.class, false);
+            if (adminId != null && accesoRapido) {
                 java.util.Set<String> allRoles = java.util.Arrays.stream(com.wamma.platform.identity.Role.values())
                         .map(Enum::name)
                         .collect(java.util.stream.Collectors.toSet());
@@ -79,7 +91,7 @@ public final class LocalDevServer {
             System.out.println(">>> Vehículos publicados en vitrina local: " + result.publicados().size());
 
             org.springframework.jdbc.core.simple.JdbcClient jdbc = context.getBean(org.springframework.jdbc.core.simple.JdbcClient.class);
-            if (adminId != null) {
+            if (adminId != null && accesoRapido) {
                 byte[] digest = java.security.MessageDigest.getInstance("SHA-256").digest("dev-admin-token".getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 String tokenHash = java.util.HexFormat.of().formatHex(digest);
                 jdbc.sql("""
@@ -99,71 +111,86 @@ public final class LocalDevServer {
                 com.wamma.crm.OpportunityRepository oppRepo = context.getBean(com.wamma.crm.OpportunityRepository.class);
                 com.wamma.crm.OpportunityService oppService = context.getBean(com.wamma.crm.OpportunityService.class);
                 com.wamma.inventory.VehicleRepository vehicleRepo = context.getBean(com.wamma.inventory.VehicleRepository.class);
-                var oppList = oppRepo.listAll();
+                // Vender es después de la visita: se toma la oportunidad sembrada que ya visitó la sede.
+                var oppList = oppRepo.listAll().stream().filter(o -> "visito".equals(o.stage())).toList();
                 var vehList = vehicleRepo.findAll();
                 if (!oppList.isEmpty() && !vehList.isEmpty() && creditAppService.listApplications(null, 10, 0).isEmpty()) {
                     var firstOpp = oppList.getFirst();
                     var saleResult = oppService.sell(firstOpp.id(), "financiamiento");
-                    var veh = vehList.getFirst();
+                    // Recaudos de demostración: PDF reales en el almacén privado, bajo la oportunidad.
+                    com.wamma.credit.application.documents.DocumentStorage documentStorage =
+                            context.getBean(com.wamma.credit.application.documents.DocumentStorage.class);
+                    java.util.List<com.wamma.credit.application.CreditApplicationDtos.DocumentSubmissionDto> recaudosDemo =
+                            new java.util.ArrayList<>();
+                    for (String[] demo : new String[][]{
+                            {"cedula", "cedula_carlos.pdf"}, {"rif", "rif_carlos.pdf"},
+                            {"ingresos", "cert_ingresos.pdf"}, {"bancario", "estado_cuenta_3m.pdf"}}) {
+                        byte[] pdf = demoPdf("Recaudo de demostracion - " + demo[1]);
+                        String key = com.wamma.credit.application.documents.DocumentStorage.keyFor(firstOpp.id(),
+                                java.util.UUID.randomUUID(), com.wamma.credit.application.documents.DocumentFileType.PDF);
+                        documentStorage.put(key, pdf, "application/pdf");
+                        recaudosDemo.add(new com.wamma.credit.application.CreditApplicationDtos.DocumentSubmissionDto(
+                                demo[0], key, demo[1], (long) pdf.length, "application/pdf"));
+                    }
                     creditAppService.submitApplication(new com.wamma.credit.application.CreditApplicationDtos.SubmitCreditApplicationRequest(
                             saleResult.financingToken(),
-                            veh.id(),
                             new java.math.BigDecimal("12000.00"),
                             new java.math.BigDecimal("4000.00"),
-                            36,
-                            "MENSUAL",
+                            24,
+                            "Mensual",
                             new java.math.BigDecimal("450.50"),
                             new java.math.BigDecimal("1600.00"),
-                            java.util.Map.of(
-                                    "primerNombre", "Carlos",
-                                    "primerApellido", "Mendoza",
-                                    "tipoDocumento", "V",
-                                    "numeroDocumento", "18456789",
-                                    "fechaNacimiento", "1988-05-14",
-                                    "estadoCivil", "CASADO",
-                                    "cargasFamiliares", 2
+                            // Las mismas claves que envía el formulario de la solicitud (C9).
+                            java.util.Map.ofEntries(
+                                    java.util.Map.entry("primerNombre", "Carlos"),
+                                    java.util.Map.entry("primerApellido", "Mendoza"),
+                                    java.util.Map.entry("tipoDocumento", "V"),
+                                    java.util.Map.entry("numeroDocumento", "18456789"),
+                                    java.util.Map.entry("rif", "V-18456789-0"),
+                                    java.util.Map.entry("nacionalidad", "Venezolana"),
+                                    java.util.Map.entry("estadoCivil", "Casado(a)"),
+                                    java.util.Map.entry("fechaNacimiento", "1988-05-14"),
+                                    java.util.Map.entry("lugarNacimiento", "Caracas"),
+                                    java.util.Map.entry("cargasFamiliares", 2),
+                                    java.util.Map.entry("condicionVivienda", "Propia")
                             ),
                             java.util.Map.of(
-                                    "telefonoMovil", "+584121234567",
-                                    "correoElectronico", "carlos.mendoza@ejemplo.com",
                                     "direccionHabitacion", "Av. Francisco de Miranda, Chacao, Caracas",
-                                    "tipoVivienda", "PROPIA"
+                                    "estado", "Miranda",
+                                    "municipio", "Chacao",
+                                    "telefonoCelular", "+584121234567",
+                                    "correo", "carlos.mendoza@ejemplo.invalid"
                             ),
                             java.util.Map.of(
-                                    "tipoOcupacion", "EMPLEADO_PRIVADO",
+                                    "situacionLaboral", "Empleado Fijo",
                                     "empresa", "Soluciones Tecnologicas C.A.",
                                     "cargo", "Gerente de Proyectos",
-                                    "antiguedadAnios", 5,
-                                    "ingresoMensual", 1500.00,
-                                    "otrosIngresos", 300.00
+                                    "antiguedadAnios", 5
                             ),
                             java.util.Map.of(
-                                    "egresosTotales", 500.00,
-                                    "deudasBancarias", 100.00,
-                                    "capacidadNeta", 1200.00
+                                    "sueldoMensual", 1500.00,
+                                    "otrosIngresos", 300.00,
+                                    "alquilerHipoteca", 0,
+                                    "alimentacionServicios", 500.00,
+                                    "pagosDeudas", 100.00
                             ),
                             java.util.List.of(
-                                    java.util.Map.of("nombre", "Maria Mendoza", "parentesco", "HERMANA", "telefono", "+584149876543"),
-                                    java.util.Map.of("nombre", "Pedro Gomez", "parentesco", "COLEGA", "telefono", "+584245551234")
+                                    java.util.Map.of("nombre", "Maria Mendoza", "parentesco", "Hermana", "telefono", "+584149876543"),
+                                    java.util.Map.of("nombre", "Pedro Gomez", "parentesco", "Colega", "telefono", "+584245551234")
                             ),
                             java.util.Map.of(
-                                    "banco", "Banesco",
-                                    "tipoCuenta", "CORRIENTE",
+                                    "banco", "0134",
+                                    "tipoCuenta", "Corriente",
                                     "numeroCuenta", "01340000000000000000"
                             ),
                             java.util.Map.of(
-                                    "origenFondosLicito", true,
-                                    "autorizaConsultaBNC", true,
-                                    "declaraVeracidad", true
+                                    "veracidad", true,
+                                    "esPep", false,
+                                    "vinculoPep", false,
+                                    "consentimientoDatos", true
                             ),
-                            java.util.List.of(
-                                    new com.wamma.credit.application.CreditApplicationDtos.DocumentSubmissionDto("CEDULA", "http://localhost:8080/archivos/demo-cedula.pdf", "cedula_carlos.pdf", 245000L, "application/pdf"),
-                                    new com.wamma.credit.application.CreditApplicationDtos.DocumentSubmissionDto("RIF", "http://localhost:8080/archivos/demo-rif.pdf", "rif_carlos.pdf", 180000L, "application/pdf"),
-                                    new com.wamma.credit.application.CreditApplicationDtos.DocumentSubmissionDto("CERTIFICACION_INGRESOS", "http://localhost:8080/archivos/demo-cert.pdf", "cert_ingresos.pdf", 310000L, "application/pdf"),
-                                    new com.wamma.credit.application.CreditApplicationDtos.DocumentSubmissionDto("ESTADO_CUENTA", "http://localhost:8080/archivos/demo-cuenta.pdf", "estado_cuenta_3m.pdf", 520000L, "application/pdf")
-                            ),
-                            "123456",
-                            true
+                            recaudosDemo,
+                            "WMA-F-FIN-001 v1"
                     ), "127.0.0.1", "LocalDevSeeder");
                     System.out.println(">>> DEMO SOLICITUD DE CRÉDITO SEMBRADA EXITOSAMENTE");
                 }
@@ -175,7 +202,35 @@ public final class LocalDevServer {
         }
     }
 
+    /** Un PDF de una página con una línea de texto (solo ASCII, así los desplazamientos son bytes). */
+    static byte[] demoPdf(String text) {
+        String stream = "BT /F1 14 Tf 24 90 Td (" + text.replaceAll("[^A-Za-z0-9 .:_-]", "") + ") Tj ET";
+        String[] objects = {
+                "<</Type/Catalog/Pages 2 0 R>>",
+                "<</Type/Pages/Kids[3 0 R]/Count 1>>",
+                "<</Type/Page/Parent 2 0 R/MediaBox[0 0 420 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>",
+                "<</Length " + stream.length() + ">>\nstream\n" + stream + "\nendstream",
+                "<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>"
+        };
+        StringBuilder pdf = new StringBuilder("%PDF-1.4\n");
+        int[] offsets = new int[objects.length];
+        for (int i = 0; i < objects.length; i++) {
+            offsets[i] = pdf.length();
+            pdf.append(i + 1).append(" 0 obj\n").append(objects[i]).append("\nendobj\n");
+        }
+        int xref = pdf.length();
+        pdf.append("xref\n0 ").append(objects.length + 1).append("\n0000000000 65535 f \n");
+        for (int offset : offsets) {
+            pdf.append(String.format("%010d 00000 n \n", offset));
+        }
+        pdf.append("trailer\n<</Size ").append(objects.length + 1).append("/Root 1 0 R>>\nstartxref\n")
+                .append(xref).append("\n%%EOF\n");
+        return pdf.toString().getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+    }
+
+    /** Solo con {@link #ACCESO_RAPIDO}: sin la propiedad, el filtro ni siquiera se registra. */
     @org.springframework.context.annotation.Configuration
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = ACCESO_RAPIDO, havingValue = "true")
     public static class DevAutoSessionConfig {
         @org.springframework.context.annotation.Bean
         @org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)

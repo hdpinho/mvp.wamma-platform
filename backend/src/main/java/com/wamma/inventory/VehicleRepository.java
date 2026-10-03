@@ -76,6 +76,13 @@ public class VehicleRepository {
                 .optional();
     }
 
+    public Optional<VehicleRecord> findById(UUID id) {
+        return jdbc.sql(SELECT_VEHICLE + " where v.id = :id")
+                .param("id", id)
+                .query(VehicleRepository::vehicle)
+                .optional();
+    }
+
     public List<VehicleRecord> findAll() {
         return jdbc.sql(SELECT_VEHICLE + " order by v.creado_en desc, v.codigo")
                 .query(VehicleRepository::vehicle)
@@ -136,6 +143,19 @@ public class VehicleRepository {
 
     public void setState(UUID id, String state) {
         jdbc.sql("update vehiculo set estado = :state where id = :id").param("state", state).param("id", id).update();
+    }
+
+    /**
+     * Reserva el vehículo solo si sigue en exhibición, en una sola sentencia: si dos citas llegan a
+     * la vez, la segunda espera a que la primera confirme, ve el estado nuevo y no cambia nada.
+     * Leer el estado y luego escribirlo dejaba pasar a las dos.
+     *
+     * @return verdadero si esta llamada lo reservó
+     */
+    public boolean reserveIfOnDisplay(UUID id) {
+        return jdbc.sql("update vehiculo set estado = 'reservado' where id = :id and estado = 'exhibicion'")
+                .param("id", id)
+                .update() == 1;
     }
 
     public void delete(UUID id) {

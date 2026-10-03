@@ -87,28 +87,58 @@ public class OpportunityService {
         return opportunities.findById(id).orElseThrow();
     }
 
+    /**
+     * «Vender Vehículo» (spec 010 §8.8), solo después de que el cliente asistió a la cita.
+     * <ul>
+     *   <li><b>Contado:</b> cierra la venta y el vehículo pasa a vendido.</li>
+     *   <li><b>Financiamiento:</b> la oportunidad pasa a negociación, el vehículo sigue reservado y se emite el
+     *       enlace personal de solicitud de crédito (7 días). Emitirlo de nuevo invalida el anterior (C9), salvo que
+     *       el cliente ya haya enviado su solicitud con él.</li>
+     * </ul>
+     * El enlace solo se devuelve aquí: el servidor guarda su huella, no el enlace, así que no se puede volver a mostrar.
+     */
     @Transactional
     public SaleResult sell(UUID id, String modality) {
         OpportunityRecord opp = opportunities.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Oportunidad no encontrada", "No existe la oportunidad " + id));
 
-        if ("contado".equalsIgnoreCase(modality)) {
+        boolean cash = "contado".equalsIgnoreCase(modality);
+        boolean financed = "financiamiento".equalsIgnoreCase(modality);
+        if (!cash && !financed) {
+            throw ApiException.badRequest("Modalidad inválida", "La modalidad debe ser contado o financiamiento.");
+        }
+        if (!"visito".equals(opp.stage()) && !"negociacion".equals(opp.stage())) {
+            throw ApiException.unprocessable("Venta no permitida",
+                    "Primero hay que registrar que el cliente asistió a la cita.");
+        }
+        String method = cash ? "contado" : "financiamiento";
+        if (!method.equals(opp.paymentMethod())) {
+            // La forma de pago con la que se cierra puede ser otra que la que pidió el cliente al agendar.
+            opportunities.updatePaymentMethod(id, method);
+        }
+
+        if (cash) {
             OpportunityRecord updated = changeStage(id, "cerrado_ganado", null, null,
                     "Venta de contado confirmada", opp.version());
             audit.record("oportunidad.venta_contado", "oportunidad", id, Map.of("vehiculo_id", opp.vehicleId()));
             return new SaleResult(updated, null);
-        } else if ("financiamiento".equalsIgnoreCase(modality)) {
-            OpportunityRecord updated = changeStage(id, "negociacion", null, null,
-                    "Pase a financiamiento", opp.version());
-            FinancingLinkToken.Issued linkToken = FinancingLinkToken.issue(new java.security.SecureRandom());
-            Instant now = clock.instant();
-            Instant expiresAt = now.plus(Duration.ofDays(7));
-            opportunities.setFinancingLink(id, linkToken.hash(), now, expiresAt);
-            audit.record("enlace_financiamiento.emitido", "oportunidad", id, Map.of("expira_en", expiresAt.toString()));
-            return new SaleResult(updated, linkToken.token());
-        } else {
-            throw ApiException.badRequest("Modalidad inválida", "La modalidad debe ser contado o financiamiento.");
         }
+
+        if (opp.creditApplicationId() != null) {
+            throw ApiException.conflict("Solicitud ya enviada",
+                    "El cliente ya envió su solicitud de crédito con el enlace anterior: no se emite otro.");
+        }
+        if ("visito".equals(opp.stage())) {
+            changeStage(id, "negociacion", null, null, "Venta acordada con financiamiento", opp.version());
+        }
+        FinancingLinkToken.Issued linkToken = FinancingLinkToken.issue(new java.security.SecureRandom());
+        Instant now = clock.instant();
+        Instant expiresAt = now.plus(Duration.ofDays(7));
+        boolean reissued = opp.financingLinkTokenHash() != null;
+        opportunities.setFinancingLink(id, linkToken.hash(), now, expiresAt);
+        audit.record(reissued ? "enlace_financiamiento.reemitido" : "enlace_financiamiento.emitido", "oportunidad", id,
+                Map.of("expira_en", expiresAt.toString()));
+        return new SaleResult(opportunities.findById(id).orElseThrow(), linkToken.token());
     }
 
     @Transactional

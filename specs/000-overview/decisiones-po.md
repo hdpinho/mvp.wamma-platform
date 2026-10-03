@@ -58,7 +58,16 @@
 | D-38 | Video de demostración con vehículos de prueba en portada | **Producción de video dinámico de alta claridad con inventario de prueba**: Se genera un video HD 720p en bucle continuo (`portada-wamma.mp4`, 2.11 MB, H.264 FastStart) con tratamiento fotográfico de alta luminosidad (+22% brillo, +12% viveza de color, nitidez optimizada) que recorre los vehículos insignia (Toyota Corolla, Hyundai Tucson, Chevrolet Aveo, Chevrolet Silverado, Chery Arauca y Toyota Yaris). Se calibra el velo oscuro del CSS a un nivel sutil y translúcido (12% a 26% en el área visual clave) con sombras de texto reforzadas para máxima legibilidad. La versión anterior se preserva en carpeta temporal (`frontend-web/public/video/temporal/`). | Precisa D-37 | 004, 005, Portada, Multimedia |
 | D-39 | Simplificación de píldoras de acción en portada Hero | **Eliminación de píldora «Inspección 240 pts» en Inicio**: En la sección Hero de la portada (`C0_Home.tsx`), se retira el botón de píldora «Inspección 240 pts», manteniendo exclusivamente las dos acciones clave principales: «Comprar auto» (redirección a `/catalogo`) y «Financiamiento» (redirección a `/financiamiento`). La garantía y detalles de la inspección de 240 puntos se consultan a través de los enlaces del pie de página y en las fichas individuales de cada vehículo. | Precisa D-37 | 005, Home, C0_Home |
 
-> **D-40 a D-43** están reservadas: las registra el spec 011 (`specs/011-endurecimiento-entornos-y-acceso/spec.md`) del PR #1, que se mezcla al final del proyecto. Por eso la numeración de `main` sigue en D-44.
+## 19 de septiembre de 2026 — Aprobación del spec 011 (endurecimiento de entornos y acceso)
+
+> Aprobadas el 19/09/2026 en el spec 011 del PR #1 y registradas aquí el 02/10/2026, al portar ese spec a `main` (D-66). En `main`, la V0016 del spec es **V0021** y su V0018 es **V0022**.
+
+| # | Tema | Decisión | Sustituye | Afecta a |
+|---|---|---|---|---|
+| D-40 | Retardo progresivo del ingreso | Retardo progresivo 0/1/2/4/8 s con tope de 8 s, **sin retener hilos**: se guarda por identificador el momento del siguiente intento admitido y se responde `429` inmediato con `Retry-After`. El conteo aplica al identificador enviado, exista o no la cuenta | — | 001, 011 §6.3 |
+| D-41 | Orden de las migraciones | Flyway corre al arrancar: incluir una migración en un despliegue equivale a aplicarla. La migración de permisos e `intento_ingreso` viaja con el backend; el retiro de la política pública de parámetros, solo tras publicar el frontend nuevo; la activación de `wamma_app`, de último | — | 011 §7, Despliegue |
+| D-42 | Convención de migraciones | Toda migración que cree una tabla incluye su `GRANT` a `wamma_app` y su `ENABLE ROW LEVEL SECURITY`, con una prueba universal que falle si alguna queda sin ambos | — | 011 §6.6, todas las migraciones |
+| D-43 | Clave de objeto en evidencia y recaudo | El renombre a clave de objeto queda aprobado si `evidencia_url` y `archivo_url` no tienen valores; si los tienen, se añade una migración de datos que extraiga la clave de la URL | — | 004, Solicitud, 011 §6.5 |
 
 ## 18 y 21 de septiembre de 2026 — Mejoras de vitrina, agendamiento y navegación
 
@@ -101,6 +110,53 @@
 |---|---|---|---|---|
 | D-52 | Culminación y Verificación de Fase 4 (Motor de Riesgo, Scoring de 5 Factores y Cumplimiento AML) | **Verificada y completada la Fase 4 al 100% en local**:<ul><li>**Backend Spring Boot (`com.wamma.risk`):** Implementados `CreditScoringEngine`, `AmlScreeningEngine`, `AmlAlertRepository`, `RiskEvaluationService` y `RiskController`.</li><li>**Algoritmo de Scoring WAMMA (0–1000 pts):** Ponderación objetiva en 5 factores: Capacidad de pago regla 30% (350 pts), Cuota inicial aportada (200 pts), Estabilidad y antigüedad laboral (150 pts), Solvencia bancaria y referencias (150 pts), y Perfil demográfico/vivienda (150 pts). Homologación paralela a escala de Buró de Crédito (100–800 pts).</li><li>**Screening AML y Listas Sancionatorias:** Cotejo automático contra listas de sanciones internacionales (OFAC, ONU, Interpol) y base de datos PEP (Personas Políticamente Expuestas), registrando alertas en tabla `alerta_aml` con trazabilidad inmutable de auditoría.</li><li>**Frontend Backoffice (`O7_AnalisisCredito`):** Integración del widget *Motor de Riesgo, Scoring y Cumplimiento AML* con botón interactivo `⚡ Ejecutar Scoring y AML en Vivo`, panel de scores (Score WAMMA, Score Buró, Dictamen oficial sugerido `APROBAR`/`CONDICIONAR`/`RECHAZAR`), barras de progreso por cada uno de los 5 factores, badges de cumplimiento AML (OFAC / PEP), y flujo de resolución de alertas por el analista (`falso_positivo` / `confirmado_bloqueado`).</li><li>**Verificación Integral:** 133 pruebas unitarias y de integración en Maven (`BUILD SUCCESS`), 17 pruebas unitarias de frontend (`npm test`), compilación de producción Vite (`npm run build`), y validación visual en navegador con captura de pantalla del modal.</li><li>**Regla Estricta:** Se mantiene sin `git commit` ni `git push` hasta que el PO realice pruebas locales completas y emita aprobación explícita.</li></ul> | Ejecuta D-51 | 006, Solicitud, Backoffice, Riesgo |
 
+## 30 de septiembre de 2026 — Evaluación QA y plan de remediación
+
+| # | Tema | Decisión | Sustituye | Afecta a |
+|---|---|---|---|---|
+| D-53 | Plan de remediación tras la evaluación QA | **Aprobado** el plan de remediación del 30/09/2026 (`docs/qa/plan-remediacion-2026-09-30.md`): fases R0 a R5 (contención, seguridad y accesos, flujos y contratos, integridad del crédito, contenido y documentación, verificación), con punto de control del PO al cerrar cada fase. Sin commit ni push hasta la aprobación expresa del PO. Las preguntas PO-1 a PO-8 quedan en *Pendientes derivados*. D-49 a D-52 quedan pendientes de confirmación del PO (PO-2) | — | 001, 005, 006, 010, Solicitud, Backoffice |
+
+## 30 de septiembre de 2026 — Respuestas del PO a la evaluación QA
+
+| # | Tema | Decisión | Sustituye | Afecta a |
+|---|---|---|---|---|
+| D-54 | Término «Certificado» (PO-3) | **Se mantiene D-29**: en la plataforma se dice «Inspección 240 puntos» o «Estándar WAMMA», nunca «Certificado» ni «certificados». Se revierte lo introducido el 23/09 (commit `9eb31e2`) | Ratifica D-29 | 005, Vitrina, TarjetaVehiculo, FichaVehiculo, PiePagina |
+| D-55 | Plazo del financiamiento (PO-5) | **24 meses, como mínimo y como máximo.** Sin selector de plazo en la solicitud ni en la vitrina, y el servidor no admite otro plazo | Ratifica D-26 | Solicitud, Financiamiento, 006 |
+| D-56 | Despliegue | **No se despliega nada a Vercel** hasta nueva orden del PO. Como cada push a `main` despliega, tampoco hay push | Precisa D-53 | Infraestructura |
+| D-57 | OTP en la solicitud (PO-4) | **Sin OTP en esta fase.** Se retira el paso del código de la solicitud y su texto de firma electrónica. La aceptación queda registrada con fecha, IP, agente y versión del texto aceptado | Ratifica D-16 | Solicitud |
+| D-58 | Fotos de demostración (PO-6) | Se conservan las **9 fotos actuales que muestran el modelo de su ficha**. Las **7 que no** (veh-008, 010, 012, 013, 014, 015 y 016) vuelven a su foto anterior, con su crédito, hasta tener fotos propias del mismo estilo (D-32) | Precisa D-22 y D-25 (E9-A) | 004, 005 |
+| D-60 | Corrección de D-49 (PO-2) | Se **conserva** la aprobación de pasar del CRM (etapa 3) a los parámetros de financiamiento. Se **corrige** el estado: el CRM no quedó verificado en el frontend. La evaluación QA del 30/09 encontró citas de la mañana perdidas, un backoffice sin los datos del servidor, cambios de etapa y descartes que fallan, y un enlace de financiamiento generado en el navegador. Se corrige en la remediación (R1 y R2) | Corrige D-49 | 010, Financiamiento |
+| D-61 | Corrección de D-50 (PO-2) | Se **conserva** la aprobación de pasar de los parámetros a la solicitud de crédito digital. Se **corrige** el estado: el asesor puede cambiar los parámetros, el cotizador no usa los del servidor, 7 fotos no corresponden a su ficha (D-58) y la tasa BCV del servidor local es un valor fijo de desarrollo. Se corrige en R1, R2 y R4 | Corrige D-50 | Financiamiento, 005 |
+| D-62 | Sustituye a D-51 (PO-2) | La solicitud de crédito digital **no está verificada**: la pantalla no la envía al servidor, el enlace real se rechaza, el analista no puede dictaminar, los datos se guardan sin cifrar y los recaudos quedan públicos. Se completa en R1 a R3 del plan de remediación (D-53) | Sustituye D-51 | Solicitud, 006, Backoffice |
+| D-63 | Sustituye a D-52 (PO-1, PO-2) | **Se aplica D-01:** el motor de scoring, el «AML» y el «Score Buró» quedan **fuera de alcance** hasta tener convenios con un buró y con proveedores de listas. En la remediación (R3) se desactivan con una bandera, sin borrar el código, y se retiran del backoffice. El analista dictamina a mano (D-17), con justificación obligatoria y su usuario en la bitácora, y el dictamen deja de exigir un puntaje. Reactivarlo exige spec, plan y tareas aprobados, y resolver P5, D4 y D5 del spec 006 | Sustituye D-52; ratifica D-01 | 006, Solicitud, Backoffice |
+| D-59 | Recaudos (PO-8) | Los recaudos se guardan en un **contenedor privado de Supabase Storage**, por su API S3, separado del de las fotos. El backoffice los abre con una URL firmada de corta duración; nunca son públicos. El PO autoriza pasar a la fase R1 | Precisa D-09 | Solicitud, Backoffice |
+
+## 30 de septiembre de 2026 — Aprobación de R1 y alcance del MVP
+
+| # | Tema | Decisión | Sustituye | Afecta a |
+|---|---|---|---|---|
+| D-64 | Aprobación de R1 | El PO **aprueba la fase R1** (seguridad y accesos) y autoriza pasar a R2. **R1.4** (la IP que usa el límite de citas) **espera al PR #1**: el ajuste del proxy (`forward-headers-strategy: native` con proxies internos) llega al mezclarlo, sin portarlo antes a `main` | Cierra R1 (D-53) | 001, 010, Solicitud |
+| D-65 | Alcance del MVP de la Fase 1 | La Fase 1 **se cierra y se entrega como MVP**. El recorrido que debe funcionar de verdad, contra el servidor, va **desde la vitrina hasta la venta y la aprobación del crédito a la persona**. El alcance es **hacer funcional lo que estaba en maqueta** dentro de ese recorrido: vitrina, cita, seguimiento comercial, venta, enlace de financiamiento, solicitud de crédito, análisis y dictamen. Lo que queda fuera de ese recorrido no forma parte de esta entrega | Precisa D-53 | 004, 005, 010, Financiamiento, Solicitud, Backoffice |
+
+## 2 de octubre de 2026 — PR #1 (spec 011)
+
+| # | Tema | Decisión | Sustituye | Afecta a |
+|---|---|---|---|---|
+| D-66 | Destino del PR #1 | El PR #1 **no se mezcla**: lo útil se porta a `main` y el PR se cierra. **Se porta:** perfil `local` por defecto y Flyway apagado salvo que el entorno lo active (§6.1); validación agrupada de variables al arrancar y `render.yaml` con todas sus variables (§6.4); límite de ingreso guardado en la base, con retardo progresivo e IP resuelta con proxies de confianza (§6.3, que cierra R1.4); la convención `GRANT` + RLS con su prueba universal (§6.6), y el renombre de `inspeccion_punto.evidencia_url` (§6.5). **Se descarta:** el endpoint de parámetros y el cambio del frontend (§6.2), que `main` ya tiene por la Fase 2 y R2, y el renombre de `solicitud_recaudo.archivo_url`, que ya hace V0019. Las migraciones del PR pasan a **V0021** (permisos de `wamma_app` e `intento_ingreso`) y **V0022** (solo evidencia). El spec 011 entra a `main` como Rev. 4. El PR se cierra en GitHub cuando el port llegue al remoto, con la aprobación expresa de commit y push (D-56); hasta entonces su rama queda como respaldo | Sustituye la decisión del 21-sep de mezclar el PR al final; precisa D-64 (R1.4 llega con el port, no con la mezcla) | 001, 004, 011, Despliegue |
+
+## 3 de octubre de 2026 — Respuestas del PO y objetivo de la entrega
+
+| # | Tema | Decisión | Sustituye | Afecta a |
+|---|---|---|---|---|
+| D-67 | Aprobación de R2 y R3 | El PO **aprueba las fases R2 y R3**. Al cierre se harán pruebas finales | Cierra R2 y R3 (D-53) | Todos los del recorrido |
+| D-68 | Objetivo y alcance de la entrega | Dejar **lo que existe 100 % operativo para mostrarlo**. El recorrido llega **hasta la aprobación del crédito**. **No se cambia el frontend**: lo que mostraba la maqueta es el comportamiento buscado y se hace funcionar desde el servidor | Ratifica y precisa D-65 | Todos |
+| D-69 | Envíos automáticos | La entrega **incluye envíos automáticos por WhatsApp o por correo**, como mostró la maqueta en su momento (correo al equipo WAMMA por cada cita nueva). Canales y eventos, según el Plan Final | Sustituye D-18; precisa el spec 010 §10 y su pregunta C6 | 010, Solicitud |
+| D-70 | Recaudos tras condicionar | Cuando el analista condiciona una solicitud, **se puede reabrir la carga de recaudos** | Resuelve el pendiente «Recaudos que faltan» | Solicitud, Backoffice |
+| D-71 | Reabrir un expediente dictaminado | **Se puede reabrir** un expediente ya dictaminado (aprobado o rechazado) | Precisa R3, que hoy responde 409 | Solicitud, Backoffice |
+| D-72 | Aviso al cliente tras el dictamen | Se aprueban los tres textos del aviso: crédito aprobado, no aprobado y falta información | Resuelve el pendiente del aviso | CRM, Solicitud |
+| D-73 | Tomar y repartir oportunidades | **No entran en el MVP por ahora** | Precisa D-48 | 010 |
+| D-74 | Textos y listas oficiales | Quedan **pendientes** y no se cambian por ahora: lista oficial de recaudos, aviso legal de reserva, afirmaciones de la vitrina, cotizador y texto legal de la solicitud | — | Vitrina, Solicitud |
+
 ## Pendientes derivados
 
 | Tema | Pregunta | Bloquea |
@@ -115,6 +171,16 @@
 | Etiqueta «Reservado para cita» (D-44) | Se pone a mano y puede contradecir la disponibilidad automática «Con cita» que mueve el CRM. ¿Debe derivarse de la disponibilidad? | 005, CRM (etapa 3) |
 | Cotizador del asesor (D-26) | El cotizador del backoffice admite plazos de 6 a 36 meses, inicial de hasta 60 % y cualquier tasa. D-26 fija 24 meses, iniciales de 20/30/40 % y 4 % mensual. ¿Puede el asesor cotizar fuera de política? | Financiamiento (etapa 4) |
 | Publicar sin inspección (E11 frente a D-28) | El servidor sigue publicando vehículos sin inspección (E11), pero el formulario dice que «todos los vehículos publicados deben superar la inspección». ¿Se exige ya la inspección para publicar? | 004, 005 |
+| PO-3 · Afirmaciones de la vitrina (tras D-54) | ¿Se mantienen «validación legal de documentos», «fotografías reales de estudio» y «Garantía WAMMA»? ¿Puede decirse «todos los vehículos inspeccionados» mientras rija E11 (publicar sin inspección)? | Remediación R4, vitrina |
+| Origen de las fotos actuales (D-58) | ¿De dónde salieron las 9 fotos del 29/09 que se conservan (fotógrafo, prensa del fabricante, IA)? Sus créditos todavía dicen «Wikimedia · dominio público», que ya no es cierto | Remediación R4 |
+| OTP en la visita (resuelto en la copia) | El modal de cita ya no promete un código OTP: dice que el celular sirve para que el asesor coordine la visita y envíe el enlace. Confirmar la redacción | Cita |
+| Aviso al cliente tras el dictamen (R2) (resuelto, D-72) | El asesor ve el estado del crédito (solo número y estado, CA-010.7) y tiene un botón de WhatsApp con un texto de aprobado, no aprobado o falta información. Es redacción propuesta, sin cifras. ¿Se aprueba el texto? | CRM, Solicitud |
+| Recaudos que faltan (R2) (resuelto, D-70) | Al enviar la solicitud el enlace queda usado y no admite más archivos. La pantalla de cierre dice que el asesor se comunicará para completarlos. ¿Debe poder reabrirse la carga (enlace nuevo del asesor o del analista) al condicionar? | Solicitud |
+| Tomar y repartir oportunidades (R2) (resuelto, D-73) | La interfaz ya permite «Tomar» (asesor, oportunidades sin dueño) y repartir (coordinador), según D-48. Confirmar que forma parte del MVP | CRM |
+| Moneda base de la política (resuelto en R3) | La política sembrada decía USD; la Constitución v3.0.0 fija EUR. La migración V0020 la pone en EUR y el servidor rechaza otra moneda base o un plazo distinto de 24 meses (422) | Financiamiento |
+| Reabrir un expediente dictaminado (R3) (resuelto, D-71) | Una solicitud aprobada, rechazada o desembolsada ya no admite un nuevo dictamen (409), para que la decisión humana no se sobrescriba. ¿Se permite reabrirla (con autorización y justificación) si el analista se equivocó? | Solicitud, Backoffice |
+| Spec 011 · P-4 y P-5 (D-66) | P-4: ¿las variables `WAMMA_S3_*` ya están cargadas en el Dashboard de Render? Desde el port, el servidor no arranca sin ellas (ni sin `FLYWAY_DB_*`, `WAMMA_FOTOS_URL_PUBLICA` y `WAMMA_S3_BUCKET_RECAUDOS`). P-5: rango real de IP del proxy de Render para `WAMMA_PROXIES_CONFIABLES`; se observa en la bitácora tras el primer despliegue | Despliegue |
+| Hash del texto aceptado (R3.8) | La evidencia guarda fecha, IP, agente y versión del texto, pero no su hash: el servidor no tiene tabla de textos legales. ¿Se aprueba el texto legal definitivo para versionarlo (R4)? | Solicitud |
 
 ---
 *WAMMA · Confidencial · No constituye asesoría legal ni financiera.*

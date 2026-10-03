@@ -6,6 +6,7 @@ import com.wamma.support.TestAccounts;
 import com.wamma.support.TestApi;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -16,27 +17,35 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class CrmApiIntegrationTest extends ApiIntegrationTest {
 
+    @Autowired
+    private CaptureRateLimiter captureRateLimiter;
+
     private TestAccounts.Account coordinator;
     private TestAccounts.Account advisor;
     private UUID testVehicleId;
 
     @BeforeEach
     void setUpCrm() {
+        // El límite de citas por IP vive en memoria y es compartido por todas las pruebas.
+        captureRateLimiter.reset();
         coordinator = accounts.createAndLogin("coordinador_crm", "COORDINADOR_COMERCIAL");
         advisor = accounts.createAndLogin("asesor_crm", "ASESOR_COMERCIAL");
 
-        // Crear vehículo en estado exhibición para las pruebas
+        // Crear vehículo en estado exhibición para las pruebas (código y VIN únicos por prueba)
+        String sufijo = String.valueOf(10000 + (int) (Math.random() * 89999));
         testVehicleId = jdbc.sql("""
                         insert into vehiculo (codigo, vin, marca, modelo, version, anio, color, kilometraje,
                                               carroceria, transmision, combustible, traccion, puestos, estado,
                                               sede_id, precio_adquisicion, moneda_adquisicion, tasa_bcv_adquisicion,
                                               fecha_tasa_adquisicion, es_demostracion)
-                        select 'WAM-99001', 'CRMTEST000000001', 'Toyota', 'Corolla', 'XLi', 2021, 'Blanco', 15000,
+                        select :codigo, :vin, 'Toyota', 'Corolla', 'XLi', 2021, 'Blanco', 15000,
                                'sedan', 'automatica', 'gasolina', '4x2', 5, 'exhibicion',
                                id, 12000, 'EUR', 45.0, current_date, true
                         from sede where codigo = 'DC'
                         returning id
                         """)
+                .param("codigo", "WAM-" + sufijo)
+                .param("vin", "CRMTEST0000" + sufijo)
                 .query(UUID.class)
                 .single();
 
@@ -143,12 +152,82 @@ class CrmApiIntegrationTest extends ApiIntegrationTest {
                         "oportunidadId", oppId.toString()
                 ));
         assertThat(interRes.status()).isEqualTo(200);
-        assertThat(interRes.str("note")).isEqualTo("Enlace de financiamiento enviado por WhatsApp.");
+        assertThat(interRes.str("nota")).isEqualTo("Enlace de financiamiento enviado por WhatsApp.");
 
         // 9. Ficha 360 de la persona
         TestApi.Response personDetail = api.get("/v1/crm/personas/" + personId, advisor.token());
         assertThat(personDetail.status()).isEqualTo(200);
         assertThat(personDetail.str("nombreApellido")).isEqualTo("Pedro Pérez");
         assertThat(((List<?>) personDetail.map().get("interacciones")).size()).isGreaterThanOrEqualTo(1);
+    }
+
+    /**
+     * Visibilidad por rol (plan 010 §7, CA-010.8, D-48): el asesor ve y opera lo suyo y lo que no
+     * tiene dueño, y solo puede tomarlo para sí. Lo de otro asesor es un 404 que queda en la
+     * bitácora; el coordinador lo ve todo.
+     */
+    @Test
+    void anAdvisorOnlySeesAndOperatesTheirOwnOrUnassignedRecords() {
+        TestAccounts.Account other = accounts.createAndLogin("asesor_otro", "ASESOR_COMERCIAL");
+        String nombre = "Lucia Ajena " + UUID.randomUUID().toString().substring(0, 6);
+        TestApi.Response scheduleRes = api.post("/v1/citas", null, Map.of(
+                "nombreApellido", nombre,
+                "telefonoWhatsApp", "+58414" + (1000000 + (int) (Math.random() * 8999999)),
+                "diaPreferencia", LocalDate.now().plusDays(1).toString(),
+                "franjaHoraria", "tarde",
+                "modalidadPago", "financiamiento",
+                "vehiculoId", testVehicleId.toString()));
+        assertThat(scheduleRes.status()).isEqualTo(201);
+        UUID appointmentId = UUID.fromString(scheduleRes.str("id"));
+        UUID oppId = jdbc.sql("select oportunidad_id from cita_inspeccion where id = :id")
+                .param("id", appointmentId, java.sql.Types.OTHER)
+                .query(UUID.class).single();
+        UUID personId = jdbc.sql("select persona_id from oportunidad where id = :id")
+                .param("id", oppId, java.sql.Types.OTHER)
+                .query(UUID.class).single();
+
+        // Sin dueño la ven los dos asesores, pero ninguno puede dársela a otro.
+        assertThat(api.get("/v1/crm/oportunidades/" + oppId, other.token()).status()).isEqualTo(200);
+        assertThat(api.put("/v1/crm/oportunidades/" + oppId + "/asesor", other.token(),
+                Map.of("asesorId", advisor.id().toString())).status()).isEqualTo(403);
+
+        // El asesor la toma para sí.
+        TestApi.Response taken = api.put("/v1/crm/oportunidades/" + oppId + "/asesor", advisor.token(), Map.of());
+        assertThat(taken.status()).isEqualTo(200);
+        assertThat(taken.str("asesorId")).isEqualTo(advisor.id().toString());
+
+        // Para el otro asesor ahora es ajena: 404 en todo, sin confirmar que existe.
+        String ajeno = other.token();
+        assertThat(api.get("/v1/crm/oportunidades/" + oppId, ajeno).status()).isEqualTo(404);
+        assertThat(api.patch("/v1/crm/oportunidades/" + oppId + "/etapa", ajeno,
+                Map.of("etapa", "contactado", "version", 1)).status()).isEqualTo(404);
+        assertThat(api.put("/v1/crm/oportunidades/" + oppId + "/proxima-accion", ajeno,
+                Map.of("accion", "Llamar", "fecha", LocalDate.now().plusDays(2).toString())).status()).isEqualTo(404);
+        assertThat(api.post("/v1/crm/oportunidades/" + oppId + "/venta", ajeno, Map.of("modalidad", "contado")).status())
+                .isEqualTo(404);
+        assertThat(api.post("/v1/crm/citas/" + appointmentId + "/confirmacion", ajeno,
+                Map.of("cedula", "V-12345678")).status()).isEqualTo(404);
+        assertThat(api.post("/v1/crm/citas/" + appointmentId + "/descarte", ajeno, Map.of("motivo", "desistio")).status())
+                .isEqualTo(404);
+        assertThat(api.post("/v1/crm/citas/" + appointmentId + "/asistencia", ajeno, null).status()).isEqualTo(404);
+        assertThat(api.get("/v1/crm/personas/" + personId, ajeno).status()).isEqualTo(404);
+        assertThat(api.post("/v1/crm/personas/" + personId + "/interacciones", ajeno,
+                Map.of("canal", "whatsapp", "direccion", "saliente", "nota", "intento ajeno")).status()).isEqualTo(404);
+        assertThat(api.get("/v1/crm/personas?q=" + nombre, ajeno).list()).isEmpty();
+
+        // El dueño y el coordinador sí la ven.
+        assertThat(api.get("/v1/crm/personas/" + personId, advisor.token()).status()).isEqualTo(200);
+        assertThat(api.get("/v1/crm/personas/" + personId, coordinator.token()).status()).isEqualTo(200);
+        assertThat(api.get("/v1/crm/personas?q=" + nombre, coordinator.token()).list()).hasSize(1);
+
+        // Cada intento ajeno quedó en la bitácora.
+        long denegados = jdbc.sql("""
+                        select count(*) from auditoria_evento
+                        where accion = 'acceso.denegado' and (entidad_id = :opp or entidad_id = :per)
+                        """)
+                .param("opp", oppId, java.sql.Types.OTHER)
+                .param("per", personId, java.sql.Types.OTHER)
+                .query(Long.class).single();
+        assertThat(denegados).isGreaterThanOrEqualTo(9);
     }
 }

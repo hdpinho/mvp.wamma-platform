@@ -52,28 +52,64 @@ class FinancingParametersIntegrationTest extends ApiIntegrationTest {
 
     @Test
     void authorizedUserCanUpdateParametersAndRecordAudit() {
-        TestApi.Response updateRes = api.put("/v1/financiamiento/parametros", accounts.adminToken(), Map.of(
-                "tasa_mensual", 0.0450,
-                "plazo_meses", 30,
+        String adminToken = accounts.adminToken();
+        TestApi.Response updateRes = api.put("/v1/financiamiento/parametros", adminToken, politica(0.0450));
+        assertThat(updateRes.status()).isEqualTo(200);
+
+        try {
+            // GET posterior recibe los nuevos valores
+            TestApi.Response getRes = api.get("/v1/parametros-financiamiento", null);
+            assertThat(getRes.status()).isEqualTo(200);
+            assertThat(getRes.map().get("tasa_mensual")).isEqualTo(0.045);
+
+            // Verificar registro inmutable en auditoría
+            long auditCount = jdbc.sql("""
+                    select count(*) from auditoria_evento
+                    where accion = 'parametros_financiamiento.actualizados'
+                    """)
+                    .query(Long.class)
+                    .single();
+            assertThat(auditCount).isGreaterThan(0L);
+        } finally {
+            // La base es compartida entre pruebas: se deja la política aprobada (D-26).
+            assertThat(api.put("/v1/financiamiento/parametros", adminToken, politica(0.04)).status()).isEqualTo(200);
+        }
+    }
+
+    /** Cotizar no da permiso para cambiar la política de toda la plataforma (D-14, D-26). */
+    @Test
+    void anAdvisorCannotChangeTheOfficialPolicy() {
+        TestApi.Response res = api.put("/v1/parametros-financiamiento", advisor.token(), politica(0.01));
+        assertThat(res.status()).isEqualTo(403);
+        assertThat(api.get("/v1/parametros-financiamiento", null).map().get("tasa_mensual")).isEqualTo(0.04);
+    }
+
+    /** D-55: 24 meses, como mínimo y como máximo, también para quien administra la política. */
+    @Test
+    void thePolicyOnlyAdmitsA24MonthTermAndTheEuroAsBaseCurrency() {
+        String adminToken = accounts.adminToken();
+        Map<String, Object> otroPlazo = new java.util.HashMap<>(politica(0.04));
+        otroPlazo.put("plazo_meses", 36);
+        assertThat(api.put("/v1/parametros-financiamiento", adminToken, otroPlazo).status()).isEqualTo(422);
+
+        Map<String, Object> otraMoneda = new java.util.HashMap<>(politica(0.04));
+        otraMoneda.put("moneda_base", "USD");
+        assertThat(api.put("/v1/parametros-financiamiento", adminToken, otraMoneda).status()).isEqualTo(422);
+
+        // Nada cambió y la política sembrada ya está en euros (V0020; antes decía USD).
+        TestApi.Response vigente = api.get("/v1/parametros-financiamiento", null);
+        assertThat(vigente.map().get("plazo_meses")).isEqualTo(24);
+        assertThat(vigente.map().get("moneda_base")).isEqualTo("EUR");
+    }
+
+    private static Map<String, Object> politica(double tasaMensual) {
+        return Map.of(
+                "tasa_mensual", tasaMensual,
+                "plazo_meses", 24,
                 "ratio_cuota_ingreso", 0.30,
                 "opciones_inicial", List.of(0.20, 0.30, 0.40),
                 "inicial_minima", 0.20,
                 "moneda_base", "EUR"
-        ));
-        assertThat(updateRes.status()).isEqualTo(200);
-
-        // GET posterior recibe los nuevos valores
-        TestApi.Response getRes = api.get("/v1/parametros-financiamiento", null);
-        assertThat(getRes.status()).isEqualTo(200);
-        assertThat(getRes.map().get("plazo_meses")).isEqualTo(30);
-
-        // Verificar registro inmutable en auditoría
-        long auditCount = jdbc.sql("""
-                select count(*) from auditoria_evento
-                where accion = 'parametros_financiamiento.actualizados'
-                """)
-                .query(Long.class)
-                .single();
-        assertThat(auditCount).isGreaterThan(0L);
+        );
     }
 }

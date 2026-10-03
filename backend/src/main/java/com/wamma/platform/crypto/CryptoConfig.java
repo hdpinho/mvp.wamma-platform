@@ -28,6 +28,12 @@ public class CryptoConfig {
         return new BlindIndex(indexKey);
     }
 
+    /** Enlaces firmados de los recaudos (D-59), con una clave derivada de la del índice. */
+    @Bean
+    public SignedLinks signedLinks(SecurityProperties properties) {
+        return new SignedLinks(decodeKey(properties.indexKey(), "WAMMA_CLAVE_INDICE"));
+    }
+
     static byte[] decodeKey(String base64, String variable) {
         if (base64 == null || base64.isBlank()) {
             throw new IllegalStateException("Falta la variable " + variable

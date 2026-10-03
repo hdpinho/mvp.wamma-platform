@@ -1,0 +1,15 @@
+{
+  "id": "3c8e1f52-6a0d-4d2b-9e47-1b5a8d7c6666",
+  "personaId": "5e1c2a70-8d3b-4f63-a1f2-3b1c9e0d2222",
+  "personaNombre": "Carlos Rodríguez",
+  "oportunidadId": "0b8f0b1e-4c1a-4a52-9d57-0c3a4d4a1111",
+  "vehiculoId": "9a7d4c10-2b6e-4e55-8a31-6f0a7c5b3333",
+  "vehiculoCodigo": "WAM-00012",
+  "vehiculoTitulo": "2021 Toyota Corolla",
+  "diaPreferencia": "2026-10-03",
+  "franjaHoraria": "manana",
+  "estado": "confirmada",
+  "notas": "Prefiere que lo llamen antes de las 10",
+  "reservaVenceEn": "2026-10-04T00:00:00Z",
+  "creadoEn": "2026-09-28T10:00:00Z"
+}

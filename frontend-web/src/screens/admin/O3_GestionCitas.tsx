@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useCRM, CORREO_NOTIFICACIONES_WAMMA } from '../../state/crmContexto';
+import { useCRM } from '../../state/crmContexto';
 import { useVehiculos } from '../../state/vehiculosContexto';
 import { Boton } from '../../components/Boton';
+import { AsesorDeOportunidad } from '../../components/crm/AsesorDeOportunidad';
+import { AvisoCargaCRM } from '../../components/crm/AvisoCargaCRM';
+import { CreditoVinculado } from '../../components/crm/CreditoVinculado';
 import { correoConfirmacionCita } from '../../components/crm/correoCita';
+import { ESTILOS_CRM } from '../../components/crm/estilos';
 import { fechaHora } from '../../components/crm/formato';
-import type { Cita, MotivoPerdida } from '../../types/crm';
+import type { Cita, MotivoPerdida, Oportunidad, Persona } from '../../types/crm';
 import {
   MOTIVOS_PERDIDA,
   definicionEtapa,
@@ -14,6 +18,40 @@ import {
   telefonoParaWhatsApp,
 } from '../../types/crm';
 import { validarCedula, validarCorreo } from '../../validacion/venezuela';
+
+/**
+ * Lo que el asesor le escribe al cliente cuando el análisis de crédito ya decidió. Es texto de contacto, sin cifras ni
+ * datos del expediente (el asesor no los ve). La redacción es de negocio y la ajusta el PO.
+ */
+const avisoDeCredito = (
+  persona: Persona,
+  oportunidad: Oportunidad,
+  vehiculoTitulo: string,
+): { texto: string; boton: string } | null => {
+  const credito = oportunidad.solicitudCredito;
+  if (!credito?.estado) return null;
+  const nombre = persona.nombreApellido.split(' ')[0] || persona.nombreApellido;
+  const solicitud = credito.numero ? ` ${credito.numero}` : '';
+  switch (credito.estado) {
+    case 'aprobada':
+      return {
+        boton: '💬 Avisar que el crédito fue aprobado',
+        texto: `¡Hola ${nombre}! Tu solicitud de financiamiento${solicitud} para el ${vehiculoTitulo} fue aprobada. Te escribimos para coordinar los siguientes pasos de tu compra.`,
+      };
+    case 'rechazada':
+      return {
+        boton: '💬 Avisar que el crédito no fue aprobado',
+        texto: `Hola ${nombre}, revisamos tu solicitud de financiamiento${solicitud} para el ${vehiculoTitulo} y no pudimos aprobarla. Si quieres, conversamos qué opciones tienes.`,
+      };
+    case 'condicionada':
+      return {
+        boton: '💬 Pedir lo que falta para el crédito',
+        texto: `Hola ${nombre}, tu solicitud de financiamiento${solicitud} para el ${vehiculoTitulo} necesita información adicional para continuar. Te escribimos para indicarte qué falta.`,
+      };
+    default:
+      return null;
+  }
+};
 
 /**
  * O3 · Bandeja de citas y solicitudes de visita.
@@ -34,14 +72,18 @@ type Modalidad = 'Contado' | 'Financiamiento';
 
 export const O3_GestionCitas: React.FC = () => {
   const {
+    origen,
+    cargando,
+    error,
     citas,
     obtenerPersona,
     obtenerOportunidad,
     ultimaActividad,
+    enlaceEmitido,
     confirmarCita,
     descartarCita,
     registrarInteraccion,
-    cambiarEtapa,
+    registrarAsistencia,
     venderVehiculo,
   } = useCRM();
   const { obtenerVehiculo } = useVehiculos();
@@ -49,6 +91,8 @@ export const O3_GestionCitas: React.FC = () => {
   const [filtro, setFiltro] = useState<'todas' | 'pendiente' | 'confirmada' | 'descartada'>('todas');
   const [accion, setAccion] = useState<AccionAbierta>(null);
   const [aviso, setAviso] = useState<Aviso>(null);
+  // Mientras el servidor responde, el botón no se repite: un doble clic no debe emitir dos enlaces.
+  const [enviando, setEnviando] = useState(false);
 
   // Borradores de los formularios en línea.
   const [cedula, setCedula] = useState('');
@@ -93,7 +137,7 @@ export const O3_GestionCitas: React.FC = () => {
   const urlSolicitud = (vehiculoId: string, token: string) =>
     `${window.location.origin}${rutaSolicitudFinanciamiento(vehiculoId, token)}`;
 
-  const alConfirmar = (cita: Cita) => {
+  const alConfirmar = async (cita: Cita) => {
     const persona = obtenerPersona(cita.personaId);
     const oportunidad = obtenerOportunidad(cita.oportunidadId);
     if (!persona || !oportunidad) return;
@@ -116,7 +160,9 @@ export const O3_GestionCitas: React.FC = () => {
       return;
     }
 
-    const resultado = confirmarCita(cita.id, cedula, { correo: correoLimpio || undefined, dia, franja });
+    setEnviando(true);
+    const resultado = await confirmarCita(cita.id, cedula, { correo: correoLimpio || undefined, dia, franja });
+    setEnviando(false);
     if (!resultado.ok) {
       setErrorConfirmar(resultado.error ?? 'No se pudo confirmar la cita.');
       return;
@@ -149,24 +195,44 @@ export const O3_GestionCitas: React.FC = () => {
     }
   };
 
-  const alDescartar = (citaId: string) => {
+  const alDescartar = async (citaId: string) => {
     const exigeTexto = MOTIVOS_PERDIDA.find((m) => m.codigo === motivo)?.exigeTexto;
     if (exigeTexto && !motivoTexto.trim()) return;
 
-    descartarCita(citaId, motivo, motivoTexto.trim() || undefined);
-    setAviso({ texto: 'Cita descartada. La oportunidad quedó cerrada como perdida con su motivo.' });
-    cerrarAccion();
+    setEnviando(true);
+    const resultado = await descartarCita(citaId, motivo, motivoTexto.trim() || undefined);
+    setEnviando(false);
+    setAviso(
+      resultado.ok
+        ? { texto: 'Cita descartada. La oportunidad quedó cerrada como perdida con su motivo.' }
+        : { texto: resultado.error ?? 'No se pudo descartar la cita.', tono: 'alerta' },
+    );
+    if (resultado.ok) cerrarAccion();
   };
 
-  const alRegistrarInteraccion = (personaId: string, oportunidadId: string) => {
+  const alRegistrarInteraccion = async (personaId: string, oportunidadId: string) => {
     if (!nota.trim()) return;
-    registrarInteraccion({ personaId, oportunidadId, canal: 'whatsapp', direccion: 'saliente', nota });
-    setAviso({ texto: 'Interacción registrada en el historial de la persona.' });
-    cerrarAccion();
+    setEnviando(true);
+    const resultado = await registrarInteraccion({
+      personaId,
+      oportunidadId,
+      canal: 'whatsapp',
+      direccion: 'saliente',
+      nota,
+    });
+    setEnviando(false);
+    setAviso(
+      resultado.ok
+        ? { texto: 'Interacción registrada en el historial de la persona.' }
+        : { texto: resultado.error ?? 'No se pudo registrar la interacción.', tono: 'alerta' },
+    );
+    if (resultado.ok) cerrarAccion();
   };
 
-  const alMarcarAsistencia = (oportunidadId: string) => {
-    const resultado = cambiarEtapa(oportunidadId, 'visito', { nota: 'El cliente asistió a la cita.' });
+  const alMarcarAsistencia = async (citaId: string) => {
+    setEnviando(true);
+    const resultado = await registrarAsistencia(citaId);
+    setEnviando(false);
     setAviso(
       resultado.ok
         ? { texto: 'Asistencia registrada. Ya puedes cerrar la venta con «Vender Vehículo».' }
@@ -174,19 +240,28 @@ export const O3_GestionCitas: React.FC = () => {
     );
   };
 
-  const alVender = (oportunidadId: string) => {
-    const resultado = venderVehiculo(oportunidadId, modalidadVenta);
+  const alVender = async (oportunidadId: string, modalidad: Modalidad = modalidadVenta) => {
+    setEnviando(true);
+    const resultado = await venderVehiculo(oportunidadId, modalidad);
+    setEnviando(false);
     if (!resultado.ok) {
       setAviso({ texto: resultado.error ?? 'No se pudo registrar la venta.', tono: 'alerta' });
       return;
     }
     setAviso({
       texto:
-        modalidadVenta === 'Contado'
+        modalidad === 'Contado'
           ? 'Venta de contado cerrada. El vehículo pasó a Vendido y salió del catálogo.'
           : 'Venta acordada con financiamiento. Envía al cliente su enlace personal para que solicite el crédito.',
     });
     cerrarAccion();
+  };
+
+  const alEmitirEnlaceNuevo = (oportunidadId: string) => {
+    const confirmado = window.confirm(
+      'Se emitirá un enlace nuevo y el anterior dejará de servir. ¿Continuar?',
+    );
+    if (confirmado) void alVender(oportunidadId, 'Financiamiento');
   };
 
   const copiar = async (texto: string, clave: string) => {
@@ -207,8 +282,8 @@ export const O3_GestionCitas: React.FC = () => {
             Citas y Solicitudes de Visita
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--texto-secundario)', margin: '4px 0 0' }}>
-            Bandeja de citas agendadas por clientes en la web. Notificaciones despachadas a{' '}
-            <strong>{CORREO_NOTIFICACIONES_WAMMA}</strong> para seguimiento vía WhatsApp.
+            Bandeja de citas agendadas por clientes en la web. Las nuevas aparecen aquí; contacta al cliente por
+            WhatsApp para coordinar la visita.
           </p>
         </div>
 
@@ -226,6 +301,8 @@ export const O3_GestionCitas: React.FC = () => {
           ))}
         </div>
       </div>
+
+      <AvisoCargaCRM />
 
       {aviso && (
         <div className={`aviso-crm ${aviso.tono === 'alerta' ? 'aviso-crm-alerta' : ''}`} role="status">
@@ -247,13 +324,18 @@ export const O3_GestionCitas: React.FC = () => {
       )}
 
       {citasFiltradas.length === 0 ? (
-        <div className="caja-vacia-citas">
-          <div style={{ fontSize: '32px', marginBottom: '8px' }}>📅</div>
-          <h3 style={{ fontSize: '16px', margin: 0 }}>No hay citas con este estado</h3>
-          <p style={{ fontSize: '13px', color: 'var(--texto-mudo)', marginTop: '4px' }}>
-            Cuando un cliente presione "Agendar cita" en el catálogo público, aparecerá listado aquí inmediatamente.
-          </p>
-        </div>
+        // Con servidor, una lista vacía solo es «no hay nada» si la lectura terminó bien: mientras carga o si falló,
+        // el aviso de arriba ya lo dice y este cartel sería una mentira.
+        !cargando &&
+        !error && (
+          <div className="caja-vacia-citas">
+            <div style={{ fontSize: '32px', marginBottom: '8px' }}>📅</div>
+            <h3 style={{ fontSize: '16px', margin: 0 }}>No hay citas con este estado</h3>
+            <p style={{ fontSize: '13px', color: 'var(--texto-mudo)', marginTop: '4px' }}>
+              Cuando un cliente presione "Agendar cita" en el catálogo público, aparecerá listado aquí inmediatamente.
+            </p>
+          </div>
+        )
       ) : (
         <div className="grid-citas">
           {citasFiltradas.map((cita) => {
@@ -276,13 +358,20 @@ export const O3_GestionCitas: React.FC = () => {
 
             const vendida = oportunidad.etapa === 'cerrado_ganado';
             const puedeAsistir = cita.estado === 'confirmada' && oportunidad.etapa === 'cita_confirmada';
+            const enlaceVigente = oportunidad.enlaceFinanciamiento;
+            // Tras la visita se puede vender. En negociación solo si aún no se emitió el enlace ni hay solicitud:
+            // con enlace emitido, lo que corresponde es reenviarlo o emitir uno nuevo.
             const puedeVender =
               cita.estado === 'confirmada' &&
               (oportunidad.etapa === 'visito' ||
-                (oportunidad.etapa === 'negociacion' && !oportunidad.enlaceFinanciamiento));
-            const enlace = oportunidad.enlaceFinanciamiento
-              ? urlSolicitud(oportunidad.vehiculoId, oportunidad.enlaceFinanciamiento.token)
-              : null;
+                (oportunidad.etapa === 'negociacion' && !enlaceVigente && !oportunidad.solicitudCredito));
+            // El servidor guarda solo la huella del enlace: el texto completo existe únicamente en la pestaña donde
+            // se emitió. Si se recargó la pantalla, solo se puede emitir uno nuevo (el anterior deja de servir).
+            const tokenEnlace = enlaceEmitido(oportunidad.id)?.token ?? enlaceVigente?.token;
+            const enlace = tokenEnlace ? urlSolicitud(oportunidad.vehiculoId, tokenEnlace) : null;
+            const puedeReemitir =
+              origen === 'servidor' && !!enlaceVigente && !oportunidad.solicitudCredito && !vendida;
+            const avisoCredito = avisoDeCredito(persona, oportunidad, vehiculoTitulo);
 
             return (
               <div key={cita.id} className={`tarjeta-cita ${cita.estado}`}>
@@ -381,50 +470,90 @@ export const O3_GestionCitas: React.FC = () => {
                   </div>
                 </div>
 
-                {enlace && oportunidad.enlaceFinanciamiento && (
+                {enlaceVigente && (
                   <div className="bloque-financiamiento">
                     <div className="bf-titulo">
-                      💳 Financiamiento habilitado · enlace emitido el {fechaHora(oportunidad.enlaceFinanciamiento.emitidoEn)}
+                      💳 Financiamiento habilitado · enlace emitido el {fechaHora(enlaceVigente.emitidoEn)}
+                      {enlaceVigente.venceEn && ` · vence el ${fechaHora(enlaceVigente.venceEn)}`}
+                      {enlaceVigente.usadoEn && ` · usado el ${fechaHora(enlaceVigente.usadoEn)}`}
                     </div>
-                    <code className="bf-enlace">{enlace}</code>
-                    <div className="bf-acciones">
-                      <button type="button" className="btn-secundario-crm" onClick={() => copiar(enlace, oportunidad.id)}>
-                        {copiado === oportunidad.id ? '✓ Copiado' : '📋 Copiar enlace'}
-                      </button>
-                      <a
-                        className="btn-whatsapp"
-                        href={enlaceWhatsApp(
-                          persona.telefonoWhatsApp,
-                          `¡Hola ${primerNombre}! Gracias por tu visita a WAMMA. Este es tu enlace personal para solicitar el financiamiento del ${vehiculoTitulo}: ${enlace}`,
-                        )}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        💬 Enviar por WhatsApp
-                      </a>
-                      {persona.correo && (
-                        <a
+                    {enlace ? (
+                      <>
+                        <code className="bf-enlace">{enlace}</code>
+                        <div className="bf-acciones">
+                          <button
+                            type="button"
+                            className="btn-secundario-crm"
+                            onClick={() => void copiar(enlace, oportunidad.id)}
+                          >
+                            {copiado === oportunidad.id ? '✓ Copiado' : '📋 Copiar enlace'}
+                          </button>
+                          <a
+                            className="btn-whatsapp"
+                            href={enlaceWhatsApp(
+                              persona.telefonoWhatsApp,
+                              `¡Hola ${primerNombre}! Gracias por tu visita a WAMMA. Este es tu enlace personal para solicitar el financiamiento del ${vehiculoTitulo}: ${enlace}`,
+                            )}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            💬 Enviar por WhatsApp
+                          </a>
+                          {persona.correo && (
+                            <a
+                              className="btn-secundario-crm"
+                              href={`mailto:${persona.correo}?subject=${encodeURIComponent(
+                                'WAMMA · Tu enlace para solicitar el financiamiento',
+                              )}&body=${encodeURIComponent(
+                                `Hola, ${primerNombre}:\n\nGracias por tu visita. Con este enlace personal completas desde tu teléfono la solicitud de crédito del ${vehiculoTitulo}:\n\n${enlace}\n\nEl enlace es solo para ti; no lo compartas.\n\nEquipo comercial WAMMA\nby Token Pago POS`,
+                              )}`}
+                            >
+                              ✉️ Enviar por correo
+                            </a>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="ayuda-inline">
+                        Por seguridad, el enlace completo solo se muestra al emitirlo y no se vuelve a mostrar. Si el
+                        cliente lo perdió, emite uno nuevo: el anterior dejará de servir.
+                      </div>
+                    )}
+                    {puedeReemitir && (
+                      <div className="bf-acciones">
+                        <button
+                          type="button"
                           className="btn-secundario-crm"
-                          href={`mailto:${persona.correo}?subject=${encodeURIComponent(
-                            'WAMMA · Tu enlace para solicitar el financiamiento',
-                          )}&body=${encodeURIComponent(
-                            `Hola, ${primerNombre}:\n\nGracias por tu visita. Con este enlace personal completas desde tu teléfono la solicitud de crédito del ${vehiculoTitulo}:\n\n${enlace}\n\nEl enlace es solo para ti; no lo compartas.\n\nEquipo comercial WAMMA\nby Token Pago POS`,
-                          )}`}
+                          disabled={enviando}
+                          onClick={() => alEmitirEnlaceNuevo(oportunidad.id)}
                         >
-                          ✉️ Enviar por correo
-                        </a>
-                      )}
-                    </div>
+                          🔄 Emitir enlace nuevo
+                        </button>
+                      </div>
+                    )}
                     <div className="ayuda-inline">
-                      Cuando se apruebe el crédito, cierra la venta desde el{' '}
-                      <Link to="/admin/embudo">Embudo comercial</Link>.
+                      Cuando el cliente envíe su solicitud, el estado del crédito aparece aquí. Al aprobarse, cierra la
+                      venta desde el <Link to="/admin/embudo">Embudo comercial</Link>.
                     </div>
                   </div>
                 )}
 
-                <div className="cita-notificacion-meta">
-                  📧 Notificación despachada a: <code>{cita.notificadoA}</code>
-                </div>
+                {(oportunidad.solicitudCredito?.estado || origen === 'servidor') && (
+                  <div className="cita-credito-asesor">
+                    <CreditoVinculado oportunidad={oportunidad} />
+                    <AsesorDeOportunidad oportunidad={oportunidad} />
+                    {avisoCredito && (
+                      <a
+                        className="btn-whatsapp"
+                        href={enlaceWhatsApp(persona.telefonoWhatsApp, avisoCredito.texto)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {avisoCredito.boton}
+                      </a>
+                    )}
+                  </div>
+                )}
 
                 {/* Formularios en línea: el mínimo de campos obligatorios (plan §7.4). */}
                 {abierta === 'confirmar' && (
@@ -482,10 +611,10 @@ export const O3_GestionCitas: React.FC = () => {
                       al confirmar se abre tu correo con la confirmación lista para enviar.
                     </span>
                     <div className="form-inline-acciones">
-                      <Boton variant="primary" size="small" onClick={() => alConfirmar(cita)}>
-                        Confirmar cita
+                      <Boton variant="primary" size="small" onClick={() => void alConfirmar(cita)} disabled={enviando}>
+                        {enviando ? 'Confirmando…' : 'Confirmar cita'}
                       </Boton>
-                      <button type="button" className="btn-descartar" onClick={cerrarAccion}>
+                      <button type="button" className="btn-descartar" onClick={cerrarAccion} disabled={enviando}>
                         Cancelar
                       </button>
                     </div>
@@ -518,10 +647,10 @@ export const O3_GestionCitas: React.FC = () => {
                       />
                     )}
                     <div className="form-inline-acciones">
-                      <Boton variant="primary" size="small" onClick={() => alDescartar(cita.id)}>
-                        Descartar y liberar auto
+                      <Boton variant="primary" size="small" onClick={() => void alDescartar(cita.id)} disabled={enviando}>
+                        {enviando ? 'Descartando…' : 'Descartar y liberar auto'}
                       </Boton>
-                      <button type="button" className="btn-descartar" onClick={cerrarAccion}>
+                      <button type="button" className="btn-descartar" onClick={cerrarAccion} disabled={enviando}>
                         Cancelar
                       </button>
                     </div>
@@ -546,11 +675,12 @@ export const O3_GestionCitas: React.FC = () => {
                       <Boton
                         variant="primary"
                         size="small"
-                        onClick={() => alRegistrarInteraccion(persona.id, oportunidad.id)}
+                        onClick={() => void alRegistrarInteraccion(persona.id, oportunidad.id)}
+                        disabled={enviando}
                       >
-                        Guardar nota
+                        {enviando ? 'Guardando…' : 'Guardar nota'}
                       </Boton>
-                      <button type="button" className="btn-descartar" onClick={cerrarAccion}>
+                      <button type="button" className="btn-descartar" onClick={cerrarAccion} disabled={enviando}>
                         Cancelar
                       </button>
                     </div>
@@ -582,10 +712,14 @@ export const O3_GestionCitas: React.FC = () => {
                         : 'Se emitirá un enlace personal para que el cliente complete la solicitud de crédito desde su teléfono. El vehículo sigue reservado hasta que se apruebe.'}
                     </span>
                     <div className="form-inline-acciones">
-                      <Boton variant="primary" size="small" onClick={() => alVender(oportunidad.id)}>
-                        {modalidadVenta === 'Contado' ? 'Cerrar venta de contado' : 'Emitir enlace de financiamiento'}
+                      <Boton variant="primary" size="small" onClick={() => void alVender(oportunidad.id)} disabled={enviando}>
+                        {enviando
+                          ? 'Guardando…'
+                          : modalidadVenta === 'Contado'
+                            ? 'Cerrar venta de contado'
+                            : 'Emitir enlace de financiamiento'}
                       </Boton>
-                      <button type="button" className="btn-descartar" onClick={cerrarAccion}>
+                      <button type="button" className="btn-descartar" onClick={cerrarAccion} disabled={enviando}>
                         Cancelar
                       </button>
                     </div>
@@ -622,7 +756,12 @@ export const O3_GestionCitas: React.FC = () => {
                   )}
 
                   {!abierta && puedeAsistir && (
-                    <Boton variant="primary" size="small" onClick={() => alMarcarAsistencia(oportunidad.id)}>
+                    <Boton
+                      variant="primary"
+                      size="small"
+                      onClick={() => void alMarcarAsistencia(cita.id)}
+                      disabled={enviando}
+                    >
                       ✓ Asistió a la cita
                     </Boton>
                   )}
@@ -655,7 +794,15 @@ export const O3_GestionCitas: React.FC = () => {
         </div>
       )}
 
+      <style>{ESTILOS_CRM}</style>
       <style>{`
+        .cita-credito-asesor {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px 14px;
+          margin: 12px 0;
+        }
         .citas-header {
           display: flex;
           justify-content: space-between;
@@ -756,15 +903,6 @@ export const O3_GestionCitas: React.FC = () => {
         }
         .cita-cuerpo { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl); }
         @media (max-width: 640px) { .cita-cuerpo { grid-template-columns: 1fr; } }
-        .cita-notificacion-meta {
-          background-color: #FFF6EE;
-          border: 1px solid #FDDDC6;
-          border-radius: var(--radius-sm);
-          padding: 8px 12px;
-          font-size: 12px;
-          color: var(--naranja-700);
-          margin: 12px 0;
-        }
         .bloque-financiamiento {
           display: flex;
           flex-direction: column;

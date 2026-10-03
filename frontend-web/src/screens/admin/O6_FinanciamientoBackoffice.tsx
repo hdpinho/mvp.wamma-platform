@@ -1,12 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useVehiculos } from '../../state/vehiculosContexto';
 import { Boton } from '../../components/Boton';
 import { PARAMETROS_FINANCIAMIENTO, calcularCuota, generarAmortizacion } from '../../mocks/financiamiento';
-import {
-  useParametrosFinanciamiento,
-  actualizarParametrosFinanciamiento,
-} from '../../services/parametrosFinanciamiento';
-import { tokenDeSesion } from '../../api/cliente';
+import { actualizarParametrosFinanciamiento } from '../../services/parametrosFinanciamiento';
+import { mensajeDeError } from '../../api/cliente';
+import { useParametros } from '../../state/parametrosContexto';
 import { useSesion } from '../../state/sesionContexto';
 
 interface O6FinanciamientoBackofficeProps {
@@ -36,11 +34,15 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
     parametros: parametrosBackend,
     cargando: cargandoParametros,
     recargar: recargarParametros,
-  } = useParametrosFinanciamiento();
+    fijar: fijarParametros,
+  } = useParametros();
   const { puede, estado: estadoSesion } = useSesion();
+  // Con servidor, sin la política oficial esta pantalla sigue sirviendo para estructurar, pero sus cifras no son las
+  // vigentes y no deben ofrecerse a un cliente.
+  const sinParametrosOficiales = !parametrosBackend && !cargandoParametros;
 
-  const puedeEditarParametros =
-    estadoSesion === 'sin_servidor' || puede('parametros.gestionar') || puede('cotizador.usar');
+  // Cotizar no da permiso para cambiar la política de toda la plataforma (D-14, D-26).
+  const puedeEditarParametros = estadoSesion === 'sin_servidor' || puede('parametros.gestionar');
 
   const [mostrarGestionParametros, setMostrarGestionParametros] = useState(false);
   const [guardandoParametros, setGuardandoParametros] = useState(false);
@@ -65,33 +67,29 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
   const [plazoMeses, setPlazoMeses] = useState<number>(24);
   const [tasaMensualPct, setTasaMensualPct] = useState<number>(4.0);
 
-  // Sincronizar selección inicial cuando los vehículos cargan asíncronamente desde el backend
-  useEffect(() => {
-    if (!vehiculoSeleccionadoId && vehiculos.length > 0) {
-      setVehiculoSeleccionadoId(vehiculos[0].id);
-      setPrecioPersonalizado(vehiculos[0].precio);
-    }
-  }, [vehiculos, vehiculoSeleccionadoId]);
+  // Sincronizar selección inicial cuando los vehículos cargan asíncronamente desde el backend.
+  // Se ajusta durante el render, con guarda (patrón de React para derivar estado de props).
+  if (!vehiculoSeleccionadoId && vehiculos.length > 0) {
+    setVehiculoSeleccionadoId(vehiculos[0].id);
+    setPrecioPersonalizado(vehiculos[0].precio);
+  }
 
   // Sincronizar campos de cotización con parámetros activos del backend al recibirlos
   const [parametrosSincronizados, setParametrosSincronizados] = useState(false);
 
-  useEffect(() => {
-    if (parametrosBackend && !parametrosSincronizados) {
-      const tasaPct = +(parametrosBackend.tasaMensual * 100).toFixed(2);
-      const inicialPct = Math.round(parametrosBackend.inicialMinima * 100);
-      setPorcentajeInicial(inicialPct);
-      setPlazoMeses(parametrosBackend.plazoMeses);
-      setTasaMensualPct(tasaPct);
+  if (parametrosBackend && !parametrosSincronizados) {
+    const tasaPct = +(parametrosBackend.tasaMensual * 100).toFixed(2);
+    const inicialPct = Math.round(parametrosBackend.inicialMinima * 100);
+    setParametrosSincronizados(true);
+    setPorcentajeInicial(inicialPct);
+    setPlazoMeses(parametrosBackend.plazoMeses);
+    setTasaMensualPct(tasaPct);
 
-      setCfgTasaMensual(tasaPct);
-      setCfgPlazoMeses(parametrosBackend.plazoMeses);
-      setCfgRatioCapacidad(Math.round(parametrosBackend.ratioCuotaIngreso * 100));
-      setCfgInicialMinima(inicialPct);
-
-      setParametrosSincronizados(true);
-    }
-  }, [parametrosBackend, parametrosSincronizados]);
+    setCfgTasaMensual(tasaPct);
+    setCfgPlazoMeses(parametrosBackend.plazoMeses);
+    setCfgRatioCapacidad(Math.round(parametrosBackend.ratioCuotaIngreso * 100));
+    setCfgInicialMinima(inicialPct);
+  }
 
   // Análisis de capacidad en EUR
   const [ingresoMensualEUR, setIngresoMensualEUR] = useState<number>(1500);
@@ -143,7 +141,7 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
     try {
       const payload = {
         tasa_mensual: Number((cfgTasaMensual / 100).toFixed(4)),
-        plazo_meses: Number(cfgPlazoMeses),
+        plazo_meses: 24, // D-55: el servidor no admite otro plazo
         ratio_cuota_ingreso: Number((cfgRatioCapacidad / 100).toFixed(2)),
         opciones_inicial: [
           Number((cfgInicialMinima / 100).toFixed(2)),
@@ -153,8 +151,9 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
         inicial_minima: Number((cfgInicialMinima / 100).toFixed(2)),
         moneda_base: 'EUR',
       };
-      await actualizarParametrosFinanciamiento(payload, tokenDeSesion());
-      await recargarParametros();
+      // El servidor devuelve la política ya vigente: es la que pasa a regir en toda la aplicación, sin releerla.
+      const vigentes = await actualizarParametrosFinanciamiento(payload);
+      fijarParametros(vigentes);
       setTasaMensualPct(cfgTasaMensual);
       setPlazoMeses(cfgPlazoMeses);
       setPorcentajeInicial(cfgInicialMinima);
@@ -166,7 +165,7 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
     } catch (err: unknown) {
       setMensajeParametros({
         tipo: 'error',
-        texto: err instanceof Error ? err.message : 'Error al guardar los parámetros',
+        texto: mensajeDeError(err, 'Error al guardar los parámetros'),
       });
     } finally {
       setGuardandoParametros(false);
@@ -222,11 +221,38 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
               ⚙️ {mostrarGestionParametros ? 'Ocultar Parámetros BD' : 'Parámetros del Sistema (BD)'}
             </Boton>
           )}
-          <Boton variant="primary" onClick={copiarPropuestaWhatsApp}>
+          <Boton variant="primary" onClick={copiarPropuestaWhatsApp} disabled={sinParametrosOficiales}>
             {copiado ? '✓ ¡Copiado al Portapapeles!' : '📋 Copiar Propuesta para WhatsApp'}
           </Boton>
         </div>
       </div>
+
+      {sinParametrosOficiales && (
+        <div
+          role="alert"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 'var(--space-md)',
+            backgroundColor: '#FFF7ED',
+            border: '1px solid #FDBA74',
+            color: 'var(--naranja-700)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '10px 14px',
+            fontSize: '13px',
+            marginBottom: 'var(--space-lg)',
+          }}
+        >
+          <span>
+            <strong>No se pudieron leer los parámetros oficiales.</strong> Las cifras de esta pantalla son solo de
+            trabajo: no se puede copiar una propuesta para el cliente hasta que carguen.
+          </span>
+          <Boton variant="secondary" size="small" onClick={() => void recargarParametros()}>
+            Reintentar
+          </Boton>
+        </div>
+      )}
 
       {mostrarGestionParametros && (
         <form onSubmit={guardarParametrosBd} className="tarjeta-blanca" style={{ marginBottom: 'var(--space-xl)', border: '2px solid var(--naranja-400)' }}>
@@ -271,15 +297,8 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
             </div>
             <div className="campo-item">
               <label>Plazo Oficial (meses)</label>
-              <input
-                type="number"
-                step="1"
-                min="1"
-                max="72"
-                value={cfgPlazoMeses}
-                onChange={(e) => setCfgPlazoMeses(Number(e.target.value))}
-                required
-              />
+              {/* D-55: 24 meses, como mínimo y como máximo; el servidor no admite otro plazo. */}
+              <input type="number" value={24} readOnly aria-readonly="true" title="Fijo por decisión del PO (D-55)" />
             </div>
             <div className="campo-item">
               <label>Ratio Cuota / Ingreso (%)</label>
@@ -494,7 +513,7 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
             <div style={{ marginTop: '12px', padding: '12px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--superficie)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span>
-                  Capacidad de pago ({Math.round(PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago * 100)} % del ingreso):
+                  Capacidad de pago ({Math.round(ratioCapacidad * 100)} % del ingreso):
                 </span>
                 <strong>{formatoEUR(capacidadPagoDisponible)}</strong>
               </div>

@@ -91,6 +91,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, problem, headers, status, request);
     }
 
+    /**
+     * El rechazo por límite dice cuánto falta en {@code Retry-After}. Va antes que el
+     * manejador general porque {@link RateLimitedException} es un {@link ApiException}.
+     */
+    @ExceptionHandler(RateLimitedException.class)
+    public ResponseEntity<ProblemDetail> handleRateLimited(RateLimitedException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());
+        problem.setTitle(ex.title());
+        return ResponseEntity.status(ex.status())
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(ex.retryAfterSeconds()))
+                .body(problem);
+    }
+
     @ExceptionHandler(ApiException.class)
     public ProblemDetail handleApi(ApiException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.status(), ex.getMessage());

@@ -25,6 +25,14 @@ export const ESTILOS_CRM = `
     padding: 10px 14px; font-size: 13px; margin-bottom: var(--space-lg);
   }
   .crm-aviso button { background: none; border: none; color: inherit; cursor: pointer; font-size: 14px; }
+  .crm-aviso.error { background-color: var(--peligro-fondo); color: var(--peligro-texto); }
+  .crm-aviso.error button { font-size: 13px; font-weight: 700; text-decoration: underline; }
+  .crm-cargando { font-size: 13px; color: var(--texto-mudo); margin: 0 0 var(--space-lg); }
+  .crm-credito { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: var(--radius-pill); }
+  .crm-credito.enviada, .crm-credito.en_evaluacion { background-color: var(--naranja-50); color: var(--naranja-700); border: 1px solid var(--naranja-200); }
+  .crm-credito.aprobada, .crm-credito.desembolsada { background-color: var(--exito-fondo); color: var(--exito-texto); }
+  .crm-credito.rechazada { background-color: var(--peligro-fondo); color: var(--peligro-texto); }
+  .crm-credito.condicionada, .crm-credito.borrador { background-color: #FEF3C7; color: #92400E; }
   .crm-vacio {
     background-color: var(--blanco); border: 1px dashed var(--borde); border-radius: var(--radius-lg);
     padding: var(--space-xxxl); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -39,6 +47,20 @@ export const ESTILOS_CRM = `
   }
   .crm-vencida { color: var(--peligro-texto); font-weight: 700; }
   .req { color: var(--naranja-600); }
+
+  .crm-asesor { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; color: var(--texto-secundario); }
+  .crm-asesor-etiqueta { color: var(--texto-mudo); }
+  .crm-asesor-libre { color: var(--texto-mudo); }
+  .crm-asesor-boton {
+    background-color: var(--blanco); border: 1px solid var(--naranja-500); color: var(--naranja-700);
+    border-radius: var(--radius-sm); padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .crm-asesor-boton:disabled { opacity: 0.6; cursor: default; }
+  .crm-asesor-select {
+    padding: 4px 8px; border: 1px solid var(--borde); border-radius: var(--radius-sm); font-size: 12px;
+    font-family: inherit; background-color: var(--blanco);
+  }
+  .crm-asesor-error { flex-basis: 100%; color: var(--peligro-texto); font-size: 12px; }
 
   .crm-badge {
     display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px;

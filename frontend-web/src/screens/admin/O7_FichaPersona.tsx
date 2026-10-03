@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useCRM } from '../../state/crmContexto';
 import { Boton } from '../../components/Boton';
+import { AsesorDeOportunidad } from '../../components/crm/AsesorDeOportunidad';
+import { CreditoVinculado } from '../../components/crm/CreditoVinculado';
 import { MoverEtapa } from '../../components/crm/MoverEtapa';
 import { ESTILOS_CRM } from '../../components/crm/estilos';
-import { CANALES, fechaCorta, fechaDeAccion, fechaHora, formatoUSD, haceCuanto } from '../../components/crm/formato';
+import { CANALES, fechaCorta, fechaDeAccion, fechaHora, formatoEUR, haceCuanto } from '../../components/crm/formato';
 import type { CanalInteraccion, DireccionInteraccion } from '../../types/crm';
 import {
   MOTIVOS_PERDIDA,
@@ -91,20 +93,25 @@ const ESTILOS_FICHA = `
   .ficha-int-meta { font-size: 11px; color: var(--texto-mudo); margin-bottom: 2px; }
 `;
 
+type Aviso = { texto: string; error?: boolean } | null;
+
 export const O7_FichaPersona: React.FC = () => {
   const { id = '' } = useParams();
   const {
+    origen,
     personas,
     obtenerPersona,
     oportunidadesDePersona,
     interaccionesDePersona,
     historialDeOportunidad,
     ultimaActividad,
+    cargarFicha,
     registrarInteraccion,
     fijarProximaAccion,
   } = useCRM();
 
-  const [aviso, setAviso] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<Aviso>(null);
+  const [enviando, setEnviando] = useState(false);
   const [canal, setCanal] = useState<CanalInteraccion>('whatsapp');
   const [direccion, setDireccion] = useState<DireccionInteraccion>('saliente');
   const [nota, setNota] = useState('');
@@ -112,36 +119,80 @@ export const O7_FichaPersona: React.FC = () => {
   const [editando, setEditando] = useState<string | null>(null);
   const [accionTexto, setAccionTexto] = useState('');
   const [accionFecha, setAccionFecha] = useState('');
+  // Con servidor, la ficha completa (notas, historial, fusiones) se pide al entrar. `lectura` dice de qué persona
+  // es el último intento y cómo terminó: mientras no sea la de esta pantalla, se está leyendo.
+  const [lectura, setLectura] = useState<{ id: string; error?: string; estado?: number } | null>(null);
+  const [intento, setIntento] = useState(0);
+
+  useEffect(() => {
+    if (origen !== 'servidor') return;
+    let vigente = true;
+    void cargarFicha(id).then((resultado) => {
+      if (vigente) setLectura({ id, error: resultado.ok ? undefined : resultado.error, estado: resultado.estado });
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [origen, id, cargarFicha, intento]);
 
   const persona = obtenerPersona(id);
+  const leyendoFicha = origen === 'servidor' && lectura?.id !== id;
+  const falloLectura = origen === 'servidor' && lectura?.id === id && lectura.error !== undefined;
 
-  if (!persona) {
-    // Un id absorbido en una fusión no es un error: lleva a quien lo absorbió.
-    const absorbidaPor = personas.find((p) => p.fusionadaDesde?.some((f) => f.id === id));
+  // Un id absorbido en una fusión no es un error: lleva a quien lo absorbió (con servidor lo dice el propio registro).
+  const absorbidaPorId =
+    persona?.fusionadaCon ?? personas.find((p) => p.fusionadaDesde?.some((f) => f.id === id))?.id;
+  const absorbidaPor = absorbidaPorId ? obtenerPersona(absorbidaPorId) : undefined;
+
+  if (leyendoFicha || falloLectura || !persona || absorbidaPorId) {
     return (
       <div>
         <Link to="/admin/personas" className="ficha-volver">
           ← Personas
         </Link>
-        <div className="crm-vacio">
-          {absorbidaPor ? (
-            <>
-              <h3>Este registro se fusionó con otra persona</h3>
-              <p>
-                Tenía la misma cédula que <strong>{absorbidaPor.nombreApellido}</strong>. Su historial completo está
-                ahora en esa ficha, junto con la copia original de este registro.
-              </p>
-              <Link to={`/admin/personas/${absorbidaPor.id}`} className="crm-enlace-boton">
-                Ir a la ficha de {absorbidaPor.nombreApellido}
-              </Link>
-            </>
-          ) : (
-            <>
-              <h3>No se encontró la persona</h3>
-              <p>Puede que se hayan restablecido los datos de demostración.</p>
-            </>
-          )}
-        </div>
+        {leyendoFicha ? (
+          <p className="crm-cargando" role="status">
+            Cargando la ficha desde el servidor…
+          </p>
+        ) : (
+          <div className="crm-vacio">
+            {absorbidaPorId ? (
+              <>
+                <h3>Este registro se fusionó con otra persona</h3>
+                <p>
+                  Tenía la misma cédula que <strong>{absorbidaPor?.nombreApellido ?? 'otro registro'}</strong>. Su
+                  historial completo está ahora en esa ficha, junto con la copia original de este registro.
+                </p>
+                <Link to={`/admin/personas/${absorbidaPorId}`} className="crm-enlace-boton">
+                  Ir a la ficha{absorbidaPor ? ` de ${absorbidaPor.nombreApellido}` : ' vigente'}
+                </Link>
+              </>
+            ) : falloLectura && lectura?.estado !== 404 ? (
+              <>
+                <h3>No se pudo leer la ficha</h3>
+                <p>{lectura?.error}</p>
+                <Boton
+                  variant="primary"
+                  onClick={() => {
+                    setLectura(null);
+                    setIntento((n) => n + 1);
+                  }}
+                >
+                  Reintentar
+                </Boton>
+              </>
+            ) : (
+              <>
+                <h3>No se encontró la persona</h3>
+                <p>
+                  {origen === 'servidor'
+                    ? 'No existe, o todas sus oportunidades las atiende otro asesor.'
+                    : 'Puede que se hayan restablecido los datos de demostración.'}
+                </p>
+              </>
+            )}
+          </div>
+        )}
         <style>{ESTILOS_CRM}</style>
         <style>{ESTILOS_FICHA}</style>
       </div>
@@ -162,17 +213,24 @@ export const O7_FichaPersona: React.FC = () => {
     return o ? `${o.vehiculoResumen.marca} ${o.vehiculoResumen.modelo}` : null;
   };
 
-  const guardarNota = () => {
+  const guardarNota = async () => {
     if (!nota.trim()) return;
-    registrarInteraccion({
+    setEnviando(true);
+    const resultado = await registrarInteraccion({
       personaId: persona.id,
       oportunidadId: oportunidadNota || undefined,
       canal,
       direccion,
       nota,
     });
-    setNota('');
-    setAviso('Interacción registrada.');
+    setEnviando(false);
+    if (resultado.ok) {
+      setNota('');
+      setAviso({ texto: 'Interacción registrada.' });
+    } else {
+      // La nota escrita se conserva para reintentar.
+      setAviso({ texto: resultado.error ?? 'No se pudo registrar la interacción.', error: true });
+    }
   };
 
   const abrirEdicion = (oportunidadId: string, texto?: string, fecha?: string) => {
@@ -181,11 +239,17 @@ export const O7_FichaPersona: React.FC = () => {
     setAccionFecha(fecha ?? '');
   };
 
-  const guardarAccion = (oportunidadId: string) => {
+  const guardarAccion = async (oportunidadId: string) => {
     if (!accionTexto.trim() || !accionFecha) return;
-    fijarProximaAccion(oportunidadId, accionTexto.trim(), accionFecha);
-    setEditando(null);
-    setAviso('Próxima acción guardada.');
+    setEnviando(true);
+    const resultado = await fijarProximaAccion(oportunidadId, accionTexto.trim(), accionFecha);
+    setEnviando(false);
+    if (resultado.ok) {
+      setEditando(null);
+      setAviso({ texto: 'Próxima acción guardada.' });
+    } else {
+      setAviso({ texto: resultado.error ?? 'No se pudo guardar la próxima acción.', error: true });
+    }
   };
 
   return (
@@ -195,8 +259,8 @@ export const O7_FichaPersona: React.FC = () => {
       </Link>
 
       {aviso && (
-        <div className="crm-aviso" role="status">
-          {aviso}
+        <div className={`crm-aviso ${aviso.error ? 'error' : ''}`} role={aviso.error ? 'alert' : 'status'}>
+          {aviso.texto}
           <button type="button" onClick={() => setAviso(null)} aria-label="Cerrar aviso">
             ✕
           </button>
@@ -303,14 +367,17 @@ export const O7_FichaPersona: React.FC = () => {
                       {o.vehiculoResumen.anio})
                     </div>
                     <div className="ficha-op-valor">
-                      {formatoUSD(o.valorEstimadoUSD)} · {o.modalidadPago}
+                      {formatoEUR(o.valorEstimadoUSD)} · {o.modalidadPago}
                     </div>
                   </div>
                   <div className="ficha-op-badges">
                     <span className={`crm-badge etapa-${o.etapa}`}>{def.nombre}</span>
+                    <CreditoVinculado oportunidad={o} />
                     {estancada && <span className="crm-badge estancada">⚠ Estancada</span>}
                   </div>
                 </div>
+
+                <AsesorDeOportunidad oportunidad={o} />
 
                 <div className="crm-mudo ficha-op-fechas">
                   Abierta el {fechaCorta(o.fechaCreacion)}
@@ -346,12 +413,17 @@ export const O7_FichaPersona: React.FC = () => {
                       <Boton
                         variant="primary"
                         size="small"
-                        onClick={() => guardarAccion(o.id)}
-                        disabled={!accionTexto.trim() || !accionFecha}
+                        onClick={() => void guardarAccion(o.id)}
+                        disabled={!accionTexto.trim() || !accionFecha || enviando}
                       >
-                        Guardar
+                        {enviando ? 'Guardando…' : 'Guardar'}
                       </Boton>
-                      <button type="button" className="mover-cancelar" onClick={() => setEditando(null)}>
+                      <button
+                        type="button"
+                        className="mover-cancelar"
+                        onClick={() => setEditando(null)}
+                        disabled={enviando}
+                      >
                         Cancelar
                       </button>
                     </div>
@@ -377,7 +449,7 @@ export const O7_FichaPersona: React.FC = () => {
                   ))}
 
                 <div className="ficha-op-mover">
-                  <MoverEtapa oportunidad={o} onHecho={(m) => setAviso(`La oportunidad ${m}`)} />
+                  <MoverEtapa oportunidad={o} onHecho={(m) => setAviso({ texto: `La oportunidad ${m}` })} />
                 </div>
 
                 <details className="ficha-historial">
@@ -444,8 +516,8 @@ export const O7_FichaPersona: React.FC = () => {
             value={nota}
             onChange={(e) => setNota(e.target.value)}
           />
-          <Boton variant="primary" size="small" onClick={guardarNota} disabled={!nota.trim()}>
-            Registrar
+          <Boton variant="primary" size="small" onClick={() => void guardarNota()} disabled={!nota.trim() || enviando}>
+            {enviando ? 'Guardando…' : 'Registrar'}
           </Boton>
         </div>
 

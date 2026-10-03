@@ -1,6 +1,6 @@
 package com.wamma.crm;
 
-import jakarta.servlet.http.HttpServletRequest;
+import com.wamma.platform.web.RequestInfo;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,15 +33,9 @@ public class PublicAppointmentController {
 
     @PostMapping("/v1/citas")
     public ResponseEntity<AppointmentService.ScheduleResult> createAppointment(
-            @RequestBody CreateAppointmentRequest request,
-            HttpServletRequest servletRequest) {
-        String clientIp = servletRequest.getHeader("X-Forwarded-For");
-        if (clientIp == null || clientIp.isBlank()) {
-            clientIp = servletRequest.getRemoteAddr();
-        } else if (clientIp.contains(",")) {
-            clientIp = clientIp.split(",")[0].trim();
-        }
-
+            @RequestBody CreateAppointmentRequest request) {
+        // La IP del límite es la misma de la bitácora y del ingreso: la que resuelve el servidor
+        // tras el proxy. Leer X-Forwarded-For a mano dejaría al cliente elegir su propia IP.
         AppointmentService.ScheduleResult result = appointmentService.schedule(
                 request.nombreApellido(),
                 request.telefonoWhatsApp(),
@@ -51,7 +45,7 @@ public class PublicAppointmentController {
                 request.modalidadPago(),
                 request.vehiculoId(),
                 request.vehiculoCodigo(),
-                clientIp
+                RequestInfo.clientIp()
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(result);

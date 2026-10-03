@@ -200,9 +200,20 @@ delete from linea_asiento where asiento_id = '00000000-0000-0000-0000-0000000000
 -- @error ledger: TRUNCATE del ledger
 truncate linea_asiento;
 -- @error cifras: plazo de credito cero
-insert into solicitud_credito (numero_solicitud, oportunidad_id, persona_id, vehiculo_id, monto_solicitado, cuota_inicial, plazo_meses, tasa_bcv, fecha_tasa, datos_laborales_json, datos_financieros_json, capacidad_pago_mensual) values ('ENS-S1', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003', 1, 0, 0, 1, current_date, '{}', '{}', 0);
+insert into solicitud_credito (numero_solicitud, oportunidad_id, persona_id, vehiculo_id, monto_solicitado, cuota_inicial, plazo_meses, tasa_bcv, fecha_tasa, expediente_cifrado, capacidad_pago_mensual) values ('ENS-S1', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003', 1, 0, 0, 1, current_date, '\x01'::bytea, 0);
 -- @ok cifras: un plazo que no estaba en la lista inventada (36 meses) ya no se rechaza
-insert into solicitud_credito (numero_solicitud, oportunidad_id, persona_id, vehiculo_id, monto_solicitado, cuota_inicial, plazo_meses, tasa_bcv, fecha_tasa, datos_laborales_json, datos_financieros_json, capacidad_pago_mensual) values ('ENS-S2', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003', 1, 0, 36, 1, current_date, '{}', '{}', 0);
+insert into solicitud_credito (numero_solicitud, oportunidad_id, persona_id, vehiculo_id, monto_solicitado, cuota_inicial, plazo_meses, tasa_bcv, fecha_tasa, expediente_cifrado, capacidad_pago_mensual) values ('ENS-S2', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003', 1, 0, 36, 1, current_date, '\x01'::bytea, 0);
+-- @verdad privacidad: la solicitud de credito no guarda el expediente en JSON legible (V0019)
+select not exists (select 1 from information_schema.columns where table_schema = current_schema()
+  and table_name = 'solicitud_credito' and data_type in ('json', 'jsonb'));
+-- @error privacidad: solicitud sin expediente cifrado
+insert into solicitud_credito (numero_solicitud, oportunidad_id, persona_id, vehiculo_id, monto_solicitado, cuota_inicial, plazo_meses, tasa_bcv, fecha_tasa, capacidad_pago_mensual) values ('ENS-S3', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003', 1, 0, 24, 1, current_date, 0);
+-- @error recaudos: una URL no es una clave del contenedor privado (D-59)
+insert into solicitud_recaudo (solicitud_id, tipo_documento, archivo_clave)
+select id, 'cedula', 'https://ejemplo.invalid/storage/v1/object/public/vehiculos/recaudos/cedula.jpg' from solicitud_credito where numero_solicitud = 'ENS-S2';
+-- @ok recaudos: clave del contenedor privado, bajo la oportunidad
+insert into solicitud_recaudo (solicitud_id, tipo_documento, archivo_clave)
+select id, 'cedula', 'recaudos/00000000-0000-0000-0000-000000000006/00000000-0000-0000-0000-000000000099.pdf' from solicitud_credito where numero_solicitud = 'ENS-S2';
 -- @error dinero: limite aprobado con moneda pero sin tasa ni fecha
 insert into decision_riesgo (solicitud_id, score_interno, riesgo_nivel, resultado, limite_aprobado, justificacion, moneda)
 select id, 1, 'bajo', 'aprobado', 100, 'ensayo', 'USD' from solicitud_credito where numero_solicitud = 'ENS-S2';
@@ -274,3 +285,36 @@ select tasa_ves = 45.12345678 from tasa_cambio_bcv where fecha = current_date an
 insert into tasa_cambio_bcv (fecha, moneda, tasa_ves, fuente) values (current_date, 'EUR', 46, 'BCV');
 -- @error tasa: el bolivar no tiene tasa contra si mismo
 insert into tasa_cambio_bcv (fecha, moneda, tasa_ves, fuente) values (current_date - 1, 'VES', 1, 'BCV');
+-- @verdad acceso: ninguna tabla del esquema se queda sin GRANT para wamma_app (spec 011 §6.6)
+-- Contraparte de la comprobación de RLS de más arriba. Sin ella, una tabla nueva sin permisos
+-- solo se descubre en ejecución y sobre esa tabla concreta, con el backend ya desplegado.
+select not exists (
+  select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = current_schema() and c.relkind in ('r', 'p')
+    and c.relname <> 'flyway_schema_history'
+    and not (has_table_privilege('wamma_app', c.oid, 'SELECT')
+         and has_table_privilege('wamma_app', c.oid, 'INSERT')));
+-- @ok acceso: tabla de usar y tirar, sin permisos, para probar que la comprobación sabe fallar
+create table zz_comprobacion_sin_permisos (id integer);
+revoke all on zz_comprobacion_sin_permisos from wamma_app;
+-- @verdad acceso: la comprobación anterior detecta esa tabla
+-- Una comprobación universal que nunca se ha visto fallar no protege de nada.
+select exists (
+  select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = current_schema() and c.relkind in ('r', 'p')
+    and c.relname <> 'flyway_schema_history'
+    and not (has_table_privilege('wamma_app', c.oid, 'SELECT')
+         and has_table_privilege('wamma_app', c.oid, 'INSERT')));
+-- @ok acceso: se retira la tabla de usar y tirar
+drop table zz_comprobacion_sin_permisos;
+-- @verdad clave: evidencia y recaudo guardan la clave del objeto, no la URL (spec 011 §6.5)
+select to_regclass(format('%I.inspeccion_punto', current_schema())) is not null
+   and exists (select 1 from information_schema.columns
+               where table_schema = current_schema() and table_name = 'inspeccion_punto'
+                 and column_name = 'evidencia_clave')
+   and exists (select 1 from information_schema.columns
+               where table_schema = current_schema() and table_name = 'solicitud_recaudo'
+                 and column_name = 'archivo_clave')
+   and not exists (select 1 from information_schema.columns
+               where table_schema = current_schema()
+                 and column_name in ('evidencia_url', 'archivo_url'));

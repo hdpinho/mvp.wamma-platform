@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import type { VehiculoData } from '../types/vehiculo';
-import { useCRM, CORREO_NOTIFICACIONES_WAMMA } from '../state/crmContexto';
+import { useCRM } from '../state/crmContexto';
+import type { ResultadoAgendamiento } from '../state/crmContexto';
 import { Boton } from './Boton';
 import { validarMovil, validarCorreo } from '../validacion/venezuela';
-import { cuotaDesde } from '../mocks/financiamiento';
+import { useParametros } from '../state/parametrosContexto';
 
 interface ModalAgendarCitaProps {
   vehiculo: VehiculoData;
@@ -21,6 +22,9 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
   onExito,
 }) => {
   const { agendarCita } = useCRM();
+  const { cuotaDesde } = useParametros();
+  // Nula si los parámetros vigentes no están disponibles: entonces se muestra el precio, no una cuota inventada.
+  const cuotaReferencia = cuotaDesde(vehiculo.precio);
 
   const [nombreApellido, setNombreApellido] = useState('');
   const [telefonoWhatsApp, setTelefonoWhatsApp] = useState('');
@@ -34,9 +38,10 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
 
   const [franjaHoraria, setFranjaHoraria] = useState<'Mañana' | 'Tarde'>('Mañana');
   const [metodoPago] = useState<'Contado' | 'Financiamiento'>('Financiamiento');
-  const [rangoIngresos, setRangoIngresos] = useState('');
   const [errores, setErrores] = useState<Record<string, string>>({});
-  const [citaConfirmada, setCitaConfirmada] = useState<boolean>(false);
+  // Lo que quedó registrado, tal como lo confirmó el servidor: solo entonces se muestra el éxito.
+  const [citaRegistrada, setCitaRegistrada] = useState<ResultadoAgendamiento['cita'] | null>(null);
+  const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
   const [enviando, setEnviando] = useState<boolean>(false);
 
   const validar = (): boolean => {
@@ -67,32 +72,35 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
     return Object.keys(nuevosErrores).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validar()) return;
 
     setEnviando(true);
+    setErrorEnvio(null);
 
-    // Simular un breve tiempo de red
-    setTimeout(() => {
-      // La cédula NO se pide aquí: llega al confirmar la cita (spec 010 §8.5).
-      // La persona se resuelve por teléfono normalizado hasta entonces.
-      agendarCita({
-        nombreApellido: nombreApellido.trim(),
-        telefonoWhatsApp: telefonoWhatsApp.trim(),
-        correo: correo.trim() || undefined,
-        diaPreferencia,
-        franjaHoraria,
-        modalidadPago: metodoPago,
-        vehiculo,
-      });
+    // La cédula NO se pide aquí: llega al confirmar la cita (spec 010 §8.5).
+    // La persona se resuelve por teléfono normalizado hasta entonces.
+    const resultado = await agendarCita({
+      nombreApellido: nombreApellido.trim(),
+      telefonoWhatsApp: telefonoWhatsApp.trim(),
+      correo: correo.trim() || undefined,
+      diaPreferencia,
+      franjaHoraria,
+      modalidadPago: metodoPago,
+      vehiculo,
+    });
+    setEnviando(false);
 
-      setEnviando(false);
-      setCitaConfirmada(true);
-      if (onExito) {
-        onExito();
-      }
-    }, 600);
+    // Sin la confirmación del servidor no hay cita: el cliente ve por qué y puede reintentar.
+    if (!resultado.ok || !resultado.cita) {
+      setErrorEnvio(resultado.error ?? 'No se pudo agendar la cita. Inténtalo de nuevo.');
+      return;
+    }
+    setCitaRegistrada(resultado.cita);
+    if (onExito) {
+      onExito();
+    }
   };
 
   const formatoEUR = (v: number) =>
@@ -109,7 +117,7 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
         <div className="modal-header">
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0 }}>
-              {citaConfirmada ? '¡Cita Agendada Exitosamente!' : 'Agendar Cita para Ver el Vehículo'}
+              {citaRegistrada ? '¡Cita agendada!' : 'Agendar Cita para Ver el Vehículo'}
             </h2>
             <p style={{ fontSize: '13px', color: 'var(--texto-secundario)', margin: '4px 0 0' }}>
               {vehiculo.marca} {vehiculo.modelo} {vehiculo.version} ({vehiculo.anio})
@@ -128,14 +136,16 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
         {/* Resumen visual del vehículo */}
         <div className="modal-vehiculo-resumen">
           <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--naranja-700)' }}>
-            Cuota desde {formatoEUR(cuotaDesde(vehiculo.precio))} /mes
+            {cuotaReferencia !== null
+              ? `Cuota desde ${formatoEUR(cuotaReferencia)} /mes`
+              : `Precio ${formatoEUR(vehiculo.precio)}`}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--naranja-600)', fontWeight: 600 }}>
-            ✓ Certificado Con Estándar WAMMA
+            ✓ Inspección 240 puntos
           </div>
         </div>
 
-        {!citaConfirmada ? (
+        {!citaRegistrada ? (
           <form onSubmit={handleSubmit} className="modal-form">
             <div className="form-group">
               <label htmlFor="nombreApellido">Nombre y Apellido *</label>
@@ -215,20 +225,6 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="rangoIngresos">Rango de ingresos mensuales (opcional)</label>
-              <select
-                id="rangoIngresos"
-                value={rangoIngresos}
-                onChange={(e) => setRangoIngresos(e.target.value)}
-              >
-                <option value="">Selecciona tu rango</option>
-                <option value="1000-1300">€1.000 – €1.300 / mes</option>
-                <option value="1301-2000">€1.301 – €2.000 / mes</option>
-                <option value="2001+">Más de €2.000 / mes</option>
-              </select>
-            </div>
-
             {/* Sección de Requisitos para el Financiamiento (Digital y Físico) */}
             <div className="seccion-requisitos-financiamiento">
               <div className="requisitos-header">
@@ -285,7 +281,7 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
                   <div className="requisito-item">
                     <div className="requisito-check">✓</div>
                     <div>
-                      <strong>Teléfono móvil con WhatsApp activo:</strong> Para recibir y validar tu código de seguridad OTP durante la cita.
+                      <strong>Teléfono móvil con WhatsApp activo:</strong> Para que tu asesor coordine contigo la visita y te envíe el enlace personal de la solicitud.
                     </div>
                   </div>
                 </div>
@@ -300,6 +296,12 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
               ℹ️ Al agendar esta cita, el vehículo quedará reservado temporalmente y el botón de agendar
               se desactivará para otros usuarios mientras coordinamos tu visita.
             </div>
+
+            {errorEnvio && (
+              <div className="alerta-error-envio" role="alert">
+                {errorEnvio}
+              </div>
+            )}
 
             <div className="modal-acciones">
               <Boton variant="secondary" type="button" onClick={onCerrar} disabled={enviando}>
@@ -317,19 +319,9 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
               ¡Tu solicitud ha sido recibida!
             </h3>
             <p style={{ fontSize: '14px', color: 'var(--texto-secundario)', lineHeight: 1.5 }}>
-              Hemos registrado tu cita para el <strong>{diaPreferencia}</strong> en turno{' '}
-              <strong>{franjaHoraria.toLowerCase()}</strong>.
+              Hemos registrado tu cita para el <strong>{citaRegistrada.diaPreferencia}</strong> en turno{' '}
+              <strong>{citaRegistrada.franjaHoraria.toLowerCase()}</strong>.
             </p>
-
-            <div className="caja-notificacion-email">
-              <div style={{ fontWeight: 600, color: 'var(--naranja-700)', marginBottom: '4px' }}>
-                📧 Notificación enviada al equipo WAMMA
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--texto-secundario)' }}>
-                Se despachó el reporte inmediato a <code>{CORREO_NOTIFICACIONES_WAMMA}</code> con
-                todos tus datos y el detalle del vehículo.
-              </div>
-            </div>
 
               <div className="caja-whatsapp">
                 <div style={{ fontWeight: 600, color: '#0F6E56', marginBottom: '4px' }}>
@@ -482,6 +474,15 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
           border-radius: var(--radius-sm);
           font-size: 12px;
           color: var(--naranja-700);
+          line-height: 1.4;
+        }
+        .alerta-error-envio {
+          background-color: var(--peligro-fondo);
+          border: 1px solid var(--peligro-texto);
+          padding: 10px 12px;
+          border-radius: var(--radius-sm);
+          font-size: 13px;
+          color: var(--peligro-texto);
           line-height: 1.4;
         }
         .modal-acciones {

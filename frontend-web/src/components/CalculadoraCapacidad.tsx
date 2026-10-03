@@ -5,8 +5,7 @@ import {
   calcularCuotaMaxima,
   formatoEUR,
 } from '../services/financiamientoMotor';
-import { cuotaDesde } from '../mocks/financiamiento';
-import { useParametrosFinanciamiento } from '../services/parametrosFinanciamiento';
+import { useParametros } from '../state/parametrosContexto';
 import { useVehiculos } from '../state/vehiculosContexto';
 
 interface CalculadoraCapacidadProps {
@@ -16,7 +15,7 @@ interface CalculadoraCapacidadProps {
 export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rateBCV: _rateBCV = 0 }) => {
   const navigate = useNavigate();
   const { vehiculos } = useVehiculos();
-  const { parametros, error } = useParametrosFinanciamiento();
+  const { parametros, error, cargando, cuotaDesde } = useParametros();
 
   const [ingresoInput, setIngresoInput] = useState<string>('1000');
 
@@ -54,8 +53,11 @@ export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rate
   const califican = useMemo(() => {
     if (!ingresoValido || cuotaMaxima <= 0) return 0;
     const disponibles = vehiculos.filter((v) => v.estadoDisponibilidad !== 'vendido');
-    return disponibles.filter((v) => cuotaDesde(v.precio) <= cuotaMaxima).length;
-  }, [vehiculos, ingresoValido, cuotaMaxima]);
+    return disponibles.filter((v) => {
+      const cuota = cuotaDesde(v.precio);
+      return cuota !== null && cuota <= cuotaMaxima;
+    }).length;
+  }, [vehiculos, ingresoValido, cuotaMaxima, cuotaDesde]);
 
   const navegarACatalogoFiltrado = (cuota: number) => {
     const redondeado = Math.round(cuota);
@@ -98,7 +100,12 @@ export const CalculadoraCapacidad: React.FC<CalculadoraCapacidadProps> = ({ rate
       </div>
 
       {/* Estado: Parámetros no disponibles */}
-      {!calculoDisponible && (
+      {!calculoDisponible && cargando && (
+        <p role="status" style={{ fontSize: '12px', color: 'var(--texto-mudo)', margin: 0, textAlign: 'center' }}>
+          Cargando los parámetros de financiamiento…
+        </p>
+      )}
+      {!calculoDisponible && !cargando && (
         <div
           style={{
             backgroundColor: '#FFF7ED',

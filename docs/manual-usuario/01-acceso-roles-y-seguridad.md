@@ -180,7 +180,8 @@ Sección **Bitácora** del backoffice: quién hizo qué y cuándo, empezando por
 |---|---|---|
 | Usuario o contraseña incorrectos. | Ingreso | Alguno de los dos no coincide; por seguridad no se dice cuál. Revisa mayúsculas y teclado. A los 5 fallos seguidos, la cuenta se bloquea |
 | Demasiados intentos fallidos. Intenta de nuevo más tarde. | Ingreso | Cuenta bloqueada 15 minutos por 5 fallos seguidos, de contraseña o de código. Se desbloquea sola |
-| Hubo demasiados intentos de ingreso desde tu conexión. Espera unos minutos. | Ingreso | Muchos intentos desde la misma red en poco tiempo. Espera unos minutos |
+| Hubo demasiados intentos de ingreso. Vuelve a intentarlo en N segundos. | Ingreso | Tras un ingreso fallido, el siguiente intento con el mismo usuario o desde la misma red espera 1, 2, 4 y hasta 8 segundos (D-40). Tras 20 fallos seguidos la espera es de 10 minutos. Un ingreso correcto lo reinicia. Espera los segundos que indica y vuelve a intentarlo |
+| No se pudo determinar el origen de la petición, así que no se admite el ingreso. | Ingreso | El servidor no pudo leer la dirección de la conexión. No debería verse en el uso normal: avisar a soporte |
 | El código no es válido o ya venció. | Verificación | Código mal escrito, vencido o ya usado. Escribe el que muestra la app ahora o espera al siguiente |
 | La contraseña debe tener al menos 12 caracteres. | Crear o cambiar contraseña | Usa una frase más larga |
 | La contraseña no puede superar los 128 caracteres. | Crear o cambiar contraseña | Acórtala |

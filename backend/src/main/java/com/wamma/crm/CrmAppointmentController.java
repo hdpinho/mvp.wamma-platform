@@ -1,7 +1,7 @@
 package com.wamma.crm;
 
-import com.wamma.inventory.VehicleRepository;
-import com.wamma.platform.auth.CurrentUser;
+import com.wamma.crm.CrmDtos.AppointmentDto;
+import com.wamma.platform.web.ApiException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,32 +12,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 public class CrmAppointmentController {
-
-    public record CrmAppointmentDto(
-            UUID id,
-            UUID personaId,
-            String nombrePersona,
-            String telefonoPersona,
-            String correoPersona,
-            UUID oportunidadId,
-            UUID vehiculoId,
-            String vehiculoCodigo,
-            String vehiculoTitulo,
-            LocalDate diaPreferencia,
-            String franjaHoraria,
-            String estado,
-            String notas,
-            java.time.Instant creadoEn
-    ) {
-    }
 
     public record ConfirmAppointmentRequest(
             String cedula,
@@ -55,58 +34,32 @@ public class CrmAppointmentController {
 
     private final AppointmentService appointmentService;
     private final AppointmentRepository appointments;
-    private final PersonRepository persons;
-    private final VehicleRepository vehicles;
+    private final CrmAccess access;
+    private final CrmMapper mapper;
 
     public CrmAppointmentController(AppointmentService appointmentService, AppointmentRepository appointments,
-                                    PersonRepository persons, VehicleRepository vehicles) {
+                                    CrmAccess access, CrmMapper mapper) {
         this.appointmentService = appointmentService;
         this.appointments = appointments;
-        this.persons = persons;
-        this.vehicles = vehicles;
+        this.access = access;
+        this.mapper = mapper;
     }
 
+    /** Se opera una cita si se ve su oportunidad: la del asesor o una sin dueño (plan §7). */
+    private void requireVisibleAppointment(UUID id) {
+        AppointmentRecord app = appointments.findById(id)
+                .orElseThrow(() -> ApiException.notFound("Cita no encontrada", "No existe la cita " + id));
+        access.visibleOpportunity(app.opportunityId());
+    }
+
+    /** La bandeja: con {@code crm.ver_propias}, las citas de sus oportunidades y las sin dueño (D-48). */
     @GetMapping("/v1/crm/citas")
     @PreAuthorize("hasAnyAuthority('crm.ver_propias', 'crm.ver_todas')")
-    public ResponseEntity<List<CrmAppointmentDto>> listAppointments(
+    public ResponseEntity<List<AppointmentDto>> listAppointments(
             @RequestParam(required = false) String estado) {
-        boolean viewAll = CurrentUser.hasAuthority("crm.ver_todas");
-        UUID advisorId = CurrentUser.id().orElse(null);
-
-        List<AppointmentRecord> list = appointments.list(estado, advisorId, viewAll);
-        Map<UUID, VehicleRepository.VehicleRecord> vehicleMap = vehicles.findAll().stream()
-                .collect(Collectors.toMap(VehicleRepository.VehicleRecord::id, v -> v, (a, b) -> a));
-
-        List<CrmAppointmentDto> dtos = new ArrayList<>();
-        for (AppointmentRecord a : list) {
-            PersonRecord p = persons.findById(a.personId()).orElse(null);
-            VehicleRepository.VehicleRecord v = vehicleMap.get(a.vehicleId());
-
-            String personName = p != null ? p.fullName() : "Desconocido";
-            String personPhone = p != null ? p.primaryPhone() : null;
-            String personEmail = p != null ? p.email() : null;
-            String vehicleCode = v != null ? v.code() : null;
-            String vehicleTitle = v != null ? (v.brand() + " " + v.model() + " " + v.year()) : null;
-
-            dtos.add(new CrmAppointmentDto(
-                    a.id(),
-                    a.personId(),
-                    personName,
-                    personPhone,
-                    personEmail,
-                    a.opportunityId(),
-                    a.vehicleId(),
-                    vehicleCode,
-                    vehicleTitle,
-                    a.preferredDate(),
-                    a.slot(),
-                    a.status(),
-                    a.notes(),
-                    a.createdAt()
-            ));
-        }
-
-        return ResponseEntity.ok(dtos);
+        return ResponseEntity.ok(appointments.listViews(estado, access.advisorScope()).stream()
+                .map(mapper::appointment)
+                .toList());
     }
 
     @PostMapping("/v1/crm/citas/{id}/confirmacion")
@@ -114,6 +67,7 @@ public class CrmAppointmentController {
     public ResponseEntity<AppointmentService.ConfirmResult> confirmAppointment(
             @PathVariable UUID id,
             @RequestBody ConfirmAppointmentRequest request) {
+        requireVisibleAppointment(id);
         return ResponseEntity.ok(appointmentService.confirm(
                 id,
                 request.cedula(),
@@ -128,6 +82,7 @@ public class CrmAppointmentController {
     public ResponseEntity<Void> discardAppointment(
             @PathVariable UUID id,
             @RequestBody DiscardAppointmentRequest request) {
+        requireVisibleAppointment(id);
         appointmentService.discard(id, request.motivo(), request.detalle());
         return ResponseEntity.noContent().build();
     }
@@ -135,6 +90,7 @@ public class CrmAppointmentController {
     @PostMapping("/v1/crm/citas/{id}/asistencia")
     @PreAuthorize("hasAuthority('crm.operar')")
     public ResponseEntity<Void> attendAppointment(@PathVariable UUID id) {
+        requireVisibleAppointment(id);
         appointmentService.attend(id);
         return ResponseEntity.noContent().build();
     }

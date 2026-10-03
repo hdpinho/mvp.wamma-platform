@@ -1,0 +1,13 @@
+{
+  "id": "5e1c2a70-8d3b-4f63-a1f2-3b1c9e0d2222",
+  "nombreApellido": "Carlos Rodríguez",
+  "cedula": "V12345678",
+  "telefonoPrincipal": "+584121234567",
+  "telefonos": ["+584121234567", "+584141112233"],
+  "correo": "carlos@ejemplo.invalid",
+  "canalOrigen": "web",
+  "estado": "activo",
+  "criterioResolucion": "cedula",
+  "creadoEn": "2026-09-28T10:00:00Z",
+  "ultimaActividadEn": "2026-09-30T15:20:00Z"
+}

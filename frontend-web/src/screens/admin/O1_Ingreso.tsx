@@ -89,32 +89,6 @@ export const O1_Ingreso: React.FC = () => {
 
   const avisoVisible = aviso ?? (paso.tipo === 'credenciales' && motivoSalida ? AVISOS_SALIDA[motivoSalida] : null);
 
-  const entrarDirectoDev = () => {
-    iniciar('dev-admin-token', {
-      id: '00000000-0000-0000-0000-000000000001',
-      usuario: 'admin.local',
-      nombre: 'Admin',
-      apellido: 'Local',
-      correo: 'admin@local.invalid',
-      roles: ['ADMINISTRADOR'],
-      permisos: [
-        'usuarios.gestionar',
-        'auditoria.ver',
-        'parametros.gestionar',
-        'tasa_bcv.registrar',
-        'inventario.ver',
-        'inventario.gestionar',
-        'crm.ver_propias',
-        'crm.ver_todas',
-        'crm.operar',
-        'crm.asignar',
-        'cotizador.usar',
-        'credito.revisar',
-        'credito.ver',
-      ],
-    });
-  };
-
   let contenido: React.ReactNode;
   if (estado === 'sin_servidor') {
     contenido = <SinServidor />;
@@ -125,7 +99,7 @@ export const O1_Ingreso: React.FC = () => {
       </p>
     );
   } else if (paso.tipo === 'credenciales') {
-    contenido = <FormCredenciales alAvanzar={avanzar} alEntrarDirecto={entrarDirectoDev} />;
+    contenido = <FormCredenciales alAvanzar={avanzar} />;
   } else if (paso.tipo === 'cambiar_contrasena') {
     contenido = (
       <FormContrasenaInicial token={paso.token} alAvanzar={(s) => avanzar(paso.token, s)} alVencer={vencido} />
@@ -182,20 +156,20 @@ const Mensaje: React.FC<{ tipo: 'error' | 'info'; children: React.ReactNode }> =
 
 const SinServidor: React.FC = () => (
   <div>
-    <h1 className="ingreso-titulo">Portal Administrativo</h1>
+    <h1 className="ingreso-titulo">Modo maqueta</h1>
     <p className="ingreso-sub">
-      Acceso a la plataforma de gestión operativa y comercial de WAMMA.
+      Esta copia del sitio no está conectada a un servidor: es una demostración con datos simulados. El
+      backoffice se abre sin inicio de sesión y nada de lo que hagas se guarda fuera de este navegador.
     </p>
     <Link to="/admin" className="ingreso-boton-enlace">
-      Entrar al Portal
+      Abrir la demostración del backoffice
     </Link>
   </div>
 );
 
-const FormCredenciales: React.FC<{
-  alAvanzar: (token: string, siguiente: SiguientePaso) => void;
-  alEntrarDirecto?: () => void;
-}> = ({ alAvanzar, alEntrarDirecto }) => {
+const FormCredenciales: React.FC<{ alAvanzar: (token: string, siguiente: SiguientePaso) => void }> = ({
+  alAvanzar,
+}) => {
   const [usuario, setUsuario] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -256,27 +230,6 @@ const FormCredenciales: React.FC<{
       <Boton type="submit" fullWidth loading={enviando} disabled={!usuario.trim() || !contrasena}>
         Ingresar
       </Boton>
-      {alEntrarDirecto && (
-        <div style={{ marginTop: 'var(--space-md)' }}>
-          <button
-            type="button"
-            onClick={alEntrarDirecto}
-            style={{
-              width: '100%',
-              padding: '9px 14px',
-              backgroundColor: 'var(--superficie)',
-              border: '1px dashed var(--naranja-500)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--naranja-700)',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            ⚡ Ingreso Rápido Local (Admin)
-          </button>
-        </div>
-      )}
       {despertando && (
         <p className="ingreso-nota" role="status">
           Despertando el servidor; puede tardar cerca de un minuto…

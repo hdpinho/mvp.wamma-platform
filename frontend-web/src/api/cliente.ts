@@ -10,10 +10,15 @@
  * (plan 001 §5).
  */
 
+import { metodoDe } from './metodoHttp';
+
 const URL_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '');
 
 /** Falso cuando el frontend corre sin backend (modo maqueta). */
 export const apiConfigurada = URL_BASE !== '';
+
+/** Dirección completa de una ruta de la API, para abrirla fuera de `pedirJson` (enlaces firmados). */
+export const urlDeApi = (ruta: string): string => `${URL_BASE}${ruta}`;
 
 const CLAVE_TOKEN = 'wamma_sesion';
 
@@ -63,6 +68,13 @@ export class ErrorApi extends Error {
   }
 }
 
+/**
+ * Lo que se le dice a la persona cuando una petición falla: el motivo que dio el servidor (409, 422…) o, si no hubo
+ * respuesta, que no se pudo contactar. Nunca el texto interno de una excepción.
+ */
+export const mensajeDeError = (e: unknown, alternativo = 'No se pudo contactar al servidor.'): string =>
+  e instanceof ErrorApi ? e.detalle || e.titulo || alternativo : alternativo;
+
 interface OpcionesPeticion extends Omit<RequestInit, 'body' | 'headers' | 'signal'> {
   cuerpo?: unknown;
   /** Para subir archivos. El navegador pone el Content-Type con su separador. */
@@ -85,6 +97,8 @@ export async function pedirJson<T>(ruta: string, opciones: OpcionesPeticion = {}
     throw new ErrorApi(0, 'Servidor no configurado', 'Falta la variable VITE_API_URL.');
   }
   const { cuerpo, formulario, cabeceras, tiempoLimiteMs = 30_000, token, ...resto } = opciones;
+  // Con cuerpo, el método por omisión es POST (hallazgo F-01): lo decide `metodoDe`, que además impide un GET con cuerpo.
+  const metodo = metodoDe({ method: resto.method, cuerpo, formulario });
   const usaSesion = token === undefined;
   const credencial = usaSesion ? tokenSesion : token;
   const controlador = new AbortController();
@@ -92,6 +106,7 @@ export async function pedirJson<T>(ruta: string, opciones: OpcionesPeticion = {}
   try {
     const respuesta = await fetch(`${URL_BASE}${ruta}`, {
       ...resto,
+      method: metodo,
       headers: {
         Accept: 'application/json',
         ...(cuerpo !== undefined ? { 'Content-Type': 'application/json' } : {}),

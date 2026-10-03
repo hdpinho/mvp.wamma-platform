@@ -1,19 +1,37 @@
 package com.wamma.credit.application;
 
+import com.wamma.crm.CaptureRateLimiter;
 import com.wamma.support.ApiIntegrationTest;
 import com.wamma.support.TestAccounts;
 import com.wamma.support.TestApi;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mock.web.MockHttpServletResponse;
 
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 class CreditApplicationIntegrationTest extends ApiIntegrationTest {
+
+    /** Cabecera JPEG real: el tipo de un recaudo se reconoce por el contenido. */
+    private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 16, 'J', 'F', 'I', 'F', 0};
+    private static final byte[] PDF = "%PDF-1.4\n% recaudo de prueba\n".getBytes(StandardCharsets.US_ASCII);
+
+    @Autowired
+    private CaptureRateLimiter captureRateLimiter;
+
+    @Autowired
+    private CreditApplicationRepository creditApplications;
 
     private TestAccounts.Account advisor;
     private UUID vehicleId;
@@ -23,6 +41,8 @@ class CreditApplicationIntegrationTest extends ApiIntegrationTest {
 
     @BeforeEach
     void setUpTestData() {
+        // Cada prueba agenda una cita desde la misma IP; el límite vive en memoria y se comparte.
+        captureRateLimiter.reset();
         advisor = accounts.createAndLogin("asesor_cred", "ASESOR_COMERCIAL");
 
         String uid = UUID.randomUUID().toString().substring(0, 6);
@@ -115,12 +135,408 @@ class CreditApplicationIntegrationTest extends ApiIntegrationTest {
 
     @Test
     void submitCreditApplicationFlowEndToEnd() {
-        String adminToken = accounts.adminToken();
+        String analystToken = accounts.createAndLogin("analista_cred", "ANALISTA_CREDITO").token();
 
         // 1. Enviar la solicitud de crédito con datos WMA-F-FIN-001
-        Map<String, Object> req = Map.ofEntries(
+        Map<String, Object> req = solicitudCompleta();
+
+        TestApi.Response submitRes = api.post("/v1/solicitudes-credito", null, req);
+        assertThat(submitRes.status()).isEqualTo(200);
+
+        String appId = submitRes.str("id");
+        String numeroSolicitud = submitRes.str("numeroSolicitud");
+        assertThat(appId).isNotBlank();
+        assertThat(numeroSolicitud).startsWith("SOL-");
+        assertThat(submitRes.str("estado")).isEqualTo("enviada");
+
+        // 2. Verificar que el token quedó usado y no se puede reutilizar
+        TestApi.Response duplicateRes = api.post("/v1/solicitudes-credito", null, req);
+        assertThat(duplicateRes.status()).isEqualTo(422);
+
+        // 3. No hay consulta pública por número: es secuencial y permitiría enumerar solicitudes
+        assertThat(api.get("/v1/solicitudes-credito/" + numeroSolicitud + "/estado", null).status()).isEqualTo(401);
+
+        // 4. Backoffice: Listado de solicitudes de crédito
+        TestApi.Response listRes = api.get("/v1/solicitudes-credito", analystToken);
+        assertThat(listRes.status()).isEqualTo(200);
+        List<Object> apps = listRes.list();
+        assertThat(apps).isNotEmpty();
+
+        // 5. Backoffice: Expediente digital completo
+        TestApi.Response detailRes = api.get("/v1/solicitudes-credito/" + appId, analystToken);
+        assertThat(detailRes.status()).isEqualTo(200);
+        assertThat(detailRes.str("numeroSolicitud")).isEqualTo(numeroSolicitud);
+        assertThat(detailRes.str("moneda")).isEqualTo("EUR");
+        List<?> recaudos = (List<?>) detailRes.map().get("recaudos");
+        assertThat(recaudos).hasSize(2);
+
+        // 6. Backoffice: Evaluar solicitud (dictamen del analista)
+        TestApi.Response evalRes = api.post("/v1/solicitudes-credito/" + appId + "/evaluacion",
+                analystToken, Map.of(
+                        "resultado", "aprobado",
+                        "limiteAprobado", 14400,
+                        "cuotaMaximaPermitida", 1000,
+                        "justificacion", "Cumple capacidad de pago y recaudos conformes"
+                ));
+        assertThat(evalRes.status()).isEqualTo(200);
+
+        // 7. Verificar que el estado cambió a 'aprobada'
+        TestApi.Response updatedDetailRes = api.get("/v1/solicitudes-credito/" + appId, analystToken);
+        assertThat(updatedDetailRes.str("estado")).isEqualTo("aprobada");
+        assertThat(updatedDetailRes.obj("decisionRiesgo").get("result")).isEqualTo("aprobado");
+        // D-63: el dictamen manual no trae puntajes ni nivel de riesgo, y no se inventan.
+        assertThat(updatedDetailRes.obj("decisionRiesgo").get("internalScore")).isNull();
+        assertThat(updatedDetailRes.obj("decisionRiesgo").get("riskLevel")).isNull();
+    }
+
+    // ── R3 · Integridad del crédito ────────────────────────────────────────────────────────
+
+    /** C-01, C-02, C-08: el servidor calcula monto, cuota y capacidad; lo que mande el navegador se ignora. */
+    @Test
+    void theServerCalculatesTheAmountThePaymentAndTheCapacityAndIgnoresWhatTheBrowserSends() {
+        Map<String, Object> req = new HashMap<>(solicitudCon(List.of()));
+        req.put("montoSolicitado", 1);
+        req.put("cuotaEstimada", 1);
+        req.put("capacidadPagoMensual", 99999);
+        req.put("frecuenciaPago", "Semanal");
+        TestApi.Response submitted = api.post("/v1/solicitudes-credito", null, req);
+        assertThat(submitted.status()).isEqualTo(200);
+
+        String analyst = accounts.createAndLogin("analista_calc", "ANALISTA_CREDITO").token();
+        TestApi.Response detail = api.get("/v1/solicitudes-credito/" + submitted.str("id"), analyst);
+        // Precio 18.000 − inicial 3.600 = 14.400 al 4 % mensual a 24 meses (sistema francés) = 944,45.
+        assertThat(new java.math.BigDecimal(detail.map().get("montoSolicitado").toString())).isEqualByComparingTo("14400.00");
+        assertThat(new java.math.BigDecimal(detail.map().get("cuotaEstimada").toString())).isEqualByComparingTo("944.45");
+        // 30 % del ingreso declarado (3.000), contado una sola vez.
+        assertThat(new java.math.BigDecimal(detail.map().get("capacidadPagoMensual").toString())).isEqualByComparingTo("900.00");
+        assertThat(detail.str("frecuenciaPago")).isEqualTo("Mensual");
+    }
+
+    @Test
+    void theDownPaymentAndTheIncomeAreValidatedByTheServerAndARejectionDoesNotSpendTheLink() {
+        // 20 % de 18.000 son 3.600: menos no se admite, y tampoco igualar o superar el precio.
+        for (int inicial : new int[]{3599, 0, 18000, 25000}) {
+            Map<String, Object> req = new HashMap<>(solicitudCon(List.of()));
+            req.put("cuotaInicial", inicial);
+            assertThat(api.post("/v1/solicitudes-credito", null, req).status()).as("inicial " + inicial).isEqualTo(422);
+        }
+        Map<String, Object> sinInicial = new HashMap<>(solicitudCon(List.of()));
+        sinInicial.remove("cuotaInicial");
+        assertThat(api.post("/v1/solicitudes-credito", null, sinInicial).status()).isEqualTo(422);
+
+        Map<String, Object> sinIngreso = new HashMap<>(solicitudCon(List.of()));
+        sinIngreso.put("datosFinancieros", Map.of("sueldoMensual", 0, "otrosIngresos", 500));
+        assertThat(api.post("/v1/solicitudes-credito", null, sinIngreso).status()).isEqualTo(422);
+
+        // El enlace sigue vigente y la solicitud correcta pasa.
+        assertThat(api.post("/v1/solicitudes-credito", null, solicitudCon(List.of())).status()).isEqualTo(200);
+    }
+
+    /** C-09, D-63: el dictamen es manual, con justificación, sin puntaje por defecto y con reglas de estado. */
+    @Test
+    void theManualRulingNeedsAJustificationExplicitConditionsAndCannotReverseAFinalRuling() {
+        String appId = api.post("/v1/solicitudes-credito", null, solicitudCon(List.of())).str("id");
+        String analyst = accounts.createAndLogin("analista_regla", "ANALISTA_CREDITO").token();
+        String path = "/v1/solicitudes-credito/" + appId + "/evaluacion";
+
+        // Sin justificación (o con una de relleno) no hay dictamen.
+        assertThat(api.post(path, analyst, Map.of("resultado", "rechazado")).status()).isEqualTo(422);
+        assertThat(api.post(path, analyst, Map.of("resultado", "rechazado", "justificacion", "   ")).status()).isEqualTo(422);
+        assertThat(api.post(path, analyst, Map.of("resultado", "rechazado", "justificacion", "no")).status()).isEqualTo(422);
+        // Un resultado que no existe es un 400, y «en análisis» ya no es un dictamen.
+        assertThat(api.post(path, analyst, Map.of("resultado", "en_analisis", "justificacion", "Estoy revisando.")).status())
+                .isEqualTo(400);
+        // Aprobar exige decir cuánto, sin pasar de lo solicitado (14.400).
+        assertThat(api.post(path, analyst, Map.of("resultado", "aprobado", "justificacion", "Cumple todo lo exigido.")).status())
+                .isEqualTo(422);
+        assertThat(api.post(path, analyst, Map.of("resultado", "aprobado", "justificacion", "Cumple todo lo exigido.",
+                "limiteAprobado", 20000, "cuotaMaximaPermitida", 1000)).status()).isEqualTo(422);
+        assertThat(api.get("/v1/solicitudes-credito/" + appId, analyst).str("estado")).isEqualTo("enviada");
+
+        // Condicionar y luego aprobar sí se puede: el historial queda en la bitácora.
+        assertThat(api.post(path, analyst, Map.of("resultado", "condicionado", "justificacion", "Falta el estado de cuenta."))
+                .status()).isEqualTo(200);
+        assertThat(api.get("/v1/solicitudes-credito/" + appId, analyst).str("estado")).isEqualTo("condicionada");
+        assertThat(api.post(path, analyst, Map.of("resultado", "aprobado", "justificacion", "Entregó el estado de cuenta.",
+                "limiteAprobado", 14400, "cuotaMaximaPermitida", 1000)).status()).isEqualTo(200);
+
+        // Un dictamen final no se revierte desde aquí.
+        assertThat(api.post(path, analyst, Map.of("resultado", "rechazado", "justificacion", "Cambié de opinión.")).status())
+                .isEqualTo(409);
+        TestApi.Response detail = api.get("/v1/solicitudes-credito/" + appId, analyst);
+        assertThat(detail.str("estado")).isEqualTo("aprobada");
+        assertThat(detail.obj("decisionRiesgo").get("justification")).isEqualTo("Entregó el estado de cuenta.");
+
+        String anterior = jdbc.sql("""
+                        select despues->>'resultado_anterior' from auditoria_evento
+                        where accion = 'solicitud_credito.evaluada' and entidad_id = :id
+                        order by creado_en desc limit 1
+                        """)
+                .param("id", UUID.fromString(appId), java.sql.Types.OTHER)
+                .query(String.class).single();
+        assertThat(anterior).isEqualTo("condicionado");
+    }
+
+    /** Leer el expediente (datos personales y financieros) deja huella: quién y cuándo. */
+    @Test
+    void readingTheDossierIsRecordedInTheAuditLog() {
+        String appId = api.post("/v1/solicitudes-credito", null, solicitudCon(List.of())).str("id");
+        String analyst = accounts.createAndLogin("analista_lee", "ANALISTA_CREDITO").token();
+        long antes = eventos("solicitud_credito.consultada", appId);
+        assertThat(api.get("/v1/solicitudes-credito/" + appId, analyst).status()).isEqualTo(200);
+        assertThat(eventos("solicitud_credito.consultada", appId)).isEqualTo(antes + 1);
+        // Quien no puede leerlo no deja un evento de lectura, sino el rechazo.
+        String asesor = accounts.createAndLogin("asesor_lee", "ASESOR_COMERCIAL").token();
+        assertThat(api.get("/v1/solicitudes-credito/" + appId, asesor).status()).isEqualTo(403);
+        assertThat(eventos("solicitud_credito.consultada", appId)).isEqualTo(antes + 1);
+    }
+
+    /** C-11: dos envíos simultáneos nunca reciben el mismo número de solicitud. */
+    @Test
+    void applicationNumbersAreUniqueUnderConcurrency() throws Exception {
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(8);
+        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        List<java.util.concurrent.Future<String>> numbers = new java.util.ArrayList<>();
+        for (int i = 0; i < 24; i++) {
+            numbers.add(pool.submit(() -> {
+                start.await();
+                return creditApplications.generateNextApplicationNumber(2099);
+            }));
+        }
+        start.countDown();
+        List<String> distinct = new java.util.ArrayList<>();
+        for (java.util.concurrent.Future<String> number : numbers) {
+            distinct.add(number.get());
+        }
+        pool.shutdown();
+        assertThat(distinct).doesNotHaveDuplicates().hasSize(24).allMatch(n -> n.matches("SOL-2099-\\d{4}"));
+    }
+
+    /**
+     * Separación de funciones (Principio I, spec 010 §8.3): el expediente financiero lo leen el
+     * analista y el auditor; el dictamen y los recaudos, solo el analista. Ni la capa comercial,
+     * ni inventario, ni el administrador de usuarios.
+     */
+    @Test
+    void onlyCreditRolesReadTheFileAndOnlyTheAnalystDecides() {
+        String appId = api.post("/v1/solicitudes-credito", null, solicitudCompleta()).str("id");
+        String docId = recaudoDe(appId);
+        Map<String, Object> dictamen = Map.of("resultado", "condicionado", "justificacion", "Falta un recaudo");
+
+        for (String rol : List.of("ASESOR_COMERCIAL", "COORDINADOR_COMERCIAL", "INVENTARIO", "ADMINISTRADOR")) {
+            String token = tokenDe(rol);
+            assertThat(api.get("/v1/solicitudes-credito", token).status()).as(rol).isEqualTo(403);
+            assertThat(api.get("/v1/solicitudes-credito/" + appId, token).status()).as(rol).isEqualTo(403);
+            assertThat(api.post("/v1/solicitudes-credito/" + appId + "/evaluacion", token, dictamen).status())
+                    .as(rol).isEqualTo(403);
+            assertThat(api.patch("/v1/solicitudes-credito/" + appId + "/recaudos/" + docId, token,
+                    Map.of("estado", "conforme")).status()).as(rol).isEqualTo(403);
+        }
+
+        String auditor = accounts.createAndLogin("auditor_cred", "AUDITOR").token();
+        assertThat(api.get("/v1/solicitudes-credito/" + appId, auditor).status()).isEqualTo(200);
+        assertThat(api.post("/v1/solicitudes-credito/" + appId + "/evaluacion", auditor, dictamen).status()).isEqualTo(403);
+        assertThat(api.patch("/v1/solicitudes-credito/" + appId + "/recaudos/" + docId, auditor,
+                Map.of("estado", "conforme")).status()).isEqualTo(403);
+
+        String analyst = accounts.createAndLogin("analista_dict", "ANALISTA_CREDITO").token();
+        assertThat(api.patch("/v1/solicitudes-credito/" + appId + "/recaudos/" + docId, analyst,
+                Map.of("estado", "conforme")).status()).isEqualTo(200);
+        assertThat(api.post("/v1/solicitudes-credito/" + appId + "/evaluacion", analyst, dictamen).status()).isEqualTo(200);
+    }
+
+    @Test
+    void aDocumentIsValidatedOnlyWithinItsApplicationAndWithAKnownStatus() {
+        String appId = api.post("/v1/solicitudes-credito", null, solicitudCompleta()).str("id");
+        String docId = recaudoDe(appId);
+        String analyst = accounts.createAndLogin("analista_rec", "ANALISTA_CREDITO").token();
+
+        // Un estado que la base no admite es un 422, no un error interno.
+        assertThat(api.patch("/v1/solicitudes-credito/" + appId + "/recaudos/" + docId, analyst,
+                Map.of("estado", "verificado")).status()).isEqualTo(422);
+        // Sin estado no se aprueba por omisión.
+        assertThat(api.patch("/v1/solicitudes-credito/" + appId + "/recaudos/" + docId, analyst,
+                Map.of("observaciones", "sin estado")).status()).isEqualTo(422);
+        // El recaudo de una solicitud no se toca a través de otra.
+        assertThat(api.patch("/v1/solicitudes-credito/" + UUID.randomUUID() + "/recaudos/" + docId, analyst,
+                Map.of("estado", "rechazado")).status()).isEqualTo(404);
+        assertThat(jdbc.sql("select estado_validacion from solicitud_recaudo where id = :id")
+                .param("id", UUID.fromString(docId), java.sql.Types.OTHER)
+                .query(String.class).single()).isEqualTo("pendiente");
+    }
+
+    /**
+     * Recaudos privados (D-59): se guardan fuera del almacén público de fotos, el expediente no
+     * expone su clave ni una dirección, y el archivo solo abre con un enlace firmado que vence en
+     * minutos y que queda en la bitácora.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void recaudosArePrivateAndOpenOnlyWithAShortLivedSignedLink() throws Exception {
+        Map<String, Object> cargado = recaudoCargado("cedula", "C:\\fotos\\mi cedula.jpg", "application/pdf", JPEG);
+        String clave = cargado.get("fileKey").toString();
+        assertThat(clave).startsWith("recaudos/" + opportunityId + "/").endsWith(".jpg").doesNotContain("http");
+        assertThat(cargado.get("mimeType")).as("el tipo lo decide el contenido, no el navegador").isEqualTo("image/jpeg");
+        assertThat(cargado.get("fileName")).isEqualTo("mi cedula.jpg");
+        assertThat(abrir("/archivos/" + clave)).as("el almacén público de fotos no lo sirve").isEqualTo(404);
+
+        String appId = api.post("/v1/solicitudes-credito", null, solicitudCon(List.of(cargado))).str("id");
+        String analista = accounts.createAndLogin("analista_doc", "ANALISTA_CREDITO").token();
+
+        TestApi.Response detalle = api.get("/v1/solicitudes-credito/" + appId, analista);
+        Map<String, Object> recaudo = (Map<String, Object>) ((List<?>) detalle.map().get("recaudos")).getFirst();
+        assertThat(recaudo).doesNotContainKeys("fileUrl", "fileKey");
+        assertThat(json.writeValueAsString(detalle.body())).doesNotContain(clave);
+
+        String docId = recaudo.get("id").toString();
+        String pedirEnlace = "/v1/solicitudes-credito/" + appId + "/recaudos/" + docId + "/enlace";
+        TestApi.Response enlace = api.get(pedirEnlace, analista);
+        assertThat(enlace.status()).isEqualTo(200);
+        String ruta = enlace.str("ruta");
+        assertThat(ruta).startsWith("/v1/recaudos/archivo?");
+
+        // Sin sesión abre, con el tipo real y sin que nadie guarde copia.
+        MockHttpServletResponse archivo = mvc.perform(get(URI.create(ruta))).andReturn().getResponse();
+        assertThat(archivo.getStatus()).isEqualTo(200);
+        assertThat(archivo.getContentType()).isEqualTo("image/jpeg");
+        assertThat(archivo.getHeader("Cache-Control")).contains("no-store");
+        assertThat(archivo.getContentAsByteArray()).isEqualTo(JPEG);
+
+        // Una firma alterada, u otro archivo con la misma firma, no abren nada.
+        String firma = ruta.substring(ruta.indexOf("firma=") + "firma=".length());
+        String otraFirma = (firma.startsWith("0") ? "1" : "0") + firma.substring(1);
+        assertThat(abrir(ruta.replace("firma=" + firma, "firma=" + otraFirma))).isEqualTo(403);
+        assertThat(abrir(ruta.replace(opportunityId.toString(), UUID.randomUUID().toString()))).isEqualTo(403);
+
+        // Pasados los minutos de vigencia, el mismo enlace ya no abre.
+        clock.advance(Duration.ofMinutes(6));
+        assertThat(abrir(ruta)).isEqualTo(403);
+
+        // Solo los roles de crédito piden enlaces, y solo de recaudos de esa solicitud.
+        String asesor = accounts.createAndLogin("asesor_doc", "ASESOR_COMERCIAL").token();
+        assertThat(api.get(pedirEnlace, asesor).status()).isEqualTo(403);
+        String auditor = accounts.createAndLogin("auditor_doc", "AUDITOR").token();
+        assertThat(api.get(pedirEnlace, auditor).status()).isEqualTo(200);
+        assertThat(api.get("/v1/solicitudes-credito/" + appId + "/recaudos/" + UUID.randomUUID() + "/enlace", analista)
+                .status()).isEqualTo(404);
+
+        assertThat(eventos("solicitud_recaudo.enlace_emitido", docId)).isEqualTo(2);
+        assertThat(eventos("solicitud_recaudo.abierto", docId)).isEqualTo(1);
+    }
+
+    @Test
+    void anUploadNeedsAnOpenLinkAndARealDocument() {
+        // Un ejecutable o un texto no pasan, digan lo que digan su nombre y su tipo.
+        byte[] ejecutable = "MZ ejecutable".getBytes(StandardCharsets.US_ASCII);
+        assertThat(cargarRecaudo("cedula", "cedula.pdf", "application/pdf", ejecutable).status()).isEqualTo(422);
+        assertThat(cargarRecaudo("cedula", "cedula.jpg", "image/jpeg", "hola".getBytes(StandardCharsets.US_ASCII))
+                .status()).isEqualTo(422);
+        assertThat(cargarRecaudo("cedula", "cedula.pdf", "application/pdf", new byte[0]).status()).isEqualTo(400);
+
+        // Sin un enlace emitido por el asesor no se carga nada.
+        assertThat(api.upload("/v1/solicitudes-credito/recaudos", null, "rif.pdf", "application/pdf", PDF,
+                Map.of("token", "A".repeat(43), "tipoDocumento", "rif")).status()).isEqualTo(404);
+        assertThat(api.upload("/v1/solicitudes-credito/recaudos", null, "rif.pdf", "application/pdf", PDF,
+                Map.of("token", "corto", "tipoDocumento", "rif")).status()).isEqualTo(400);
+
+        // Con el enlace ya usado, tampoco.
+        assertThat(api.post("/v1/solicitudes-credito", null, solicitudCon(List.of())).status()).isEqualTo(200);
+        assertThat(cargarRecaudo("rif", "rif.pdf", "application/pdf", PDF).status()).isEqualTo(422);
+    }
+
+    @Test
+    void aSubmissionOnlyAcceptsFilesUploadedWithItsOwnLink() {
+        Map<String, Object> propio = recaudoCargado("cedula", "cedula.pdf", "application/pdf", PDF);
+        String deOtraOportunidad = "recaudos/" + UUID.randomUUID() + "/" + UUID.randomUUID() + ".pdf";
+        String nuncaCargado = "recaudos/" + opportunityId + "/" + UUID.randomUUID() + ".pdf";
+
+        for (String clave : List.of(deOtraOportunidad, nuncaCargado, "https://ejemplo.invalid/recaudos/cedula.pdf", "")) {
+            Map<String, Object> ajeno = new HashMap<>(propio);
+            ajeno.put("fileKey", clave);
+            assertThat(api.post("/v1/solicitudes-credito", null, solicitudCon(List.of(propio, ajeno))).status())
+                    .as(clave).isEqualTo(422);
+        }
+
+        // Los intentos rechazados no gastan el enlace.
+        assertThat(api.post("/v1/solicitudes-credito", null, solicitudCon(List.of(propio))).status()).isEqualTo(200);
+    }
+
+    /** El expediente se guarda cifrado (V0019): la base no ve ingresos, empleador ni cuenta. */
+    @Test
+    void theDossierIsEncryptedAtRest() {
+        String appId = api.post("/v1/solicitudes-credito", null, solicitudCon(List.of())).str("id");
+
+        byte[] guardado = jdbc.sql("select expediente_cifrado from solicitud_credito where id = :id")
+                .param("id", UUID.fromString(appId), java.sql.Types.OTHER)
+                .query(byte[].class)
+                .single();
+        assertThat(new String(guardado, StandardCharsets.ISO_8859_1))
+                .doesNotContain("01020000000000000000")
+                .doesNotContain("Empresa C.A.")
+                .doesNotContain("Rodriguez");
+        assertThat(jdbc.sql("""
+                        select count(*) from information_schema.columns
+                        where table_schema = current_schema() and table_name = 'solicitud_credito'
+                          and data_type in ('json', 'jsonb')
+                        """)
+                .query(Long.class).single()).isZero();
+
+        String analista = accounts.createAndLogin("analista_cifra", "ANALISTA_CREDITO").token();
+        TestApi.Response detalle = api.get("/v1/solicitudes-credito/" + appId, analista);
+        assertThat(detalle.obj("datosBancarios").get("numeroCuenta")).isEqualTo("01020000000000000000");
+        assertThat(detalle.obj("datosLaborales").get("empresa")).isEqualTo("Empresa C.A.");
+    }
+
+    /**
+     * Token de un usuario con ese rol. El administrador es el de arranque: crear otro rompería la
+     * regla de «al menos un administrador» que UserAdminIntegrationTest prueba en la base compartida.
+     */
+    private String tokenDe(String rol) {
+        return "ADMINISTRADOR".equals(rol) ? accounts.adminToken() : accounts.createAndLogin("sin_credito", rol).token();
+    }
+
+    private int abrir(String ruta) throws Exception {
+        return mvc.perform(get(URI.create(ruta))).andReturn().getResponse().getStatus();
+    }
+
+    private long eventos(String accion, String entidadId) {
+        return jdbc.sql("select count(*) from auditoria_evento where accion = :accion and entidad_id = :id")
+                .param("accion", accion)
+                .param("id", UUID.fromString(entidadId), java.sql.Types.OTHER)
+                .query(Long.class)
+                .single();
+    }
+
+    /** Carga un recaudo con el enlace de la prueba, como el paso 6 del formulario. */
+    private TestApi.Response cargarRecaudo(String tipo, String nombre, String contentType, byte[] contenido) {
+        return api.upload("/v1/solicitudes-credito/recaudos", null, nombre, contentType, contenido,
+                Map.of("token", financingToken, "tipoDocumento", tipo));
+    }
+
+    private Map<String, Object> recaudoCargado(String tipo, String nombre, String contentType, byte[] contenido) {
+        TestApi.Response cargado = cargarRecaudo(tipo, nombre, contentType, contenido);
+        assertThat(cargado.status()).as(String.valueOf(cargado.body())).isEqualTo(200);
+        return cargado.map();
+    }
+
+    private String recaudoDe(String appId) {
+        return jdbc.sql("select id from solicitud_recaudo where solicitud_id = :id order by creado_en limit 1")
+                .param("id", UUID.fromString(appId), java.sql.Types.OTHER)
+                .query(UUID.class)
+                .single()
+                .toString();
+    }
+
+    /** Solicitud con dos recaudos cargados de verdad con el enlace: cédula (JPG) y RIF (PDF). */
+    private Map<String, Object> solicitudCompleta() {
+        return solicitudCon(List.of(
+                recaudoCargado("cedula", "cedula.jpg", "image/jpeg", JPEG),
+                recaudoCargado("rif", "rif.pdf", "application/pdf", PDF)));
+    }
+
+    private Map<String, Object> solicitudCon(List<Map<String, Object>> recaudos) {
+        return Map.ofEntries(
                 Map.entry("token", financingToken),
-                Map.entry("vehiculoId", vehicleId.toString()),
                 Map.entry("montoSolicitado", 14400),
                 Map.entry("cuotaInicial", 3600),
                 Map.entry("plazoMeses", 24),
@@ -163,63 +579,8 @@ class CreditApplicationIntegrationTest extends ApiIntegrationTest {
                         "origenFondos", true,
                         "compromisoPago", true
                 )),
-                Map.entry("recaudos", List.of(
-                        Map.of("documentType", "cedula", "fileUrl", "/archivos/recaudos/test-ci.jpg", "fileName", "cedula.jpg"),
-                        Map.of("documentType", "rif", "fileUrl", "/archivos/recaudos/test-rif.jpg", "fileName", "rif.jpg")
-                )),
-                Map.entry("codigoOtp", "123456"),
-                Map.entry("otpVerificado", true)
+                Map.entry("recaudos", recaudos),
+                Map.entry("versionTexto", "WMA-F-FIN-001 v1")
         );
-
-        TestApi.Response submitRes = api.post("/v1/solicitudes-credito", null, req);
-        assertThat(submitRes.status()).isEqualTo(200);
-
-        String appId = submitRes.str("id");
-        String numeroSolicitud = submitRes.str("numeroSolicitud");
-        assertThat(appId).isNotBlank();
-        assertThat(numeroSolicitud).startsWith("SOL-");
-        assertThat(submitRes.str("estado")).isEqualTo("enviada");
-
-        // 2. Verificar que el token quedó usado y no se puede reutilizar
-        TestApi.Response duplicateRes = api.post("/v1/solicitudes-credito", null, req);
-        assertThat(duplicateRes.status()).isEqualTo(422);
-
-        // 3. Consulta de estado pública por número de solicitud
-        TestApi.Response statusRes = api.get("/v1/solicitudes-credito/" + numeroSolicitud + "/estado", null);
-        assertThat(statusRes.status()).isEqualTo(200);
-        assertThat(statusRes.str("numeroSolicitud")).isEqualTo(numeroSolicitud);
-        assertThat(statusRes.str("estado")).isEqualTo("enviada");
-
-        // 4. Backoffice: Listado de solicitudes de crédito
-        TestApi.Response listRes = api.get("/v1/solicitudes-credito", adminToken);
-        assertThat(listRes.status()).isEqualTo(200);
-        List<Object> apps = listRes.list();
-        assertThat(apps).isNotEmpty();
-
-        // 5. Backoffice: Expediente digital completo
-        TestApi.Response detailRes = api.get("/v1/solicitudes-credito/" + appId, adminToken);
-        assertThat(detailRes.status()).isEqualTo(200);
-        assertThat(detailRes.str("numeroSolicitud")).isEqualTo(numeroSolicitud);
-        assertThat(detailRes.str("moneda")).isEqualTo("EUR");
-        List<?> recaudos = (List<?>) detailRes.map().get("recaudos");
-        assertThat(recaudos).hasSize(2);
-
-        // 6. Backoffice: Evaluar solicitud (aprobación analista)
-        TestApi.Response evalRes = api.post("/v1/solicitudes-credito/" + appId + "/evaluacion",
-                adminToken, Map.of(
-                        "resultado", "aprobado",
-                        "scoreInterno", 780,
-                        "scoreBuro", 750,
-                        "riesgoNivel", "bajo",
-                        "limiteAprobado", 15000,
-                        "cuotaMaximaPermitida", 1000,
-                        "justificacion", "Cumple capacidad de pago y recaudos conformes"
-                ));
-        assertThat(evalRes.status()).isEqualTo(200);
-
-        // 7. Verificar que el estado cambió a 'aprobada'
-        TestApi.Response updatedDetailRes = api.get("/v1/solicitudes-credito/" + appId, adminToken);
-        assertThat(updatedDetailRes.str("estado")).isEqualTo("aprobada");
-        assertThat(updatedDetailRes.obj("decisionRiesgo").get("result")).isEqualTo("aprobado");
     }
 }

@@ -29,8 +29,19 @@ public class FinancingParametersService {
                 ));
     }
 
+    /** D-55: el plazo es de 24 meses, como mínimo y como máximo. La política no admite otro. */
+    public static final int FIXED_TERM_MONTHS = 24;
+
     @Transactional
     public FinancingParameters updateParameters(UpdateFinancingParametersRequest req) {
+        if (req.termMonths() != FIXED_TERM_MONTHS) {
+            throw ApiException.unprocessable("Plazo no admitido",
+                    "El financiamiento es a " + FIXED_TERM_MONTHS + " meses, como mínimo y como máximo.");
+        }
+        // La Constitución v3.0.0 (Principio V) fija el euro como moneda base de la plataforma.
+        if (req.baseCurrency() != null && !"EUR".equalsIgnoreCase(req.baseCurrency())) {
+            throw ApiException.unprocessable("Moneda no admitida", "La moneda base de la política es el euro (EUR).");
+        }
         if (req.minimumDownPayment().compareTo(BigDecimal.ZERO) <= 0 || req.minimumDownPayment().compareTo(BigDecimal.ONE) > 0) {
             throw ApiException.unprocessable("Inicial mínima inválida", "La inicial mínima debe estar entre 0.01 y 1.00");
         }

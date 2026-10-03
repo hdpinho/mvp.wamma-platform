@@ -2,36 +2,44 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Boton } from '../components/Boton';
 import { Campo } from '../components/Campo';
-import { FotoVehiculo } from '../components/FotoVehiculo';
+import { NotaSimulada } from '../components/NotaSimulada';
 import { useVehiculos } from '../state/vehiculosContexto';
 import { esTokenFinanciamientoValido } from '../types/crm';
-import { PARAMETROS_FINANCIAMIENTO, calcularCuota, cuotaDesde } from '../mocks/financiamiento';
+import { PARAMETROS_APROBADOS, formatoEUR } from '../services/financiamientoMotor';
 import {
   BANCOS,
   CONDICIONES_VIVIENDA,
   DECLARACIONES,
   ESTADOS,
   ESTADOS_CIVILES,
-  FRECUENCIAS_PAGO,
   MOTIVOS,
   MUNICIPIOS,
   NACIONALIDADES,
   NIVELES_ACADEMICOS,
   PASOS,
-  PLAZOS_MESES,
   RECAUDOS,
   SITUACIONES_LABORALES,
   TIPOS_CUENTA,
+  VERSION_TEXTO_DECLARACIONES,
   generarNumeroSolicitud,
 } from '../mocks/solicitudCredito';
+import { ErrorApi, apiConfigurada, mensajeDeError } from '../api/cliente';
 import {
   validarEnlaceFinanciamiento,
   subirRecaudoDigital,
   enviarSolicitudCredito,
-  type ValidacionEnlaceDto,
-  type RecaudoCargadoDto,
-  type CrearSolicitudPayload,
+  type RecaudoEnvioApi,
 } from '../api/credito';
+import {
+  calcularResumen,
+  construirEnvio,
+  contextoDesdeEnlace,
+  datosIniciales,
+  mensajeEnlaceNoValido,
+  precargarSolicitante,
+  type ContextoSolicitud,
+  type DatosSolicitud as Datos,
+} from '../services/solicitudCredito';
 import {
   derivarRIF,
   mismoTelefono,
@@ -46,155 +54,25 @@ import {
 } from '../validacion/venezuela';
 
 /**
- * C9 · Solicitud de crédito en autoservicio — MAQUETA VISUAL.
+ * C9 · Solicitud de crédito en autoservicio.
  *
  * Digitaliza el formato en papel WMA-F-FIN-001 como asistente de 8 pasos.
  * Especificación completa en `specs/solicitud-credito/`.
  *
- * Alcance de esta maqueta: **solo la interfaz**. No hay API, ni persistencia,
- * ni OTP real, ni carga de archivos al servidor. El estado vive en memoria y se
- * pierde al recargar; en la plataforma real el borrador vive en el servidor y
- * el navegador solo guarda un token opaco (nunca datos personales).
+ * Con servidor (`VITE_API_URL`) se llega **solo con el enlace personal** que emite el asesor: el servidor lo valida y
+ * trae el vehículo, la política vigente y lo que ya sabe de la persona; los recaudos van al contenedor privado (D-59)
+ * y la solicitud se envía de verdad. Sin OTP (D-57): la aceptación queda registrada con fecha, IP, agente y la versión
+ * del texto aceptado. Si algo falla, la pantalla lo dice y deja reintentar: nunca simula un envío con servidor.
+ *
+ * Sin servidor es una demostración en el navegador: el estado vive en memoria y el envío es simulado y rotulado.
  */
 
-const formatoEUR = (v: number) =>
-  new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+type Errores = Record<string, string>;
 
 const aNumero = (v: string) => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
-
-// ── Modelo del formulario ────────────────────────────────────────────
-
-interface Referencia {
-  nombre: string;
-  parentesco: string;
-  telefono: string;
-}
-
-interface Datos {
-  // Paso 0
-  vehiculoId: string;
-  montoSolicitado: string;
-  inicialAportado: string;
-  plazoMeses: number;
-  frecuencia: string;
-  // Paso 1
-  primerApellido: string;
-  segundoApellido: string;
-  primerNombre: string;
-  segundoNombre: string;
-  tipoDocumento: string;
-  numeroDocumento: string;
-  rif: string;
-  nacionalidad: string;
-  estadoCivil: string;
-  fechaNacimiento: string;
-  lugarNacimiento: string;
-  nivelAcademico: string;
-  cargasFamiliares: string;
-  condicionVivienda: string;
-  // Paso 2
-  direccion: string;
-  puntoReferencia: string;
-  estado: string;
-  municipio: string;
-  codigoPostal: string;
-  telefonoHabitacion: string;
-  telefonoCelular: string;
-  correo: string;
-  // Paso 3
-  situacionLaboral: string;
-  empresa: string;
-  rifEmpresa: string;
-  cargo: string;
-  antiguedadAnios: string;
-  antiguedadMeses: string;
-  direccionEmpresa: string;
-  telefonoOficina: string;
-  jefeDirecto: string;
-  // Paso 4
-  sueldoMensual: string;
-  otrosIngresos: string;
-  conceptoOtrosIngresos: string;
-  alquilerHipoteca: string;
-  alimentacionServicios: string;
-  pagosDeudas: string;
-  // Paso 5
-  referencias: [Referencia, Referencia, Referencia];
-  banco: string;
-  tipoCuenta: string;
-  numeroCuenta: string;
-  // Paso 7
-  declaraciones: Record<string, boolean>;
-  esPEP: boolean;
-  vinculoPEP: boolean;
-  cargoPEP: string;
-  institucionPEP: string;
-  periodoPEP: string;
-  consentimientoDatos: boolean;
-}
-
-const referenciaVacia: Referencia = { nombre: '', parentesco: '', telefono: '' };
-
-const datosIniciales: Datos = {
-  vehiculoId: '',
-  montoSolicitado: '',
-  inicialAportado: '',
-  plazoMeses: PARAMETROS_FINANCIAMIENTO.plazoPorDefecto,
-  frecuencia: 'Mensual',
-  primerApellido: '',
-  segundoApellido: '',
-  primerNombre: '',
-  segundoNombre: '',
-  tipoDocumento: 'V',
-  numeroDocumento: '',
-  rif: '',
-  nacionalidad: 'Venezolana',
-  estadoCivil: 'Soltero(a)',
-  fechaNacimiento: '',
-  lugarNacimiento: '',
-  nivelAcademico: 'Bachiller',
-  cargasFamiliares: '0',
-  condicionVivienda: 'Propia',
-  direccion: '',
-  puntoReferencia: '',
-  estado: '',
-  municipio: '',
-  codigoPostal: '',
-  telefonoHabitacion: '',
-  telefonoCelular: '',
-  correo: '',
-  situacionLaboral: 'Empleado Fijo',
-  empresa: '',
-  rifEmpresa: '',
-  cargo: '',
-  antiguedadAnios: '',
-  antiguedadMeses: '0',
-  direccionEmpresa: '',
-  telefonoOficina: '',
-  jefeDirecto: '',
-  sueldoMensual: '',
-  otrosIngresos: '',
-  conceptoOtrosIngresos: '',
-  alquilerHipoteca: '',
-  alimentacionServicios: '',
-  pagosDeudas: '',
-  referencias: [{ ...referenciaVacia }, { ...referenciaVacia }, { ...referenciaVacia }],
-  banco: '',
-  tipoCuenta: 'Corriente',
-  numeroCuenta: '',
-  declaraciones: {},
-  esPEP: false,
-  vinculoPEP: false,
-  cargoPEP: '',
-  institucionPEP: '',
-  periodoPEP: '',
-  consentimientoDatos: false,
-};
-
-type Errores = Record<string, string>;
 
 // ── Piezas de presentación ───────────────────────────────────────────
 
@@ -238,6 +116,35 @@ const BarraProgreso: React.FC<{ paso: number }> = ({ paso }) => (
     </div>
   </div>
 );
+
+/** Foto del vehículo del enlace; sin foto, o si falla, una caja neutra con su nombre. */
+const FotoDelEnlace: React.FC<{ url: string | null; descripcion: string }> = ({ url, descripcion }) => {
+  const [fallo, setFallo] = useState(false);
+  const cajaNeutra: React.CSSProperties = {
+    height: '78px',
+    borderRadius: 'var(--radius-sm)',
+    backgroundColor: '#EFEDEA',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '24px',
+  };
+  if (!url || fallo) {
+    return (
+      <div role="img" aria-label={`Imagen referencial de ${descripcion}`} style={cajaNeutra}>
+        🚗
+      </div>
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt={descripcion}
+      onError={() => setFallo(true)}
+      style={{ width: '100%', height: '78px', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }}
+    />
+  );
+};
 
 /** Línea que explica por qué se piden los datos de este paso. */
 const Motivo: React.FC<{ paso: number }> = ({ paso }) => (
@@ -318,89 +225,150 @@ const FilaTotal: React.FC<{ etiqueta: string; valor: number; destacado?: boolean
   </div>
 );
 
+/** Límite por archivo del servidor (`spring.servlet.multipart.max-file-size`). */
+const TAMANO_MAXIMO_RECAUDO = 10 * 1024 * 1024;
+
+/**
+ * Archivo adjunto a un recaudo. `cargado` es lo que devolvió el servidor al guardarlo en el
+ * contenedor privado; es nulo en la demostración, donde el archivo no sale del navegador.
+ */
+interface Adjunto {
+  id: string;
+  recaudoId: string;
+  nombre: string;
+  cargado: RecaudoEnvioApi | null;
+}
+
+/**
+ * El estado del enlace personal. Con servidor, la solicitud existe solo si el servidor valida el enlace: mientras no
+ * responda se dice que se está validando, y si no responde se ofrece reintentar (no se abre «en modo local»).
+ */
+type EstadoEnlace =
+  | { tipo: 'sin_enlace' }
+  | { tipo: 'validando' }
+  | { tipo: 'no_valido'; mensaje: string }
+  | { tipo: 'sin_conexion'; mensaje: string }
+  | { tipo: 'listo'; contexto: ContextoSolicitud };
+
+/** Lo que se sabe del enlace de la dirección, junto al token y al intento a que corresponde. */
+interface ResultadoValidacion {
+  token: string;
+  intento: number;
+  estado: Exclude<EstadoEnlace, { tipo: 'sin_enlace' } | { tipo: 'validando' }>;
+}
+
 // ── Pantalla ─────────────────────────────────────────────────────────
 
 export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _rateBCV }) => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  // Del inventario vivo y no de los mocks: así también aparecen los vehículos
-  // cargados desde el backoffice.
+  // Solo para la demostración: con servidor el vehículo llega con el enlace. Un vehículo reservado para esta venta ya
+  // no está en la vitrina, así que buscarlo ahí lo daría por «no disponible».
   const { vehiculos } = useVehiculos();
 
   // Acceso por enlace personal (spec 010 §8.8): la solicitud requiere token emitido por el asesor.
   const tokenUrl = params.get('enlace');
-  const tokenValidoLocal = esTokenFinanciamientoValido(tokenUrl);
 
-  const [enlaceValidando, setEnlaceValidando] = useState(false);
-  const [enlaceDto, setEnlaceDto] = useState<ValidacionEnlaceDto | null>(null);
-  const [enlaceInvalidoMensaje, setEnlaceInvalidoMensaje] = useState<string | null>(null);
+  const [resultadoValidacion, setResultadoValidacion] = useState<ResultadoValidacion | null>(null);
+  const [intento, setIntento] = useState(0);
 
   const [subiendoRecaudo, setSubiendoRecaudo] = useState<Record<string, boolean>>({});
-  const [recaudosCargadosDto, setRecaudosCargadosDto] = useState<RecaudoCargadoDto[]>([]);
+  // Una sola lista: lo que se ve adjunto es exactamente lo que se envía.
+  const [adjuntos, setAdjuntos] = useState<Adjunto[]>([]);
+  const [errorRecaudo, setErrorRecaudo] = useState<Record<string, string>>({});
   const [enviandoSolicitud, setEnviandoSolicitud] = useState(false);
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
-  const [solicitudExitosa, setSolicitudExitosa] = useState<{ numero: string; mensaje?: string } | null>(null);
+  // `origen` distingue una solicitud que el servidor confirmó de una registrada solo en pantalla.
+  const [solicitudExitosa, setSolicitudExitosa] = useState<{
+    numero: string;
+    mensaje?: string;
+    origen: 'servidor' | 'local';
+  } | null>(null);
 
   const [paso, setPaso] = useState(0);
-  const [datos, setDatos] = useState<Datos>(() => {
-    const vehiculoId = params.get('vehiculo') ?? '';
-    const precio = vehiculos.find((v) => v.id === vehiculoId)?.precio;
-    return {
-      ...datosIniciales,
-      vehiculoId,
-      // La inicial arranca en el mínimo vigente; el cliente puede aportar más.
-      inicialAportado: precio ? String(Math.ceil(precio * PARAMETROS_FINANCIAMIENTO.inicialPorcentaje)) : '',
-    };
-  });
+  const [datos, setDatos] = useState<Datos>(datosIniciales);
 
-  // Validar enlace con el servidor si está presente
+  // Con servidor, el servidor valida el enlace y de él salen el vehículo, la política y lo que ya sabe de la persona.
+  // El estado cambia dentro de los callbacks de la promesa, nunca en el cuerpo del efecto.
   useEffect(() => {
-    if (!tokenUrl) return;
+    if (!apiConfigurada || !tokenUrl) return;
     let cancelado = false;
-    setEnlaceValidando(true);
     validarEnlaceFinanciamiento(tokenUrl)
-      .then((res) => {
+      .then((dto) => {
         if (cancelado) return;
-        setEnlaceDto(res);
-        if (res.valido) {
-          if (res.vehiculoId) {
-            setDatos((d) => ({
-              ...d,
-              vehiculoId: res.vehiculoId!,
-              inicialAportado: res.inicialSugeridaEur ? String(Math.round(res.inicialSugeridaEur)) : d.inicialAportado,
-              plazoMeses: res.plazoMesesSugerido || d.plazoMeses,
-              primerNombre: res.personaNombre ? res.personaNombre.split(' ')[0] : d.primerNombre,
-              primerApellido:
-                res.personaNombre && res.personaNombre.split(' ').length > 1
-                  ? res.personaNombre.split(' ').slice(1).join(' ')
-                  : d.primerApellido,
-              telefonoCelular: res.personaTelefono || d.telefonoCelular,
-            }));
-          }
-        } else {
-          setEnlaceInvalidoMensaje(res.mensaje || 'El enlace de financiamiento ha vencido o ya fue utilizado.');
+        const contexto = contextoDesdeEnlace(dto);
+        if (!contexto) {
+          setResultadoValidacion({
+            token: tokenUrl,
+            intento,
+            estado: { tipo: 'no_valido', mensaje: mensajeEnlaceNoValido(dto.valid ? 'incompleto' : dto.invalidReason) },
+          });
+          return;
         }
+        setDatos((d) => ({ ...d, ...contexto.precargado }));
+        setResultadoValidacion({ token: tokenUrl, intento, estado: { tipo: 'listo', contexto } });
       })
-      .catch((_err) => {
-        // Fallback transparente al modo local/maqueta
-      })
-      .finally(() => {
-        if (!cancelado) setEnlaceValidando(false);
+      .catch((e: unknown) => {
+        if (cancelado) return;
+        // Sin respuesta del servidor no se sabe si el enlace sirve: se ofrece reintentar. Una respuesta de rechazo
+        // (404: no existe; 400: mal formado) sí es una respuesta: el enlace no es válido.
+        const sinRespuesta = !(e instanceof ErrorApi) || e.estado === 0 || e.estado >= 500;
+        setResultadoValidacion({
+          token: tokenUrl,
+          intento,
+          estado: sinRespuesta
+            ? {
+                tipo: 'sin_conexion',
+                mensaje: 'No pudimos validar tu enlace. Revisa tu conexión e inténtalo de nuevo.',
+              }
+            : { tipo: 'no_valido', mensaje: mensajeEnlaceNoValido(null) },
+        });
       });
     return () => {
       cancelado = true;
     };
-  }, [tokenUrl]);
+  }, [tokenUrl, intento]);
 
-  const accesoHabilitado = (tokenValidoLocal || (enlaceDto?.valido ?? false)) && !enlaceInvalidoMensaje;
+  // Demostración: el vehículo sale del inventario del navegador y el enlace solo se comprueba en su forma.
+  const contextoDemostracion = useMemo<ContextoSolicitud | null>(() => {
+    if (apiConfigurada || !esTokenFinanciamientoValido(tokenUrl)) return null;
+    const v = vehiculos.find((x) => x.id === params.get('vehiculo'));
+    if (!v) return null;
+    return {
+      vehiculo: {
+        codigo: v.id,
+        titulo: `${v.marca} ${v.modelo} ${v.anio}`,
+        version: v.version,
+        precio: v.precio,
+        fotoUrl: v.foto ?? null,
+      },
+      politica: PARAMETROS_APROBADOS,
+      precargado: precargarSolicitante(null, v.precio, PARAMETROS_APROBADOS),
+    };
+  }, [tokenUrl, vehiculos, params]);
+
+  // La inicial de la demostración arranca en el mínimo vigente, una sola vez.
+  const [inicialDemoFijada, setInicialDemoFijada] = useState(false);
+  if (contextoDemostracion && !inicialDemoFijada) {
+    setInicialDemoFijada(true);
+    setDatos((d) => ({ ...d, ...contextoDemostracion.precargado }));
+  }
+
+  const validacionVigente =
+    resultadoValidacion !== null && resultadoValidacion.token === tokenUrl && resultadoValidacion.intento === intento
+      ? resultadoValidacion.estado
+      : null;
+  const estadoEnlace: EstadoEnlace = !apiConfigurada
+    ? contextoDemostracion
+      ? { tipo: 'listo', contexto: contextoDemostracion }
+      : { tipo: 'sin_enlace' }
+    : tokenUrl === null
+      ? { tipo: 'sin_enlace' }
+      : (validacionVigente ?? { tipo: 'validando' });
+  const contexto = estadoEnlace.tipo === 'listo' ? estadoEnlace.contexto : null;
 
   const [errores, setErrores] = useState<Errores>({});
-  const [archivos, setArchivos] = useState<Record<string, string[]>>({});
 
-  // Cierre con OTP
-  const [otpEnviado, setOtpEnviado] = useState('');
-  const [otpIngresado, setOtpIngresado] = useState('');
-  const [otpVerificado, setOtpVerificado] = useState(false);
   const [numeroSolicitud, setNumeroSolicitud] = useState('');
 
   const set = <K extends keyof Datos>(campo: K, valor: Datos[K]) => {
@@ -413,49 +381,17 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
     });
   };
 
-  const vehiculoEncontrado = vehiculos.find((v) => v.id === datos.vehiculoId);
-  const vehiculo =
-    vehiculoEncontrado ||
-    (enlaceDto?.vehiculoTitulo
-      ? ({
-          id: datos.vehiculoId || enlaceDto.vehiculoId || '',
-          marca: enlaceDto.vehiculoTitulo.split(' ')[0] || '',
-          modelo: enlaceDto.vehiculoTitulo.split(' ').slice(1).join(' ') || '',
-          anio: 2023,
-          version: enlaceDto.vehiculoCodigo || '',
-          precio: enlaceDto.precioEur || 0,
-          fotos: [],
-          transmision: 'Automática',
-          kilometraje: 0,
-          combustible: 'Gasolina',
-        } as any)
-      : undefined);
   const municipiosDisponibles = MUNICIPIOS[datos.estado] ?? [];
 
   // ── Cálculos en vivo ──────────────────────────────────────────────
-  const financiero = useMemo(() => {
-    const precio = vehiculo?.precio ?? aNumero(datos.montoSolicitado);
-    const inicial = aNumero(datos.inicialAportado);
-    const aFinanciar = Math.max(precio - inicial, 0);
-    const cuota = calcularCuota(aFinanciar, datos.plazoMeses);
-
-    const totalIngresos = aNumero(datos.sueldoMensual) + aNumero(datos.otrosIngresos);
-    const totalEgresos =
-      aNumero(datos.alquilerHipoteca) + aNumero(datos.alimentacionServicios) + aNumero(datos.pagosDeudas);
-
-    return {
-      precio,
-      inicial,
-      aFinanciar,
-      cuota,
-      totalIngresos,
-      totalEgresos,
-      // Decisión del PO: 30 % del ingreso mensual; los egresos se declaran para
-      // el analista, pero no restan. Misma regla que el núcleo Go.
-      capacidadPago: totalIngresos * PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago,
-      inicialMinima: precio * PARAMETROS_FINANCIAMIENTO.inicialPorcentaje,
-    };
-  }, [vehiculo, datos]);
+  // Sin enlace listo no hay precio ni política: la cuenta queda en cero y la pantalla ni se muestra.
+  const politica = contexto?.politica ?? PARAMETROS_APROBADOS;
+  const financiero = useMemo(
+    () => calcularResumen(datos, contexto?.vehiculo.precio ?? 0, politica),
+    [datos, contexto, politica],
+  );
+  const porcentajeCapacidad = Math.round(politica.ratioCuotaIngreso * 100);
+  const porcentajeInicialMinimo = Math.round(politica.inicialMinima * 100);
 
   // ── Validación por paso ───────────────────────────────────────────
   const validarPaso = (n: number): Errores => {
@@ -466,15 +402,10 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
     };
 
     if (n === 0) {
-      if (!vehiculo && !aNumero(datos.montoSolicitado)) {
-        e.montoSolicitado = 'Indica el monto solicitado o elige un vehículo';
-      }
       if (financiero.inicial > financiero.precio) {
         e.inicialAportado = 'La inicial no puede superar el precio del vehículo';
-      } else if (financiero.precio > 0 && financiero.inicial < financiero.inicialMinima) {
-        e.inicialAportado = `La inicial mínima es el ${Math.round(
-          PARAMETROS_FINANCIAMIENTO.inicialPorcentaje * 100,
-        )} % del precio: ${formatoEUR(financiero.inicialMinima)}`;
+      } else if (financiero.precio > 0 && financiero.inicial + 0.005 < financiero.inicialMinima) {
+        e.inicialAportado = `La inicial mínima es el ${porcentajeInicialMinimo} % del precio: ${formatoEUR(financiero.inicialMinima)}`;
       }
     }
 
@@ -578,7 +509,6 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
       if ((datos.esPEP || datos.vinculoPEP) && !datos.cargoPEP.trim()) {
         e.cargoPEP = 'Indica el cargo o la vinculación';
       }
-      if (!otpVerificado) e.otp = 'Verifica el código enviado a tu teléfono';
     }
 
     return e;
@@ -598,175 +528,91 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const enviarOTP = () => {
-    const codigo = String(Math.floor(Math.random() * 900000) + 100000);
-    setOtpEnviado(codigo);
-    setOtpVerificado(false);
-    setOtpIngresado('');
-  };
-
-  const verificarOTP = () => {
-    if (otpIngresado === otpEnviado && otpEnviado !== '') {
-      setOtpVerificado(true);
-      setErrores((e) => {
-        const resto = { ...e };
-        delete resto.otp;
-        return resto;
-      });
-    } else {
-      setErrores((e) => ({ ...e, otp: 'El código no coincide' }));
-    }
-  };
-
   const manejarSubidaArchivo = async (recaudoId: string, files: FileList | null) => {
     if (!files || files.length === 0) return;
     const listaArchivos = Array.from(files);
-    const nombres = listaArchivos.map((f) => f.name);
-    setArchivos((a) => ({ ...a, [recaudoId]: [...(a[recaudoId] ?? []), ...nombres] }));
+    const rechazos: string[] = [];
 
     setSubiendoRecaudo((s) => ({ ...s, [recaudoId]: true }));
     for (const f of listaArchivos) {
+      // Sin servidor (maqueta) el archivo no sale del navegador: solo se lista su nombre.
+      if (!apiConfigurada || !tokenUrl) {
+        setAdjuntos((prev) => [...prev, { id: crypto.randomUUID(), recaudoId, nombre: f.name, cargado: null }]);
+        continue;
+      }
+      if (f.size > TAMANO_MAXIMO_RECAUDO) {
+        rechazos.push(`${f.name}: supera el máximo de 10 MB.`);
+        continue;
+      }
       try {
-        const cargado = await subirRecaudoDigital(f, recaudoId);
-        setRecaudosCargadosDto((prev) => [...prev, cargado]);
-      } catch (err) {
-        console.warn('Subida de recaudo al servidor no disponible, conservando archivo localmente:', err);
-        setRecaudosCargadosDto((prev) => [
+        const cargado = await subirRecaudoDigital(f, recaudoId, tokenUrl);
+        setAdjuntos((prev) => [
           ...prev,
-          {
-            storageKey: `local_${recaudoId}_${Date.now()}`,
-            tipoDocumento: recaudoId,
-            nombreOriginal: f.name,
-            tamanoBytes: f.size,
-            mimeType: f.type || 'application/octet-stream',
-          },
+          { id: crypto.randomUUID(), recaudoId, nombre: cargado.fileName, cargado },
         ]);
+      } catch (err: unknown) {
+        // Con servidor, un archivo rechazado no se da por adjunto: el cliente ve por qué.
+        const detalle =
+          err instanceof ErrorApi && err.estado !== 0 && err.detalle
+            ? err.detalle
+            : 'No se pudo subir el archivo. Revisa tu conexión e inténtalo de nuevo.';
+        rechazos.push(`${f.name}: ${detalle}`);
       }
     }
+    setErrorRecaudo((e) => {
+      const resto = { ...e };
+      if (rechazos.length > 0) resto[recaudoId] = rechazos.join(' ');
+      else delete resto[recaudoId];
+      return resto;
+    });
     setSubiendoRecaudo((s) => ({ ...s, [recaudoId]: false }));
   };
 
   const enviarSolicitud = async () => {
     const e = validarPaso(7);
     setErrores(e);
-    if (Object.keys(e).length > 0) return;
+    if (Object.keys(e).length > 0 || !contexto) return;
 
     setEnviandoSolicitud(true);
     setErrorEnvio(null);
 
-    const token = tokenUrl ?? undefined;
-    const precio = vehiculo?.precio ?? aNumero(datos.montoSolicitado);
-    const inicial = aNumero(datos.inicialAportado);
-    const montoSolicitado = Math.max(precio - inicial, 0);
-
-    const payload: CrearSolicitudPayload = {
-      tokenEnlace: token,
-      vehiculoId: datos.vehiculoId || (vehiculo?.id ?? '00000000-0000-0000-0000-000000000001'),
-      montoSolicitadoEur: montoSolicitado,
-      inicialAportadaEur: inicial,
-      plazoMeses: datos.plazoMeses,
-      frecuenciaPago: datos.frecuencia,
-
-      primerApellido: datos.primerApellido,
-      segundoApellido: datos.segundoApellido || undefined,
-      primerNombre: datos.primerNombre,
-      segundoNombre: datos.segundoNombre || undefined,
-      tipoDocumento: datos.tipoDocumento,
-      numeroDocumento: datos.numeroDocumento,
-      rif:
-        datos.rif ||
-        derivarRIF(`${datos.tipoDocumento}-${datos.numeroDocumento}`) ||
-        `${datos.tipoDocumento}-${datos.numeroDocumento}-0`,
-      nacionalidad: datos.nacionalidad,
-      estadoCivil: datos.estadoCivil,
-      fechaNacimiento: datos.fechaNacimiento,
-      lugarNacimiento: datos.lugarNacimiento,
-      nivelAcademico: datos.nivelAcademico,
-      cargasFamiliares: Number(datos.cargasFamiliares) || 0,
-      condicionVivienda: datos.condicionVivienda,
-
-      direccionHabitacion: datos.direccion,
-      puntoReferencia: datos.puntoReferencia || undefined,
-      estado: datos.estado,
-      municipio: datos.municipio,
-      codigoPostal: datos.codigoPostal,
-      telefonoHabitacion: datos.telefonoHabitacion || undefined,
-      telefonoCelular: datos.telefonoCelular,
-      correo: datos.correo,
-
-      situacionLaboral: datos.situacionLaboral,
-      nombreEmpresa: datos.empresa || undefined,
-      rifEmpresa: datos.rifEmpresa || undefined,
-      cargo: datos.cargo || undefined,
-      antiguedadAnios: Number(datos.antiguedadAnios) || 0,
-      antiguedadMeses: Number(datos.antiguedadMeses) || 0,
-      direccionEmpresa: datos.direccionEmpresa || undefined,
-      telefonoOficina: datos.telefonoOficina || undefined,
-      nombreJefeInmediato: datos.jefeDirecto || undefined,
-
-      sueldoMensualEur: aNumero(datos.sueldoMensual),
-      otrosIngresosEur: aNumero(datos.otrosIngresos),
-      conceptoOtrosIngresos: datos.conceptoOtrosIngresos || undefined,
-      alquilerHipotecaEur: aNumero(datos.alquilerHipoteca),
-      alimentacionServiciosEur: aNumero(datos.alimentacionServicios),
-      pagosDeudasEur: aNumero(datos.pagosDeudas),
-
-      referencias: datos.referencias.filter((r) => r.nombre.trim() !== ''),
-      bancoPrincipal: datos.banco,
-      tipoCuenta: datos.tipoCuenta,
-      numeroCuenta: datos.numeroCuenta,
-
-      esPep: datos.esPEP,
-      vinculoPep: datos.vinculoPEP,
-      cargoPep: datos.cargoPEP || undefined,
-      institucionPep: datos.institucionPEP || undefined,
-      periodoPep: datos.periodoPEP || undefined,
-      consentimientoDatos: datos.consentimientoDatos,
-
-      recaudos: recaudosCargadosDto.map((rc) => ({
-        tipoDocumento: rc.tipoDocumento,
-        nombreOriginal: rc.nombreOriginal,
-        storageKey: rc.storageKey,
-        mimeType: rc.mimeType,
-        tamanoBytes: rc.tamanoBytes,
-      })),
-    };
-
     try {
-      const res = await enviarSolicitudCredito(payload);
-      setNumeroSolicitud(res.numeroSolicitud);
-      setSolicitudExitosa({ numero: res.numeroSolicitud, mensaje: res.mensaje });
-    } catch (err: any) {
-      console.warn('Error al enviar solicitud al backend:', err);
-      // Si estamos en modo maqueta (sin token de asesor en URL) o falló la conexión inicial,
-      // se registra localmente con número oficial simulado para permitir la navegación completa.
-      if (!tokenUrl || err?.estado === 0 || err?.estado === 400 || err?.estado === 404) {
+      if (apiConfigurada && tokenUrl) {
+        const res = await enviarSolicitudCredito(
+          construirEnvio({
+            token: tokenUrl,
+            datos,
+            precio: contexto.vehiculo.precio,
+            politica,
+            // Solo lo que el servidor guardó en el contenedor privado.
+            recaudos: adjuntos.flatMap((a) => (a.cargado ? [a.cargado] : [])),
+            versionTexto: VERSION_TEXTO_DECLARACIONES,
+          }),
+        );
+        setNumeroSolicitud(res.numeroSolicitud);
+        setSolicitudExitosa({ numero: res.numeroSolicitud, mensaje: res.mensaje, origen: 'servidor' });
+      } else {
+        // Demostración: no hay servidor al que enviar. La pantalla de cierre lo rotula como simulado.
         const numLocal = generarNumeroSolicitud();
         setNumeroSolicitud(numLocal);
-        setSolicitudExitosa({
-          numero: numLocal,
-          mensaje: 'Tu solicitud de financiamiento ' + numLocal + ' ha sido procesada exitosamente.',
-        });
-        return;
+        setSolicitudExitosa({ numero: numLocal, origen: 'local' });
       }
-      if (err && err.detalle) {
-        setErrorEnvio(err.detalle);
-        return;
-      }
-      setErrorEnvio('No se pudo contactar al servidor.');
+    } catch (err: unknown) {
+      // Con servidor, un envío que falla no se da por hecho: la persona ve por qué y reintenta con lo que ya escribió.
+      setErrorEnvio(mensajeDeError(err, 'No se pudo contactar al servidor. Revisa tu conexión e inténtalo de nuevo.'));
     } finally {
       setEnviandoSolicitud(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const recaudosCargados = RECAUDOS.filter((r) => (archivos[r.id] ?? []).length > 0).length;
+  const recaudosCargados = RECAUDOS.filter((r) => adjuntos.some((a) => a.recaudoId === r.id)).length;
 
   // ── Validación de enlace en progreso ──────────────────────────────
-  if (enlaceValidando) {
+  if (estadoEnlace.tipo === 'validando') {
     return (
       <div style={{ maxWidth: '640px', margin: '60px auto', textAlign: 'center' }}>
-        <p style={{ fontSize: '16px', color: 'var(--texto-secundario)' }}>
+        <p role="status" style={{ fontSize: '16px', color: 'var(--texto-secundario)' }}>
           Validando enlace de financiamiento…
         </p>
       </div>
@@ -774,9 +620,11 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
   }
 
   // ── Acceso por enlace personal ────────────────────────────────────
-  // La solicitud ya no está abierta al público (spec 010 §8.8): se llega con el
-  // enlace que emite el asesor al vender con financiamiento.
-  if (!accesoHabilitado || !vehiculo) {
+  // La solicitud no está abierta al público (spec 010 §8.8): se llega con el enlace que emite el asesor al vender con
+  // financiamiento. Sin un enlace que el servidor valide, no hay formulario.
+  if (!contexto) {
+    const sinConexion = estadoEnlace.tipo === 'sin_conexion';
+    const noValido = estadoEnlace.tipo === 'no_valido';
     return (
       <div style={{ maxWidth: '640px', margin: '0 auto' }}>
         <div
@@ -789,16 +637,17 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
           }}
         >
           <div style={{ fontSize: '40px', marginBottom: 'var(--space-md)' }} aria-hidden="true">
-            🔒
+            {sinConexion ? '📡' : '🔒'}
           </div>
           <h1 style={{ fontSize: '22px', marginBottom: 'var(--space-sm)' }}>
-            {enlaceInvalidoMensaje
-              ? 'Enlace no disponible'
-              : accesoHabilitado
-              ? 'El vehículo de este enlace ya no está disponible'
-              : 'La solicitud de financiamiento se habilita después de tu visita'}
+            {sinConexion
+              ? 'No pudimos validar tu enlace'
+              : noValido
+                ? 'Enlace no disponible'
+                : 'La solicitud de financiamiento se habilita después de tu visita'}
           </h1>
           <p
+            role={sinConexion || noValido ? 'alert' : undefined}
             style={{
               fontSize: '14px',
               color: 'var(--texto-secundario)',
@@ -807,13 +656,17 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
               maxWidth: '46ch',
             }}
           >
-            {enlaceInvalidoMensaje ||
-              (accesoHabilitado
-                ? 'Escríbele a tu asesor para que revise el enlace o te envíe uno nuevo.'
-                : 'Primero conoces el vehículo en la sede. Si decides comprarlo financiado, tu asesor te envía un enlace personal para completar esta solicitud desde tu teléfono.')}
+            {sinConexion || noValido
+              ? estadoEnlace.mensaje
+              : 'Primero conoces el vehículo en la sede. Si decides comprarlo financiado, tu asesor te envía un enlace personal para completar esta solicitud desde tu teléfono.'}
           </p>
           <div style={{ display: 'flex', gap: 'var(--space-md)', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Boton variant="primary" onClick={() => navigate('/catalogo')}>
+            {sinConexion && (
+              <Boton variant="primary" onClick={() => setIntento((n) => n + 1)}>
+                Reintentar
+              </Boton>
+            )}
+            <Boton variant={sinConexion ? 'secondary' : 'primary'} onClick={() => navigate('/catalogo')}>
               Ver el catálogo
             </Boton>
             <Boton variant="secondary" onClick={() => navigate('/financiamiento')}>
@@ -880,8 +733,8 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
             <div style={{ marginBottom: 'var(--space-lg)' }}>
               <span className="badge badge-aviso">Recaudos incompletos</span>
               <p style={{ fontSize: '13px', color: 'var(--texto-secundario)', marginTop: 'var(--space-sm)' }}>
-                Faltan {RECAUDOS.length - recaudosCargados} de {RECAUDOS.length} documentos. Te
-                enviaremos un enlace para completarlos.
+                Faltan {RECAUDOS.length - recaudosCargados} de {RECAUDOS.length} documentos. Tu asesor se
+                comunicará contigo para completarlos.
               </p>
             </div>
           )}
@@ -903,9 +756,13 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
           </div>
         </div>
 
-        <div style={{ marginTop: 'var(--space-lg)', textAlign: 'center', fontSize: '13px', color: 'var(--texto-secundario)' }}>
-          Tu expediente digital ha sido sellado con IP y marca de tiempo conforme a la normativa WMA-F-FIN-001. Nuestro comité de crédito evaluará tu solicitud a la brevedad.
-        </div>
+        {solicitudExitosa?.origen !== 'servidor' && (
+          <div style={{ marginTop: 'var(--space-lg)' }}>
+            <NotaSimulada variante="bloque">
+              Demostración: la solicitud no se envió a ningún servidor y el número es aleatorio.
+            </NotaSimulada>
+          </div>
+        )}
       </div>
     );
   }
@@ -934,57 +791,31 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
         {/* ── Paso 0 · Vehículo y condiciones ── */}
         {paso === 0 && (
           <>
-            {vehiculo ? (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '110px 1fr',
-                  gap: 'var(--space-lg)',
-                  alignItems: 'center',
-                  backgroundColor: 'var(--superficie)',
-                  border: '1px solid var(--borde-claro)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: 'var(--space-md)',
-                  marginBottom: 'var(--space-lg)',
-                }}
-              >
-                <FotoVehiculo vehiculo={vehiculo} alto={78} redondeo="var(--radius-sm)" />
-                <div style={{ display: 'grid', gap: '2px', fontSize: '13px' }}>
-                  <strong style={{ fontSize: '15px' }}>
-                    {vehiculo.marca} {vehiculo.modelo} {vehiculo.anio}
-                  </strong>
-                  <span style={{ color: 'var(--texto-secundario)' }}>{vehiculo.version}</span>
-                  <span style={{ color: 'var(--texto-secundario)' }}>
-                    Cuota desde {formatoEUR(cuotaDesde(vehiculo.precio))} /mes
-                  </span>
-                </div>
+            {/* El vehículo es el del enlace: no se elige otro ni se cambia su precio. */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '110px 1fr',
+                gap: 'var(--space-lg)',
+                alignItems: 'center',
+                backgroundColor: 'var(--superficie)',
+                border: '1px solid var(--borde-claro)',
+                borderRadius: 'var(--radius-md)',
+                padding: 'var(--space-md)',
+                marginBottom: 'var(--space-lg)',
+              }}
+            >
+              <FotoDelEnlace url={contexto.vehiculo.fotoUrl} descripcion={contexto.vehiculo.titulo} />
+              <div style={{ display: 'grid', gap: '2px', fontSize: '13px' }}>
+                <strong style={{ fontSize: '15px' }}>{contexto.vehiculo.titulo}</strong>
+                <span style={{ color: 'var(--texto-secundario)' }}>{contexto.vehiculo.version}</span>
+                <span style={{ color: 'var(--texto-secundario)' }}>
+                  Precio {formatoEUR(contexto.vehiculo.precio)}
+                </span>
               </div>
-            ) : (
-              <Campo
-                label="Vehículo"
-                type="select"
-                value={datos.vehiculoId}
-                onChange={(e) => set('vehiculoId', e.target.value)}
-                options={[
-                  { value: '', label: 'Aún no he elegido vehículo' },
-                  ...vehiculos.map((v) => ({
-                    value: v.id,
-                    label: `${v.marca} ${v.modelo} ${v.anio} — Desde ${formatoEUR(cuotaDesde(v.precio))} /mes`,
-                  })),
-                ]}
-              />
-            )}
+            </div>
 
             <Rejilla>
-              {!vehiculo && (
-                <Campo
-                  label="Monto solicitado (EUR)"
-                  type="number"
-                  value={datos.montoSolicitado}
-                  onChange={(e) => set('montoSolicitado', e.target.value)}
-                  error={errores.montoSolicitado}
-                />
-              )}
               <Campo
                 label="Inicial aportado (EUR)"
                 type="number"
@@ -992,20 +823,9 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
                 onChange={(e) => set('inicialAportado', e.target.value)}
                 error={errores.inicialAportado}
               />
-              <Campo
-                label="Plazo"
-                type="select"
-                value={String(datos.plazoMeses)}
-                onChange={(e) => set('plazoMeses', Number(e.target.value))}
-                options={PLAZOS_MESES.map((m) => ({ value: String(m), label: `${m} meses` }))}
-              />
-              <Campo
-                label="Frecuencia de pago"
-                type="select"
-                value={datos.frecuencia}
-                onChange={(e) => set('frecuencia', e.target.value)}
-                options={FRECUENCIAS_PAGO.map((f) => ({ value: f, label: f }))}
-              />
+              {/* D-55: el plazo es uno solo (el de la política vigente) y las cuotas son mensuales. */}
+              <Campo label="Plazo (fijo)" value={`${politica.plazoMeses} meses`} readOnly />
+              <Campo label="Frecuencia de pago" value="Mensual" readOnly />
             </Rejilla>
 
             <div
@@ -1029,9 +849,10 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
               </div>
             </div>
 
-            <p style={{ fontSize: '11px', color: 'var(--texto-mudo)', margin: '4px 0 0' }}>
-              Cifra referencial sujeta a evaluación crediticia oficial.
-            </p>
+            <NotaSimulada>
+              Cifra referencial. La cuota definitiva depende de la evaluación crediticia y se
+              confirma en el contrato.
+            </NotaSimulada>
           </>
         )}
 
@@ -1132,9 +953,11 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
 
             {datos.estado && municipiosDisponibles.length === 0 && (
               <div style={{ marginBottom: 'var(--space-lg)' }}>
-                <p style={{ fontSize: '13px', color: 'var(--aviso-texto)', backgroundColor: 'var(--aviso-fondo)', padding: '10px 14px', borderRadius: 'var(--radius-md)' }}>
-                  Catálogo de municipios para {datos.estado} en actualización. Selecciona Distrito Capital o Miranda para agilizar la entrega en sede Caracas.
-                </p>
+                <NotaSimulada variante="bloque">
+                  Todavía no hay catálogo oficial de municipios para {datos.estado}. En la maqueta
+                  solo se cargaron los de la Gran Caracas; el resto queda pendiente del listado
+                  autoritativo y por eso el paso no permite avanzar.
+                </NotaSimulada>
               </div>
             )}
 
@@ -1225,9 +1048,9 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
 
             <Bloque titulo="Egresos mensuales">
               <Rejilla>
-                <Campo label="Alquiler o hipoteca (USD)" type="number" value={datos.alquilerHipoteca} onChange={(e) => set('alquilerHipoteca', e.target.value)} />
-                <Campo label="Alimentación y servicios (USD) *" type="number" value={datos.alimentacionServicios} onChange={(e) => set('alimentacionServicios', e.target.value)} error={errores.alimentacionServicios} />
-                <Campo label="Pagos de deudas y créditos (USD)" type="number" value={datos.pagosDeudas} onChange={(e) => set('pagosDeudas', e.target.value)} />
+                <Campo label="Alquiler o hipoteca (EUR)" type="number" value={datos.alquilerHipoteca} onChange={(e) => set('alquilerHipoteca', e.target.value)} />
+                <Campo label="Alimentación y servicios (EUR) *" type="number" value={datos.alimentacionServicios} onChange={(e) => set('alimentacionServicios', e.target.value)} error={errores.alimentacionServicios} />
+                <Campo label="Pagos de deudas y créditos (EUR)" type="number" value={datos.pagosDeudas} onChange={(e) => set('pagosDeudas', e.target.value)} />
               </Rejilla>
             </Bloque>
 
@@ -1246,9 +1069,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
               <FilaTotal etiqueta="Total ingresos" valor={financiero.totalIngresos} />
               <FilaTotal etiqueta="Total egresos" valor={financiero.totalEgresos} />
               <FilaTotal
-                etiqueta={`Capacidad de pago (${Math.round(
-                  PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago * 100,
-                )} % del ingreso)`}
+                etiqueta={`Capacidad de pago (${porcentajeCapacidad} % del ingreso)`}
                 valor={financiero.capacidadPago}
                 destacado
                 negativo={financiero.capacidadPago < 0}
@@ -1268,15 +1089,17 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
                 }}
               >
                 La cuota estimada de {formatoEUR(financiero.cuota)} supera tu capacidad de pago: el{' '}
-                {Math.round(PARAMETROS_FINANCIAMIENTO.porcentajeCapacidadPago * 100)} % de tu ingreso mensual.
-                Puedes continuar: un analista revisará tu caso y podrá proponerte otro plazo o
-                una inicial mayor.
+                {porcentajeCapacidad} % de tu ingreso mensual. Puedes continuar: un analista revisará tu caso
+                y podrá proponerte una inicial mayor.
               </div>
             )}
 
-            <p style={{ fontSize: '11px', color: 'var(--texto-mudo)', margin: '4px 0 0' }}>
-              La capacidad de pago máxima recomendada es del 30 % del ingreso mensual comprobable.
-            </p>
+            <NotaSimulada>
+              Los totales se calculan solos y no se pueden editar. En el formato en papel eran
+              casillas a rellenar a mano, de donde venían las inconsistencias. La capacidad de pago
+              es el {porcentajeCapacidad} % del ingreso mensual: los egresos se registran para el
+              analista, pero no la reducen.
+            </NotaSimulada>
           </>
         )}
 
@@ -1346,6 +1169,11 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
                 placeholder="0102 0000 0000 0000 0000"
               />
             </Bloque>
+
+            <NotaSimulada>
+              La lista de bancos es provisional y no está confirmada contra el listado oficial de
+              Sudeban. El dígito verificador de la cuenta no se comprueba: falta el algoritmo.
+            </NotaSimulada>
           </>
         )}
 
@@ -1354,7 +1182,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
           <>
             <div style={{ display: 'grid', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
               {RECAUDOS.map((r) => {
-                const cargados = archivos[r.id] ?? [];
+                const cargados = adjuntos.filter((a) => a.recaudoId === r.id);
                 return (
                   <div
                     key={r.id}
@@ -1403,22 +1231,24 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
                       />
                     </label>
 
+                    {errorRecaudo[r.id] && (
+                      <p role="alert" style={{ fontSize: '12px', color: 'var(--peligro-texto)', marginTop: 'var(--space-sm)' }}>
+                        {errorRecaudo[r.id]}
+                      </p>
+                    )}
+
                     {cargados.length > 0 && (
                       <ul style={{ listStyle: 'none', marginTop: 'var(--space-md)', display: 'grid', gap: '4px' }}>
-                        {cargados.map((nombre, i) => (
+                        {cargados.map((a) => (
                           <li
-                            key={`${nombre}-${i}`}
+                            key={a.id}
                             style={{ fontSize: '12px', color: 'var(--texto-secundario)', display: 'flex', justifyContent: 'space-between', gap: 'var(--space-sm)' }}
                           >
-                            <span>📎 {nombre}</span>
+                            <span>📎 {a.nombre}</span>
+                            {/* Quitar lo saca de la solicitud: lo que no está en la lista no se envía. */}
                             <button
                               type="button"
-                              onClick={() =>
-                                setArchivos((a) => ({
-                                  ...a,
-                                  [r.id]: (a[r.id] ?? []).filter((_, j) => j !== i),
-                                }))
-                              }
+                              onClick={() => setAdjuntos((prev) => prev.filter((x) => x.id !== a.id))}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--peligro-texto)', fontSize: '12px' }}
                             >
                               Quitar
@@ -1440,13 +1270,20 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
               }}
             >
               <strong>{recaudosCargados} de {RECAUDOS.length}</strong> recaudos adjuntos.
-              {recaudosCargados < RECAUDOS.length &&
-                ' Puedes enviar la solicitud igual y completarlos después.'}
+              {recaudosCargados < RECAUDOS.length && ' Puedes enviar la solicitud sin todos.'}
+              {apiConfigurada && ' Al enviarla, este enlace deja de admitir archivos.'}
             </div>
 
-            <p style={{ fontSize: '11px', color: 'var(--texto-mudo)', margin: '4px 0 0' }}>
-              🔒 Documentos protegidos mediante almacenamiento cifrado y hash de integridad WAMMA.
-            </p>
+            {apiConfigurada ? (
+              <p style={{ fontSize: '12px', lineHeight: 1.5, color: 'var(--texto-mudo)', margin: 0 }}>
+                Solo PDF, JPG o PNG, de hasta 10 MB cada uno. Se guardan en un contenedor privado:
+                solo el área de crédito los abre, con un enlace que vence en minutos.
+              </p>
+            ) : (
+              <NotaSimulada>
+                Los archivos no se suben a ningún servidor: solo se listan sus nombres.
+              </NotaSimulada>
+            )}
           </>
         )}
 
@@ -1532,53 +1369,9 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
               </span>
             </label>
 
-            <Bloque titulo="Verificación por código">
-              {!otpEnviado ? (
-                <Boton variant="secondary" fullWidth onClick={enviarOTP}>
-                  Enviar código a {datos.telefonoCelular || 'mi teléfono'}
-                </Boton>
-              ) : (
-                <>
-                  <div
-                    style={{
-                      backgroundColor: 'var(--info-fondo)',
-                      border: '1px solid #C5DBF2',
-                      borderRadius: 'var(--radius-md)',
-                      padding: 'var(--space-md)',
-                      fontSize: '13px',
-                      color: 'var(--info-texto)',
-                      marginBottom: 'var(--space-md)',
-                    }}
-                  >
-                    Código de verificación WhatsApp (Canal Seguro):{' '}
-                    <strong style={{ letterSpacing: '0.1em' }}>{otpEnviado}</strong>
-                  </div>
-
-                  <Rejilla>
-                    <Campo
-                      label="Código de 6 dígitos"
-                      value={otpIngresado}
-                      onChange={(e) => setOtpIngresado(e.target.value)}
-                      error={errores.otp}
-                      disabled={otpVerificado}
-                      placeholder="000000"
-                    />
-                    <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 'var(--space-lg)' }}>
-                      {otpVerificado ? (
-                        <span className="badge badge-exito">Teléfono verificado</span>
-                      ) : (
-                        <Boton variant="secondary" onClick={verificarOTP} style={{ width: '100%' }}>
-                          Verificar
-                        </Boton>
-                      )}
-                    </div>
-                  </Rejilla>
-                </>
-              )}
-            </Bloque>
-
-            <p style={{ fontSize: '12px', color: 'var(--texto-secundario)', marginTop: 'var(--space-sm)', textAlign: 'center' }}>
-              El código OTP recibido constituye tu firma electrónica del expediente conforme a la Ley sobre Mensajes de Datos y Firmas Electrónicas.
+            <p style={{ fontSize: '12px', lineHeight: 1.5, color: 'var(--texto-mudo)', margin: 0 }}>
+              Al enviar la solicitud quedan registrados la fecha y la hora, la dirección desde la que la envías y la
+              versión de estas declaraciones que aceptaste.
             </p>
           </>
         )}
@@ -1630,9 +1423,14 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
         </div>
       </div>
 
-      <div style={{ marginTop: 'var(--space-lg)', textAlign: 'center', fontSize: '12px', color: 'var(--texto-mudo)' }}>
-        🔒 Tus datos personales y financieros están protegidos bajo cifrado de grado bancario (AES-256-GCM). WAMMA Platform
-      </div>
+      {!apiConfigurada && (
+        <div style={{ marginTop: 'var(--space-lg)' }}>
+          <NotaSimulada variante="bloque">
+            Demostración del módulo de solicitud de crédito: la solicitud no llega a ningún servidor. Los datos viven
+            en memoria y se pierden al recargar.
+          </NotaSimulada>
+        </div>
+      )}
 
       <style>{`
         .rejilla-sc {

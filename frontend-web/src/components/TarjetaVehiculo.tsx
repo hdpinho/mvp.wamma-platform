@@ -1,7 +1,7 @@
 import React from 'react';
 import { FotoVehiculo } from './FotoVehiculo';
 import { BotonFavorito } from './BotonFavorito';
-import { cuotaDesde } from '../mocks/financiamiento';
+import { useParametros } from '../state/parametrosContexto';
 import type { VehiculoData } from '../types/vehiculo';
 
 export type { VehiculoData };
@@ -25,7 +25,9 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
   vehiculo,
   onSelect,
 }) => {
+  const { cuotaDesde, cargando: cargandoParametros } = useParametros();
   const precioNum = Number.isFinite(vehiculo.precio) ? vehiculo.precio : 0;
+  // Nula si los parámetros vigentes no están disponibles: no se inventa una cuota.
   const cuota = cuotaDesde(precioNum);
 
   return (
@@ -193,7 +195,13 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
             Cuota mensual
           </div>
           <div style={{ fontSize: '20px', fontWeight: 800, lineHeight: 1.2, color: 'var(--naranja-700)' }}>
-            Desde {formatoEUR(cuota)} /mes*
+            {cuota !== null ? (
+              <>Desde {formatoEUR(cuota)} /mes*</>
+            ) : (
+              <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--texto-mudo)' }}>
+                {cargandoParametros ? 'Calculando…' : 'Cuota no disponible'}
+              </span>
+            )}
           </div>
         </div>
 

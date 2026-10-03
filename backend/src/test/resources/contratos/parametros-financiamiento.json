@@ -1,0 +1,11 @@
+{
+  "id": "e0f2a4b6-8c0d-4e2f-9a3b-5c7d9f1b3d3d",
+  "tasa_mensual": 0.04,
+  "plazo_meses": 24,
+  "ratio_cuota_ingreso": 0.30,
+  "opciones_inicial": [0.20, 0.30, 0.40],
+  "inicial_minima": 0.20,
+  "moneda_base": "EUR",
+  "vigente_desde": "2026-09-01T00:00:00Z",
+  "activo": true
+}

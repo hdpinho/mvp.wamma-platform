@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
+/** Solicitud de crédito con su expediente ya descifrado; en la base, el expediente va cifrado. */
 public record CreditApplicationRecord(
         UUID id,
         String applicationNumber,
@@ -17,14 +18,7 @@ public record CreditApplicationRecord(
         String currency,
         BigDecimal bcvRate,
         LocalDate bcvRateDate,
-        String personalDataJson,
-        String contactDataJson,
-        String employmentDataJson,
-        String financialDataJson,
-        String referencesJson,
-        String bankingDataJson,
-        String declarationsJson,
-        String acceptanceEvidenceJson,
+        CreditDossier dossier,
         BigDecimal monthlyCapacity,
         BigDecimal estimatedPayment,
         String paymentFrequency,

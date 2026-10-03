@@ -3,9 +3,12 @@ import { Link } from 'react-router-dom';
 import { useCRM } from '../../state/crmContexto';
 import { useVehiculos } from '../../state/vehiculosContexto';
 import { Boton } from '../../components/Boton';
+import { AsesorDeOportunidad } from '../../components/crm/AsesorDeOportunidad';
+import { AvisoCargaCRM } from '../../components/crm/AvisoCargaCRM';
+import { CreditoVinculado } from '../../components/crm/CreditoVinculado';
 import { MoverEtapa } from '../../components/crm/MoverEtapa';
 import { ESTILOS_CRM } from '../../components/crm/estilos';
-import { fechaCorta, fechaDeAccion, formatoUSD, haceCuanto } from '../../components/crm/formato';
+import { fechaCorta, fechaDeAccion, formatoEUR, haceCuanto } from '../../components/crm/formato';
 import {
   ETAPAS_ABIERTAS,
   MOTIVOS_PERDIDA,
@@ -21,14 +24,17 @@ import {
  * primero lo estancado y lo vencido: es lo que hay que atender hoy. Debajo, lo
  * cerrado: ventas y motivos de pérdida agregados (`spec.md` RF-010.17).
  *
- * Pendiente por C4: el filtro por asesor. Sin el módulo 001 no hay identidad
- * de asesor que filtrar; hoy todas las oportunidades están sin asignar.
+ * Con servidor, cada asesor ve las suyas y las que nadie ha tomado (D-48); el coordinador ve todas y las reparte.
+ * Los botones de demostración solo existen sin servidor.
  */
 
-type Filtro = 'todas' | 'estancadas' | 'vencidas';
+type Filtro = 'todas' | 'estancadas' | 'vencidas' | 'sin_asesor';
 
 export const O7_EmbudoComercial: React.FC = () => {
   const {
+    origen,
+    cargando,
+    error,
     oportunidades,
     obtenerPersona,
     ultimaActividad,
@@ -44,7 +50,8 @@ export const O7_EmbudoComercial: React.FC = () => {
 
   const ahora = new Date();
   const fichas = oportunidades.map((o) => {
-    // El momento en que entró a su etapa actual; los intentos rechazados no cuentan.
+    // El momento en que entró a su etapa actual. Con servidor lo calcula él; en la maqueta sale del historial local
+    // (los intentos rechazados no cuentan).
     const entrada = historialDeOportunidad(o.id)
       .filter((e) => e.etapaAnterior !== e.etapaNueva && e.etapaNueva === o.etapa)
       .pop();
@@ -53,7 +60,7 @@ export const O7_EmbudoComercial: React.FC = () => {
       persona: obtenerPersona(o.personaId),
       estancada: estaEstancada(o, ultimaActividad(o.id), ahora),
       vencida: proximaAccionVencida(o, ahora),
-      entroEnEtapa: entrada?.ts ?? o.fechaCreacion,
+      entroEnEtapa: o.entroEtapaEn ?? entrada?.ts ?? o.fechaCreacion,
     };
   });
 
@@ -65,6 +72,7 @@ export const O7_EmbudoComercial: React.FC = () => {
   const visibles = abiertas.filter((f) => {
     if (filtro === 'estancadas' && !f.estancada) return false;
     if (filtro === 'vencidas' && !f.vencida) return false;
+    if (filtro === 'sin_asesor' && f.o.asesorId) return false;
     if (!q) return true;
     const { marca, modelo } = f.o.vehiculoResumen;
     return `${f.persona?.nombreApellido ?? ''} ${marca} ${modelo}`.toLowerCase().includes(q);
@@ -73,7 +81,18 @@ export const O7_EmbudoComercial: React.FC = () => {
   const valorAbierto = abiertas.reduce((s, f) => s + f.o.valorEstimadoUSD, 0);
   const totalEstancadas = abiertas.filter((f) => f.estancada).length;
   const totalVencidas = abiertas.filter((f) => f.vencida).length;
+  const totalSinAsesor = abiertas.filter((f) => !f.o.asesorId).length;
   const conversion = fichas.length > 0 ? Math.round((ganadas.length / fichas.length) * 100) : 0;
+  const filtros: Filtro[] =
+    origen === 'servidor' ? ['todas', 'estancadas', 'vencidas', 'sin_asesor'] : ['todas', 'estancadas', 'vencidas'];
+  const etiquetaFiltro = (f: Filtro) =>
+    f === 'todas'
+      ? 'Todas'
+      : f === 'estancadas'
+        ? `Solo estancadas (${totalEstancadas})`
+        : f === 'vencidas'
+          ? `Acción vencida (${totalVencidas})`
+          : `Sin asesor (${totalSinAsesor})`;
 
   const motivos = MOTIVOS_PERDIDA.map((m) => ({
     ...m,
@@ -102,6 +121,8 @@ export const O7_EmbudoComercial: React.FC = () => {
         </p>
       </div>
 
+      <AvisoCargaCRM />
+
       {aviso && (
         <div className="crm-aviso" role="status">
           {aviso}
@@ -112,24 +133,36 @@ export const O7_EmbudoComercial: React.FC = () => {
       )}
 
       {oportunidades.length === 0 ? (
-        <div className="crm-vacio">
-          <div style={{ fontSize: '32px' }}>📊</div>
-          <h3>Todavía no hay oportunidades</h3>
-          <p>
-            Se crean solas cuando un cliente agenda una cita en el catálogo. Para recorrer el embudo sin agendar a
-            mano, carga prospectos de ejemplo: cubren todas las etapas e incluyen casos estancados y acciones
-            vencidas.
-          </p>
-          <Boton
-            variant="primary"
-            onClick={() => {
-              cargarDatosEjemplo();
-              setAviso('Se cargaron prospectos de ejemplo. En su ficha aparecen rotulados como "Dato de ejemplo".');
-            }}
-          >
-            Cargar datos de ejemplo
-          </Boton>
-        </div>
+        // Con servidor, «no hay oportunidades» solo se afirma si la lectura terminó bien.
+        !cargando &&
+        !error && (
+          <div className="crm-vacio">
+            <div style={{ fontSize: '32px' }}>📊</div>
+            <h3>Todavía no hay oportunidades</h3>
+            {origen === 'servidor' ? (
+              <p>Se crean solas cuando un cliente agenda una cita en el catálogo.</p>
+            ) : (
+              <>
+                <p>
+                  Se crean solas cuando un cliente agenda una cita en el catálogo. Para recorrer el embudo sin agendar
+                  a mano, carga prospectos de ejemplo: cubren todas las etapas e incluyen casos estancados y acciones
+                  vencidas.
+                </p>
+                <Boton
+                  variant="primary"
+                  onClick={() => {
+                    cargarDatosEjemplo();
+                    setAviso(
+                      'Se cargaron prospectos de ejemplo. En su ficha aparecen rotulados como "Dato de ejemplo".',
+                    );
+                  }}
+                >
+                  Cargar datos de ejemplo
+                </Boton>
+              </>
+            )}
+          </div>
+        )
       ) : (
         <>
           <div className="embudo-kpis">
@@ -138,7 +171,7 @@ export const O7_EmbudoComercial: React.FC = () => {
               <div className="kpi-label">Oportunidades abiertas</div>
             </div>
             <div className="embudo-kpi">
-              <div className="kpi-valor">{formatoUSD(valorAbierto)}</div>
+              <div className="kpi-valor">{formatoEUR(valorAbierto)}</div>
               <div className="kpi-label">Valor en el embudo</div>
             </div>
             <div className={`embudo-kpi ${totalEstancadas ? 'alerta' : ''}`}>
@@ -158,18 +191,14 @@ export const O7_EmbudoComercial: React.FC = () => {
           </div>
 
           <div className="embudo-filtros">
-            {(['todas', 'estancadas', 'vencidas'] as Filtro[]).map((f) => (
+            {filtros.map((f) => (
               <button
                 key={f}
                 type="button"
                 className={`crm-tab ${filtro === f ? 'activo' : ''}`}
                 onClick={() => setFiltro(f)}
               >
-                {f === 'todas'
-                  ? 'Todas'
-                  : f === 'estancadas'
-                    ? `Solo estancadas (${totalEstancadas})`
-                    : `Acción vencida (${totalVencidas})`}
+                {etiquetaFiltro(f)}
               </button>
             ))}
             <input
@@ -202,7 +231,7 @@ export const O7_EmbudoComercial: React.FC = () => {
                         <span className={`crm-badge etapa-${etapa.codigo}`}>{etapa.nombre}</span>
                         <span className="crm-count">{columna.length}</span>
                       </div>
-                      <div className="embudo-col-monto">{formatoUSD(monto)}</div>
+                      <div className="embudo-col-monto">{formatoEUR(monto)}</div>
                       <div className="embudo-col-umbral">
                         Estancada tras {etapa.umbralEstancadaDias} días sin actividad
                       </div>
@@ -222,10 +251,16 @@ export const O7_EmbudoComercial: React.FC = () => {
                           {o.vehiculoResumen.marca} {o.vehiculoResumen.modelo} {o.vehiculoResumen.anio}
                         </div>
                         <div className="embudo-valor">
-                          {formatoUSD(o.valorEstimadoUSD)}
+                          {formatoEUR(o.valorEstimadoUSD)}
                           <span> · {o.modalidadPago}</span>
                         </div>
                         <div className="embudo-meta">Entró a esta etapa {haceCuanto(entroEnEtapa, ahora)}</div>
+                        {o.solicitudCredito?.estado && (
+                          <div>
+                            <CreditoVinculado oportunidad={o} />
+                          </div>
+                        )}
+                        <AsesorDeOportunidad oportunidad={o} />
                         {o.proximaAccion && (
                           <div className={`embudo-accion ${vencida ? 'crm-vencida' : ''}`}>
                             {vencida ? '⏰ Vencida: ' : '→ '}
@@ -253,7 +288,7 @@ export const O7_EmbudoComercial: React.FC = () => {
                 Vendidos <span className="crm-count">{ganadas.length}</span>
               </h2>
               <div className="embudo-col-monto">
-                {formatoUSD(ganadas.reduce((s, f) => s + f.o.valorEstimadoUSD, 0))}
+                {formatoEUR(ganadas.reduce((s, f) => s + f.o.valorEstimadoUSD, 0))}
               </div>
               {ganadas.length === 0 ? (
                 <p className="embudo-col-vacia">Aún no hay ventas cerradas.</p>
@@ -262,7 +297,7 @@ export const O7_EmbudoComercial: React.FC = () => {
                   {ganadas.map(({ o, persona }) => (
                     <li key={o.id}>
                       <Link to={`/admin/personas/${o.personaId}`}>{persona?.nombreApellido}</Link> ·{' '}
-                      {o.vehiculoResumen.marca} {o.vehiculoResumen.modelo} · {formatoUSD(o.valorEstimadoUSD)}
+                      {o.vehiculoResumen.marca} {o.vehiculoResumen.modelo} · {formatoEUR(o.valorEstimadoUSD)}
                       {o.fechaCierre ? ` · ${fechaCorta(o.fechaCierre)}` : ''}
                     </li>
                   ))}
@@ -294,11 +329,13 @@ export const O7_EmbudoComercial: React.FC = () => {
             </section>
           </div>
 
-          <div className="embudo-pie">
-            <button type="button" className="embudo-restablecer" onClick={restablecer}>
-              Restablecer datos de demostración
-            </button>
-          </div>
+          {origen === 'maqueta' && (
+            <div className="embudo-pie">
+              <button type="button" className="embudo-restablecer" onClick={restablecer}>
+                Restablecer datos de demostración
+              </button>
+            </div>
+          )}
         </>
       )}
 

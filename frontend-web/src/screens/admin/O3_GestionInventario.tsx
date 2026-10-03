@@ -129,7 +129,7 @@ export const O3_GestionInventario: React.FC<O3GestionInventarioProps> = ({ rateB
               ? 'Puedes consultar el inventario; darlo de alta y publicarlo corresponde al equipo de inventario.'
               : conServidor
                 ? 'Los vehículos viven en el servidor: lo que publiques aquí es lo que ve el cliente en la vitrina.'
-                : 'Inventario local operativo y sincronizado con vitrina.'}
+                : 'Modo maqueta: el inventario vive solo en este navegador.'}
           </p>
         </div>
         {puedeGestionar && (

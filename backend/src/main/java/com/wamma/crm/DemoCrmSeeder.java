@@ -1,13 +1,13 @@
 package com.wamma.crm;
 
 import com.wamma.inventory.VehicleRepository;
-import com.wamma.platform.identity.Role;
 import com.wamma.platform.identity.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -16,18 +16,19 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Siembra de datos de demostración para el CRM comercial (Ola E1).
- * Solo se activa cuando {@code wamma.demo.cargar-inventario} es true (desarrollo local).
+ * <p>
+ * Solo en el servidor local (perfil {@code local}) y con {@code wamma.demo.cargar-inventario}.
+ * La bandera sola no basta: D-10 prevé encenderla en el primer despliegue para cargar los
+ * vehículos de demostración, y en producción no debe crearse ninguna persona ficticia (tarea E1).
+ * No asigna roles: cada rol se prueba con su propio usuario (separación de funciones, Principio I).
  */
 @Component
 @Order(20) // Se ejecuta después de DemoInventorySeeder (@Order(10))
+@Profile("local")
 @ConditionalOnProperty(name = "wamma.demo.cargar-inventario", havingValue = "true")
 public class DemoCrmSeeder implements ApplicationRunner {
 
@@ -56,15 +57,6 @@ public class DemoCrmSeeder implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         transaction.executeWithoutResult(status -> {
-            // Asignar todos los roles al admin.local para permitir pruebas completas
-            users.findByUsername("admin.local").ifPresent(admin -> {
-                Set<String> allRoles = Arrays.stream(Role.values())
-                        .map(Enum::name)
-                        .collect(Collectors.toSet());
-                users.replaceRoles(admin.id(), allRoles, admin.id(), clock.instant());
-                log.info("Roles completos de desarrollo asignados a admin.local");
-            });
-
             if (opportunities.listAll().size() > 0) {
                 return;
             }

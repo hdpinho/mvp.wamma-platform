@@ -1,68 +1,47 @@
 /**
- * Cliente de la API de Solicitudes de Crédito Digital — Fase 3 / WMA-F-FIN-001.
+ * Cliente de la API de solicitudes de crédito digital — Fase 3 / WMA-F-FIN-001.
+ *
+ * Los tipos reflejan **tal cual** los DTO del backend (`CreditApplicationDtos.java`), con sus nombres, para que cambiar
+ * uno sin el otro se note al compilar y en las pruebas de contrato (`creditoAdaptadores.test.ts`). Nada de valores de
+ * relleno: lo que el servidor no dijo, llega vacío y cada pantalla lo muestra como «no informado».
  */
 
-import { pedirJson } from './cliente';
+import { pedirJson, urlDeApi } from './cliente';
 
-export interface ValidacionEnlaceDto {
-  valido: boolean;
-  vehiculoId?: string;
-  vehiculoTitulo?: string;
-  vehiculoCodigo?: string;
-  precioEur?: number;
-  inicialSugeridaEur?: number;
-  plazoMesesSugerido?: number;
-  personaNombre?: string;
-  personaTelefono?: string;
-  oportunidadId?: string;
-  mensaje?: string;
-}
+// ── Expediente: lo que el formulario envía y el analista lee ──────────────────────────────
+// Son mapas libres en el servidor (se guardan cifrados); estas son las claves que el formulario C9 escribe.
 
-export interface RecaudoCargadoDto {
-  storageKey: string;
-  tipoDocumento: string;
-  nombreOriginal: string;
-  tamanoBytes: number;
-  mimeType: string;
-}
-
-export interface CrearSolicitudPayload {
-  tokenEnlace?: string;
-  vehiculoId: string;
-  montoSolicitadoEur: number;
-  inicialAportadaEur: number;
-  plazoMeses: number;
-  frecuenciaPago: string;
-
-  // Paso 1
-  primerApellido: string;
-  segundoApellido?: string;
-  primerNombre: string;
+export interface DatosPersonalesApi {
+  primerNombre?: string;
   segundoNombre?: string;
-  tipoDocumento: string;
-  numeroDocumento: string;
-  rif: string;
-  nacionalidad: string;
-  estadoCivil: string;
-  fechaNacimiento: string;
-  lugarNacimiento: string;
-  nivelAcademico: string;
-  cargasFamiliares: number;
-  condicionVivienda: string;
+  primerApellido?: string;
+  segundoApellido?: string;
+  tipoDocumento?: string;
+  numeroDocumento?: string;
+  rif?: string;
+  nacionalidad?: string;
+  estadoCivil?: string;
+  fechaNacimiento?: string;
+  lugarNacimiento?: string;
+  nivelAcademico?: string;
+  cargasFamiliares?: number;
+  condicionVivienda?: string;
+}
 
-  // Paso 2
-  direccionHabitacion: string;
+export interface DatosContactoApi {
+  direccionHabitacion?: string;
   puntoReferencia?: string;
-  estado: string;
-  municipio: string;
-  codigoPostal: string;
+  estado?: string;
+  municipio?: string;
+  codigoPostal?: string;
   telefonoHabitacion?: string;
-  telefonoCelular: string;
-  correo: string;
+  telefonoCelular?: string;
+  correo?: string;
+}
 
-  // Paso 3
-  situacionLaboral: string;
-  nombreEmpresa?: string;
+export interface DatosLaboralesApi {
+  situacionLaboral?: string;
+  empresa?: string;
   rifEmpresa?: string;
   cargo?: string;
   antiguedadAnios?: number;
@@ -70,462 +49,278 @@ export interface CrearSolicitudPayload {
   direccionEmpresa?: string;
   telefonoOficina?: string;
   nombreJefeInmediato?: string;
+}
 
-  // Paso 4
-  sueldoMensualEur: number;
-  otrosIngresosEur?: number;
+export interface DatosFinancierosApi {
+  sueldoMensual?: number;
+  otrosIngresos?: number;
   conceptoOtrosIngresos?: string;
-  alquilerHipotecaEur?: number;
-  alimentacionServiciosEur?: number;
-  pagosDeudasEur?: number;
+  alquilerHipoteca?: number;
+  alimentacionServicios?: number;
+  pagosDeudas?: number;
+}
 
-  // Paso 5
-  referencias: { nombre: string; parentesco: string; telefono: string }[];
-  bancoPrincipal: string;
-  tipoCuenta: string;
-  numeroCuenta: string;
+export interface ReferenciaApi {
+  nombre?: string;
+  parentesco?: string;
+  telefono?: string;
+}
 
-  // Paso 7
-  esPep: boolean;
-  vinculoPep: boolean;
+export interface DatosBancariosApi {
+  banco?: string;
+  tipoCuenta?: string;
+  numeroCuenta?: string;
+}
+
+export interface DeclaracionesApi {
+  veracidad?: boolean;
+  centralesRiesgo?: boolean;
+  origenFondos?: boolean;
+  compromisoPago?: boolean;
+  esPep?: boolean;
+  vinculoPep?: boolean;
   cargoPep?: string;
   institucionPep?: string;
   periodoPep?: string;
-  consentimientoDatos: boolean;
-
-  recaudos: {
-    tipoDocumento: string;
-    nombreOriginal: string;
-    storageKey: string;
-    mimeType: string;
-    tamanoBytes: number;
-  }[];
+  consentimientoDatos?: boolean;
 }
 
-export interface SolicitudCreadaDto {
+// ── Enlace personal y carga de recaudos (públicos) ────────────────────────────────────────
+
+/** Vehículo del enlace, tal como lo describe `VehicleDetailDto`. */
+export interface VehiculoEnlaceApi {
+  id: string;
+  code: string;
+  brand: string;
+  model: string;
+  year: number;
+  version: string | null;
+  priceEur: number;
+  priceVes: number | null;
+  photoUrl: string | null;
+}
+
+export interface SolicitantePrecargadoApi {
+  personId: string;
+  fullName: string | null;
+  nationalId: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+/** Política vigente que el servidor aplica a la solicitud (`FinancingParamsSummaryDto`). */
+export interface PoliticaEnlaceApi {
+  defaultAnnualRate: number;
+  defaultMonthlyRate: number;
+  minDownPaymentPercentage: number;
+  defaultTermMonths: number;
+  paymentCapacityPercentage: number;
+}
+
+/** Resultado de validar un enlace (`CreditLinkDetailsDto`). Con `valid: false` solo trae el motivo. */
+export interface EnlaceCreditoApi {
+  valid: boolean;
+  invalidReason: string | null;
+  opportunityId: string | null;
+  vehicle: VehiculoEnlaceApi | null;
+  applicant: SolicitantePrecargadoApi | null;
+  financingParams: PoliticaEnlaceApi | null;
+  bcvRate: number | null;
+  bcvDate: string | null;
+}
+
+/** Recaudo tal como lo devuelve la carga y como se vuelve a enviar con la solicitud (`DocumentSubmissionDto`). */
+export interface RecaudoEnvioApi {
+  documentType: string;
+  fileKey: string;
+  fileName: string;
+  fileSizeBytes: number;
+  mimeType: string;
+}
+
+/** Lo que el cliente envía con su enlace (`SubmitCreditApplicationRequest`). */
+export interface SolicitudEnvioApi {
+  token: string;
+  montoSolicitado: number;
+  cuotaInicial: number;
+  plazoMeses: number;
+  frecuenciaPago: string;
+  cuotaEstimada: number;
+  capacidadPagoMensual: number;
+  datosPersonales: DatosPersonalesApi;
+  datosContacto: DatosContactoApi;
+  datosLaborales: DatosLaboralesApi;
+  datosFinancieros: DatosFinancierosApi;
+  referencias: ReferenciaApi[];
+  datosBancarios: DatosBancariosApi;
+  declaraciones: DeclaracionesApi;
+  recaudos: RecaudoEnvioApi[];
+  /** Versión del texto de las declaraciones que la persona aceptó: parte de la evidencia de aceptación (D-57). */
+  versionTexto: string;
+}
+
+/** Acuse de la solicitud enviada (`SubmitCreditApplicationResponse`). */
+export interface SolicitudEnviadaApi {
   id: string;
   numeroSolicitud: string;
   estado: string;
-  fechaRecepcion: string;
+  enviadaEn: string;
   mensaje: string;
 }
 
-export interface EstadoSolicitudDto {
-  numeroSolicitud: string;
-  estado: string;
-  fechaRecepcion: string;
-  vehiculoTitulo: string;
-  vehiculoCodigo: string;
-  observaciones?: string;
-}
+export const validarEnlaceFinanciamiento = (token: string): Promise<EnlaceCreditoApi> =>
+  pedirJson<EnlaceCreditoApi>(`/v1/solicitudes-credito/enlace/${encodeURIComponent(token)}`, { token: null });
 
-export interface SolicitudResumenDto {
-  id: string;
-  numeroSolicitud: string;
-  estado: string;
-  fechaRecepcion: string;
-  personaNombre: string;
-  personaCedula: string;
-  personaTelefono: string;
-  vehiculoTitulo: string;
-  vehiculoCodigo: string;
-  montoSolicitadoEur: number;
-  inicialAportadaEur: number;
-  plazoMeses: number;
-  cuotaEstimadaEur: number;
-  totalRecaudos: number;
-}
-
-export interface CreditDocumentDto {
-  id: string;
-  solicitudCreditoId: string;
-  tipoDocumento: string;
-  nombreOriginal: string;
-  storageKey: string;
-  mimeType: string;
-  tamanoBytes: number;
-  estado: string;
-  notas?: string;
-  creadoEn: string;
-}
-
-export interface SolicitudDetalleDto {
-  solicitud: Record<string, any>;
-  recaudos: CreditDocumentDto[];
-  calculoCapacidad: {
-    ingresoTotalEur: number;
-    egresoTotalEur: number;
-    capacidadPagoEur: number;
-    montoFinanciadoEur: number;
-    cuotaEstimadaEur: number;
-    tasaInteresAnual: number;
-    porcentajeCapacidadUsada: number;
-    porcentajeInicial: number;
-    inicialMinimaRequeridaEur: number;
-    alertaCapacidad: boolean;
-    alertaInicial: boolean;
-  };
-}
-
-export interface EvaluarSolicitudPayload {
-  nuevoEstado: 'en_analisis' | 'aprobada' | 'rechazada' | 'devuelta';
-  observaciones: string;
-  limiteAprobado?: number;
-  cuotaMaximaPermitida?: number;
-  scoreCrediticio?: number;
-}
-
-export interface ActualizarRecaudoPayload {
-  estado: 'verificado' | 'rechazado' | 'pendiente';
-  notas?: string;
-}
-
-// ── Endpoints Públicos ────────────────────────────────────────────────
-
-export const validarEnlaceFinanciamiento = (token: string): Promise<ValidacionEnlaceDto> =>
-  pedirJson<ValidacionEnlaceDto>(`/v1/solicitudes-credito/enlace/${encodeURIComponent(token)}`, {
-    token: null,
-  });
-
-export const subirRecaudoDigital = async (
-  file: File,
-  tipoDocumento: string
-): Promise<RecaudoCargadoDto> => {
+/**
+ * Carga un recaudo al contenedor privado (D-59) con el enlace personal del cliente: sin un
+ * enlace vigente el servidor no acepta el archivo. Solo PDF, JPG o PNG, reconocidos por su
+ * contenido.
+ */
+export const subirRecaudoDigital = (file: File, tipoDocumento: string, tokenEnlace: string): Promise<RecaudoEnvioApi> => {
   const formData = new FormData();
-  formData.append('archivo', file);
+  formData.append('token', tokenEnlace);
   formData.append('tipoDocumento', tipoDocumento);
-
-  return pedirJson<RecaudoCargadoDto>('/v1/solicitudes-credito/recaudos', {
+  formData.append('archivo', file);
+  return pedirJson<RecaudoEnvioApi>('/v1/solicitudes-credito/recaudos', {
+    method: 'POST',
     formulario: formData,
     token: null,
   });
 };
 
-export const enviarSolicitudCredito = (
-  payload: CrearSolicitudPayload
-): Promise<SolicitudCreadaDto> => {
-  const montoSolicitado = payload.montoSolicitadoEur ?? 0;
-  const plazoMeses = payload.plazoMeses > 0 ? payload.plazoMeses : 24;
-  const cuotaEstimada = montoSolicitado > 0 ? Number((montoSolicitado / plazoMeses).toFixed(2)) : 0;
-  const capacidadPago = Number(((payload.sueldoMensualEur ?? 0) * 0.3).toFixed(2));
+export const enviarSolicitudCredito = (solicitud: SolicitudEnvioApi): Promise<SolicitudEnviadaApi> =>
+  pedirJson<SolicitudEnviadaApi>('/v1/solicitudes-credito', { cuerpo: solicitud, token: null });
 
-  const cuerpo = {
-    token: payload.tokenEnlace,
-    vehiculoId: payload.vehiculoId,
-    montoSolicitado,
-    cuotaInicial: payload.inicialAportadaEur ?? 0,
-    plazoMeses,
-    frecuenciaPago: payload.frecuenciaPago || 'Mensual',
-    cuotaEstimada,
-    capacidadPagoMensual: capacidadPago,
-    datosPersonales: {
-      primerNombre: payload.primerNombre,
-      segundoNombre: payload.segundoNombre,
-      primerApellido: payload.primerApellido,
-      segundoApellido: payload.segundoApellido,
-      tipoDocumento: payload.tipoDocumento,
-      numeroDocumento: payload.numeroDocumento,
-      rif: payload.rif,
-      nacionalidad: payload.nacionalidad,
-      estadoCivil: payload.estadoCivil,
-      fechaNacimiento: payload.fechaNacimiento,
-      lugarNacimiento: payload.lugarNacimiento,
-      nivelAcademico: payload.nivelAcademico,
-      cargasFamiliares: payload.cargasFamiliares,
-      condicionVivienda: payload.condicionVivienda,
-    },
-    datosContacto: {
-      direccionHabitacion: payload.direccionHabitacion,
-      puntoReferencia: payload.puntoReferencia,
-      estado: payload.estado,
-      municipio: payload.municipio,
-      codigoPostal: payload.codigoPostal,
-      telefonoHabitacion: payload.telefonoHabitacion,
-      telefonoCelular: payload.telefonoCelular,
-      correo: payload.correo,
-    },
-    datosLaborales: {
-      situacionLaboral: payload.situacionLaboral,
-      empresa: payload.nombreEmpresa,
-      rifEmpresa: payload.rifEmpresa,
-      cargo: payload.cargo,
-      antiguedadAnios: payload.antiguedadAnios,
-      antiguedadMeses: payload.antiguedadMeses,
-      direccionEmpresa: payload.direccionEmpresa,
-      telefonoOficina: payload.telefonoOficina,
-      nombreJefeInmediato: payload.nombreJefeInmediato,
-    },
-    datosFinancieros: {
-      sueldoMensual: payload.sueldoMensualEur,
-      otrosIngresos: payload.otrosIngresosEur || 0,
-      conceptoOtrosIngresos: payload.conceptoOtrosIngresos,
-      alquilerHipoteca: payload.alquilerHipotecaEur || 0,
-      alimentacionServicios: payload.alimentacionServiciosEur || 0,
-      pagosDeudas: payload.pagosDeudasEur || 0,
-    },
-    referencias: payload.referencias,
-    datosBancarios: {
-      banco: payload.bancoPrincipal,
-      tipoCuenta: payload.tipoCuenta,
-      numeroCuenta: payload.numeroCuenta,
-    },
-    declaraciones: {
-      veracidad: true,
-      centralesRiesgo: true,
-      origenFondos: true,
-      compromisoPago: true,
-      esPep: payload.esPep,
-      vinculoPep: payload.vinculoPep,
-      cargoPep: payload.cargoPep,
-      institucionPep: payload.institucionPep,
-      periodoPep: payload.periodoPep,
-      consentimientoDatos: payload.consentimientoDatos,
-    },
-    recaudos: (payload.recaudos || []).map((r) => ({
-      documentType: r.tipoDocumento,
-      fileUrl: r.storageKey,
-      fileName: r.nombreOriginal,
-      fileSizeBytes: r.tamanoBytes,
-      mimeType: r.mimeType,
-    })),
-    codigoOtp: '175593',
-    otpVerificado: true,
-  };
+// ── Bandeja y expediente (requieren sesión con permiso de crédito) ────────────────────────
 
-  return pedirJson<SolicitudCreadaDto>('/v1/solicitudes-credito', {
-    cuerpo,
-    token: null,
-  });
+/** Fila de la bandeja (`CreditApplicationSummaryDto`). */
+export interface ResumenSolicitudApi {
+  id: string;
+  numeroSolicitud: string;
+  estado: string;
+  vehiculoId: string | null;
+  vehiculoCodigo: string | null;
+  vehiculoDescripcion: string | null;
+  totalRecaudos: number;
+  montoSolicitado: number | null;
+  cuotaInicial: number | null;
+  plazoMeses: number;
+  cuotaEstimada: number | null;
+  solicitanteNombre: string | null;
+  solicitanteDocumento: string | null;
+  solicitanteTelefono: string | null;
+  solicitanteCorreo: string | null;
+  creadoEn: string | null;
+}
+
+/** Recaudo del expediente (`DocumentDetailDto`): sin dirección ni clave, el archivo se abre con un enlace firmado (D-59). */
+export interface RecaudoExpedienteApi {
+  id: string;
+  documentType: string | null;
+  fileName: string | null;
+  fileSizeBytes: number | null;
+  mimeType: string | null;
+  validationStatus: string | null;
+  notes: string | null;
+  createdAt: string | null;
+}
+
+/** Dictamen vigente de la solicitud (`RiskDecisionDto`). Las puntuaciones existen solo si alguna vez se calcularon. */
+export interface DictamenApi {
+  id: string;
+  internalScore: number | null;
+  bureauScore: number | null;
+  riskLevel: string | null;
+  result: string;
+  approvedLimit: number | null;
+  maxAllowedPayment: number | null;
+  justification: string | null;
+  evaluatedBy: string | null;
+  evaluatedAt: string | null;
+}
+
+/** Expediente completo (`CreditApplicationDetailDto`). */
+export interface DetalleSolicitudApi {
+  id: string;
+  numeroSolicitud: string;
+  estado: string;
+  oportunidadId: string | null;
+  personaId: string | null;
+  vehiculoId: string | null;
+  vehiculo: VehiculoEnlaceApi | null;
+  montoSolicitado: number;
+  cuotaInicial: number;
+  plazoMeses: number;
+  moneda: string;
+  tasaBcv: number | null;
+  fechaTasa: string | null;
+  cuotaEstimada: number;
+  capacidadPagoMensual: number;
+  frecuenciaPago: string | null;
+  datosPersonales: DatosPersonalesApi | null;
+  datosContacto: DatosContactoApi | null;
+  datosLaborales: DatosLaboralesApi | null;
+  datosFinancieros: DatosFinancierosApi | null;
+  referencias: ReferenciaApi[] | null;
+  datosBancarios: DatosBancariosApi | null;
+  declaraciones: DeclaracionesApi | null;
+  /** Fecha, IP, agente y versión del texto que la persona aceptó (D-57). */
+  evidenciaAceptacion: { aceptadoEn?: string; ip?: string; userAgent?: string; versionTexto?: string } | null;
+  recaudos: RecaudoExpedienteApi[] | null;
+  decisionRiesgo: DictamenApi | null;
+  enviadaEn: string | null;
+  creadoEn: string | null;
+  actualizadoEn: string | null;
+}
+
+/** Resultados que admite el dictamen del analista (`EvaluateCreditApplicationRequest.resultado`). */
+export type ResultadoDictamen = 'aprobado' | 'rechazado' | 'condicionado';
+
+export interface DictamenEnvioApi {
+  resultado: ResultadoDictamen;
+  /** Obligatoria: queda con el usuario del analista en la bitácora (D-17, D-63). */
+  justificacion: string;
+  /** Solo al aprobar. */
+  limiteAprobado?: number;
+  cuotaMaximaPermitida?: number;
+}
+
+/** Estados de validación de un recaudo (`solicitud_recaudo`). */
+export type EstadoRecaudo = 'pendiente' | 'conforme' | 'ilegible' | 'rechazado';
+
+export const listarSolicitudesCredito = (estado?: string): Promise<ResumenSolicitudApi[]> =>
+  pedirJson<ResumenSolicitudApi[]>(`/v1/solicitudes-credito${estado ? `?estado=${encodeURIComponent(estado)}` : ''}`);
+
+export const obtenerDetalleSolicitudCredito = (id: string): Promise<DetalleSolicitudApi> =>
+  pedirJson<DetalleSolicitudApi>(`/v1/solicitudes-credito/${encodeURIComponent(id)}`);
+
+export const evaluarSolicitudCredito = (id: string, dictamen: DictamenEnvioApi): Promise<void> =>
+  pedirJson<void>(`/v1/solicitudes-credito/${encodeURIComponent(id)}/evaluacion`, { cuerpo: dictamen });
+
+/** Enlace firmado tal como lo envía el servidor (`DocumentLinkDto`). */
+interface EnlaceRecaudoServidor {
+  ruta: string;
+  venceEn: string;
+}
+
+/**
+ * Dirección firmada para abrir un recaudo del contenedor privado (D-59). Vence en minutos: se
+ * pide cada vez que se abre el archivo y no se guarda. Queda en la bitácora quién la pidió.
+ */
+export const obtenerEnlaceRecaudo = async (solicitudId: string, docId: string): Promise<string> => {
+  const enlace = await pedirJson<EnlaceRecaudoServidor>(
+    `/v1/solicitudes-credito/${encodeURIComponent(solicitudId)}/recaudos/${encodeURIComponent(docId)}/enlace`,
+  );
+  return urlDeApi(enlace.ruta);
 };
-
-export const consultarEstadoSolicitud = (
-  numeroSolicitud: string
-): Promise<EstadoSolicitudDto> =>
-  pedirJson<EstadoSolicitudDto>(`/v1/solicitudes-credito/${encodeURIComponent(numeroSolicitud)}/estado`, {
-    token: null,
-  });
-
-// ── Endpoints Backoffice (Requiere Sesión) ─────────────────────────────
-
-export const listarSolicitudesCredito = async (estado?: string): Promise<SolicitudResumenDto[]> => {
-  const query = estado ? `?estado=${encodeURIComponent(estado)}` : '';
-  const data = await pedirJson<any[]>(`/v1/solicitudes-credito${query}`);
-  return data.map((item) => ({
-    id: item.id,
-    numeroSolicitud: item.numeroSolicitud,
-    estado: item.estado,
-    fechaRecepcion: item.creadoEn || item.fechaRecepcion || new Date().toISOString(),
-    personaNombre: item.solicitanteNombre || item.personaNombre || 'Solicitante',
-    personaCedula: item.solicitanteDocumento || item.personaCedula || 'V-00000000',
-    personaTelefono: item.solicitanteTelefono || item.personaTelefono || '',
-    vehiculoTitulo: item.vehiculoDescripcion || item.vehiculoTitulo || 'Vehículo',
-    vehiculoCodigo: item.vehiculoCodigo || (item.vehiculo?.code) || 'veh-001',
-    montoSolicitadoEur: Number(item.montoSolicitado ?? item.montoSolicitadoEur ?? 0),
-    inicialAportadaEur: Number(item.cuotaInicial ?? item.inicialAportadaEur ?? 0),
-    plazoMeses: Number(item.plazoMeses ?? 24),
-    cuotaEstimadaEur: Number(item.cuotaEstimada ?? item.cuotaEstimadaEur ?? 0),
-    totalRecaudos: Array.isArray(item.recaudos) ? item.recaudos.length : (item.totalRecaudos ?? 4),
-  }));
-};
-
-export const obtenerDetalleSolicitudCredito = async (id: string): Promise<SolicitudDetalleDto> => {
-  const raw = await pedirJson<any>(`/v1/solicitudes-credito/${encodeURIComponent(id)}`);
-
-  if (raw.solicitud && raw.recaudos && raw.calculoCapacidad) {
-    return raw;
-  }
-
-  const pers = raw.datosPersonales || {};
-  const cont = raw.datosContacto || {};
-  const lab = raw.datosLaborales || {};
-  const fin = raw.datosFinancieros || {};
-  const banc = raw.datosBancarios || {};
-  const decl = raw.declaraciones || {};
-
-  const montoSolicitadoEur = Number(raw.montoSolicitado || 0);
-  const cuotaEstimadaEur = Number(raw.cuotaEstimada || 0);
-  const sueldoMensualEur = Number(lab.ingresoMensual || 0);
-  const otrosIngresosEur = Number(lab.otrosIngresos || 0);
-  const egresosEur = Number(fin.egresosTotales || 0);
-  const deudasEur = Number(fin.deudasBancarias || 0);
-  const totalIngreso = sueldoMensualEur + otrosIngresosEur;
-  const capacidadPagoEur = Math.round(totalIngreso * 0.30);
-  const cuotaInicialEur = Number(raw.cuotaInicial || 0);
-  const precioVehiculo = montoSolicitadoEur + cuotaInicialEur;
-
-  const solicitudAdaptada = {
-    id: raw.id,
-    numero_solicitud: raw.numeroSolicitud,
-    estado: raw.estado,
-    primer_nombre: pers.primerNombre || 'Solicitante',
-    primer_apellido: pers.primerApellido || '',
-    numero_documento: pers.numeroDocumento || '',
-    tipo_documento: pers.tipoDocumento || 'V',
-    rif: pers.rif || `V-${pers.numeroDocumento || '0'}-0`,
-    nacionalidad: pers.nacionalidad || 'Venezolana',
-    estado_civil: pers.estadoCivil || 'Soltero(a)',
-    fecha_nacimiento: pers.fechaNacimiento || '1990-01-01',
-    cargas_familiares: pers.cargasFamiliares ?? 0,
-    condicion_vivienda: cont.tipoVivienda || 'Propia',
-    direccion_habitacion: cont.direccionHabitacion || 'Sin dirección registrada',
-    estado_geografico: cont.estadoGeografico || 'Distrito Capital',
-    municipio: cont.municipio || 'Libertador',
-    telefono_celular: cont.telefonoMovil || '',
-    correo: cont.correoElectronico || '',
-    situacion_laboral: lab.tipoOcupacion || 'Empleado',
-    nombre_empresa: lab.empresa || '',
-    cargo: lab.cargo || '',
-    antiguedad_anios: lab.antiguedadAnios || 1,
-    sueldo_mensual_eur: sueldoMensualEur,
-    otros_ingresos_eur: otrosIngresosEur,
-    alquiler_hipoteca_eur: 0,
-    alimentacion_servicios_eur: egresosEur,
-    pagos_deudas_eur: deudasEur,
-    monto_solicitado_eur: montoSolicitadoEur,
-    inicial_aportada_eur: cuotaInicialEur,
-    plazo_meses: raw.plazoMeses || 24,
-    cuota_estimada_eur: cuotaEstimadaEur,
-    banco_principal: banc.banco || 'Banca Nacional',
-    tipo_cuenta: banc.tipoCuenta || 'Corriente',
-    numero_cuenta: banc.numeroCuenta || '',
-    es_pep: Boolean(decl.esPep),
-    observaciones_analista: raw.observacionesAnalista || (raw.decisionRiesgo?.justification) || '',
-    fecha_recepcion: raw.enviadaEn || raw.creadoEn || new Date().toISOString(),
-  };
-
-  const recaudosAdaptados = (raw.recaudos || []).map((r: any) => ({
-    id: r.id,
-    solicitudCreditoId: raw.id,
-    tipoDocumento: r.documentType || r.tipoDocumento || 'otro',
-    nombreOriginal: r.fileName || r.nombreOriginal || 'documento.pdf',
-    storageKey: r.fileUrl || r.storageKey || '',
-    mimeType: r.mimeType || 'application/pdf',
-    tamanoBytes: Number(r.fileSizeBytes || r.tamanoBytes || 0),
-    estado: r.validationStatus || r.estado || 'pendiente',
-    notas: r.notes || r.notas || '',
-    creadoEn: r.createdAt || r.creadoEn || new Date().toISOString(),
-  }));
-
-  return {
-    solicitud: solicitudAdaptada,
-    recaudos: recaudosAdaptados,
-    calculoCapacidad: {
-      ingresoTotalEur: totalIngreso,
-      egresoTotalEur: egresosEur + deudasEur,
-      capacidadPagoEur: capacidadPagoEur,
-      montoFinanciadoEur: montoSolicitadoEur,
-      cuotaEstimadaEur: cuotaEstimadaEur,
-      tasaInteresAnual: 48,
-      porcentajeCapacidadUsada: capacidadPagoEur > 0 ? Math.round((cuotaEstimadaEur / capacidadPagoEur) * 100) : 0,
-      porcentajeInicial: precioVehiculo > 0 ? Math.round((cuotaInicialEur / precioVehiculo) * 100) : 20,
-      inicialMinimaRequeridaEur: Math.round(precioVehiculo * 0.20),
-      alertaCapacidad: cuotaEstimadaEur > capacidadPagoEur,
-      alertaInicial: cuotaInicialEur < precioVehiculo * 0.20,
-    },
-  };
-};
-
-export const evaluarSolicitudCredito = (
-  id: string,
-  payload: EvaluarSolicitudPayload
-): Promise<void> =>
-  pedirJson<void>(`/v1/solicitudes-credito/${encodeURIComponent(id)}/evaluacion`, {
-    cuerpo: payload,
-  });
 
 export const actualizarEstadoRecaudo = (
   solicitudId: string,
   docId: string,
-  payload: ActualizarRecaudoPayload
+  estado: EstadoRecaudo,
+  observaciones?: string,
 ): Promise<void> =>
   pedirJson<void>(`/v1/solicitudes-credito/${encodeURIComponent(solicitudId)}/recaudos/${encodeURIComponent(docId)}`, {
     method: 'PATCH',
-    cuerpo: payload,
+    cuerpo: { estado, observaciones },
   });
-
-export interface ScoringFactorDto {
-  factor?: string;
-  nombre?: string;
-  puntosObtenidos: number;
-  puntosMaximos: number;
-  descripcion: string;
-  estado?: string;
-}
-
-export interface AmlAlertDto {
-  id: string;
-  solicitudId: string;
-  personaId: string;
-  reglaCoincidencia: string;
-  severidad: string;
-  origenLista: string;
-  resolucion: string;
-  notas?: string;
-  creadoEn: string;
-  resueltoEn?: string;
-  revisadoPor?: string;
-}
-
-export interface RiskEngineEvaluationResponse {
-  solicitudId: string;
-  numeroSolicitud: string;
-  scoreInterno: number;
-  scoreBuro: number;
-  riesgoNivel: string;
-  montoSolicitado: number;
-  cuotaEstimada: number;
-  cuotaCalculada?: number;
-  cuotaMaximaPermitida: number;
-  capacidadPagoMensual: number;
-  porcentajeCapacidadUsada: number;
-  alertaCapacidad: boolean;
-  factores: ScoringFactorDto[];
-  factoresScoring?: ScoringFactorDto[];
-  alertasAml: AmlAlertDto[];
-  bloqueoAml: boolean;
-  recomendacion: string;
-  justificacion: string;
-}
-
-export interface ResolverAlertaAmlPayload {
-  resolucion: 'falso_positivo' | 'confirmado_bloqueado';
-  notas: string;
-}
-
-const normalizarRespuestaRiesgo = (raw: any): RiskEngineEvaluationResponse => ({
-  ...raw,
-  cuotaEstimada: Number(raw.cuotaCalculada ?? raw.cuotaEstimada ?? 0),
-  factores: (raw.factoresScoring || raw.factores || []).map((f: any) => ({
-    ...f,
-    nombre: f.nombre || f.factor || 'Factor de Scoring',
-  })),
-  alertasAml: raw.alertasAml || [],
-});
-
-export const evaluarSolicitudMotorRiesgo = async (id: string): Promise<RiskEngineEvaluationResponse> => {
-  const resp = await pedirJson<any>(`/v1/riesgo/solicitudes/${encodeURIComponent(id)}/evaluar-motor`, {
-    method: 'POST',
-    cuerpo: {},
-  });
-  return normalizarRespuestaRiesgo(resp);
-};
-
-export const obtenerResumenRiesgo = async (id: string): Promise<RiskEngineEvaluationResponse> => {
-  const resp = await pedirJson<any>(`/v1/riesgo/solicitudes/${encodeURIComponent(id)}/resumen`);
-  return normalizarRespuestaRiesgo(resp);
-};
-
-export const listarAlertasAml = (resolucion?: string): Promise<AmlAlertDto[]> => {
-  const query = resolucion ? `?resolucion=${encodeURIComponent(resolucion)}` : '';
-  return pedirJson<AmlAlertDto[]>(`/v1/riesgo/alertas-aml${query}`);
-};
-
-export const resolverAlertaAml = (
-  alertaId: string,
-  payload: ResolverAlertaAmlPayload
-): Promise<{ mensaje: string }> =>
-  pedirJson<{ mensaje: string }>(`/v1/riesgo/alertas-aml/${encodeURIComponent(alertaId)}/resolucion`, {
-    method: 'PATCH',
-    cuerpo: payload,
-  });
-

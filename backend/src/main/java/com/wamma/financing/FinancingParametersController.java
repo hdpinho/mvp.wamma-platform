@@ -28,8 +28,10 @@ public class FinancingParametersController {
                 .body(FinancingParametersResponse.of(params));
     }
 
+    // La política de financiamiento la cambia solo quien administra parámetros (D-14, D-26).
+    // Cotizar (`cotizador.usar`) no da permiso para cambiar la tasa de toda la plataforma.
     @PutMapping({"/v1/financiamiento/parametros", "/v1/parametros-financiamiento"})
-    @PreAuthorize("hasAuthority('parametros.gestionar') or hasAuthority('cotizador.usar')")
+    @PreAuthorize("hasAuthority('parametros.gestionar')")
     public ResponseEntity<FinancingParametersResponse> updateParameters(
             @Valid @RequestBody UpdateFinancingParametersRequest request) {
         FinancingParameters updated = service.updateParameters(request);
