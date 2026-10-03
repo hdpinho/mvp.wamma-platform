@@ -1,0 +1,16 @@
+{
+  "name": "wamma-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Pruebas de punta a punta de WAMMA (R5.1): API y navegador contra un backend local desechable.",
+  "scripts": {
+    "e2e": "node ejecutar.mjs",
+    "e2e:api": "node ejecutar.mjs r1 r2 r3",
+    "e2e:ui": "node ejecutar.mjs ui",
+    "navegador": "playwright-core install chromium"
+  },
+  "dependencies": {
+    "playwright-core": "1.57.0"
+  }
+}

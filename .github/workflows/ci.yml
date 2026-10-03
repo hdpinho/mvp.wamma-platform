@@ -1,9 +1,11 @@
 # Integración continua de WAMMA.
-# Tres comprobaciones independientes en cada push a main y en cada pull request:
+# Cuatro comprobaciones independientes en cada push a main y en cada pull request:
 #   1. El backend compila y pasa sus pruebas.
 #   2. Las migraciones construyen el esquema desde cero sobre un PostgreSQL vacío
 #      (Principio VI: el entorno se puede reconstruir) y el esquema pasa sus pruebas.
-#   3. El frontend pasa el lint y compila.
+#   3. El frontend pasa el lint, sus pruebas y compila.
+#   4. Las pruebas de punta a punta (e2e/): el recorrido de la vitrina a la venta cerrada, la matriz de roles, el
+#      crédito y los contratos, contra un backend local desechable y un navegador real (R5.1, R5.2).
 name: CI
 
 on:
@@ -71,7 +73,7 @@ jobs:
           java -cp target/tools/postgresql-$PGV.jar tools/db/SchemaTestRunner.java pruebas tools/db/pruebas-esquema.sql
 
   frontend:
-    name: Frontend — lint y build
+    name: Frontend — lint, pruebas y build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -85,4 +87,45 @@ jobs:
           cache-dependency-path: frontend-web/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm test
       - run: npm run build
+
+  e2e:
+    name: Punta a punta — API y navegador
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            frontend-web/package-lock.json
+            e2e/package-lock.json
+      - name: Dependencias de la web (Vite, para la suite de navegador)
+        run: npm ci
+        working-directory: frontend-web
+      - name: Dependencias y navegador de las pruebas
+        run: |
+          npm ci
+          npx playwright-core install --with-deps chromium
+        working-directory: e2e
+      - name: Pruebas de punta a punta (cada suite arranca su propio backend desechable)
+        run: node ejecutar.mjs
+        working-directory: e2e
+        env:
+          # Vacío: usa el Chromium que acaba de bajar `playwright-core install`, no un Chrome instalado.
+          E2E_NAVEGADOR: ''
+      - name: Resultados, capturas y registros del servidor
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-resultados
+          path: e2e/resultados/
+          retention-days: 14

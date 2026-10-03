@@ -48,3 +48,7 @@ desktop.ini
 .vercel
 .env*
 scratch/
+
+# Pruebas de punta a punta (e2e/): dependencias y resultados de cada corrida
+e2e/node_modules/
+e2e/resultados/

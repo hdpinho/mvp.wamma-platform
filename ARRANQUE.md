@@ -80,6 +80,11 @@ una app autenticadora.
 
 ---
 
+## Demostración y pruebas de punta a punta
+
+- **Demostración local** (backend, un usuario por rol con 2FA y web): `.\scripts\demo-local\iniciar-demo.ps1`. El guion está en `scripts/demo-local/README.md`.
+- **Pruebas de punta a punta** (API y navegador, contra un backend desechable): `cd e2e && npm ci && node ejecutar.mjs`. Ver `e2e/README.md`. Corren también en la CI.
+
 ## Despliegue en la Nube y CI/CD
 
 El proyecto cuenta con integración y despliegue continuo automatizado conectado a GitHub:
