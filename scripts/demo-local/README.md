@@ -104,7 +104,7 @@ El código vale 30 segundos y **no se puede usar dos veces**: si un ingreso se r
 - **No hay envío automático de mensajes por el servidor.** WhatsApp y el correo **se abren solos** con el mensaje listo, y una persona de WAMMA lo envía. No hay SMTP ni la API de WhatsApp Business.
 - **Al agendar una cita no sale ningún correo al equipo**: la cita aparece en la bandeja del backoffice.
 - **El crédito se dictamina a mano.** No hay puntaje, ni verificación de listas (AML), ni Score Buró: están fuera de esta entrega.
-- **Fotos:** las 9 que se muestran con «Origen por confirmar» son de demostración y su origen está pendiente. Las imperfecciones de la ficha son demostrativas (llevan su nota).
+- **Fotos:** 9 de las 16 se muestran como «Imagen de prueba · solo demostración»; en producción las fotos las carga el usuario desde el backoffice. Las imperfecciones de la ficha son demostrativas (llevan su nota).
 - **Textos pendientes de aprobación del PO:** la lista oficial de recaudos, el aviso legal de reserva, las afirmaciones comerciales de la vitrina (por ejemplo «Certificado con Estándar WAMMA» y «Fotografías reales de estudio» en el pie de página) y el texto legal definitivo de las declaraciones.
 - **Después de aprobar el crédito** no hay desembolso, pagos ni contabilidad: fuera del alcance (D-65).
 - **Todo es local.** Nada de esto está publicado en Vercel ni en Render (D-56).

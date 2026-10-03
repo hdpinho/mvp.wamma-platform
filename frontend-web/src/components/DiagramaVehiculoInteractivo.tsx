@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useId, useState, useRef } from 'react';
 import type { Imperfeccion } from '../types/vehiculo';
 import { Boton } from './Boton';
 
@@ -18,6 +18,9 @@ export const DiagramaVehiculoInteractivo: React.FC<DiagramaVehiculoInteractivoPr
   const [puntoSeleccionado, setPuntoSeleccionado] = useState<{ x: number; y: number } | null>(null);
 
   // Formulario del nuevo hallazgo
+  const idTipo = useId();
+  const idUbicacion = useId();
+  const idDescripcion = useId();
   const [tipo, setTipo] = useState('Rayón superficial');
   const [ubicacion, setUbicacion] = useState('Puerta delantera izquierda');
   const [severidad, setSeveridad] = useState<'leve' | 'moderada'>('leve');
@@ -174,8 +177,8 @@ export const DiagramaVehiculoInteractivo: React.FC<DiagramaVehiculoInteractivoPr
               </div>
 
               <div className="form-item">
-                <label>Tipo de detalle / imperfección:</label>
-                <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+                <label htmlFor={idTipo}>Tipo de detalle / imperfección:</label>
+                <select id={idTipo} value={tipo} onChange={(e) => setTipo(e.target.value)}>
                   <option value="Rayón superficial">Rayón superficial</option>
                   <option value="Abolladura">Abolladura sin pintura</option>
                   <option value="Desgaste de pintura">Desgaste de pintura</option>
@@ -187,8 +190,9 @@ export const DiagramaVehiculoInteractivo: React.FC<DiagramaVehiculoInteractivoPr
               </div>
 
               <div className="form-item">
-                <label>Ubicación de la pieza:</label>
+                <label htmlFor={idUbicacion}>Ubicación de la pieza:</label>
                 <input
+                  id={idUbicacion}
                   type="text"
                   placeholder="Ej. Puerta delantera derecha"
                   value={ubicacion}
@@ -197,8 +201,12 @@ export const DiagramaVehiculoInteractivo: React.FC<DiagramaVehiculoInteractivoPr
               </div>
 
               <div className="form-item">
-                <label>Severidad:</label>
-                <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
+                <label id={`${idTipo}-severidad`}>Severidad:</label>
+                <div
+                  role="radiogroup"
+                  aria-labelledby={`${idTipo}-severidad`}
+                  style={{ display: 'flex', gap: '12px', marginTop: '4px' }}
+                >
                   <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
                     <input
                       type="radio"
@@ -223,8 +231,9 @@ export const DiagramaVehiculoInteractivo: React.FC<DiagramaVehiculoInteractivoPr
               </div>
 
               <div className="form-item">
-                <label>Descripción detallada:</label>
+                <label htmlFor={idDescripcion}>Descripción detallada:</label>
                 <textarea
+                  id={idDescripcion}
                   rows={2}
                   placeholder="Describe el hallazgo para que el cliente lo entienda antes de ir..."
                   value={descripcion}

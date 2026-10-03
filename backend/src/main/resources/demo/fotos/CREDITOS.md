@@ -1,9 +1,10 @@
 # Créditos de las fotografías del catálogo
 
 Fotos de **marcador de posición**. Corresponden al modelo indicado pero **no son unidades reales del
-inventario de WAMMA**. Se sustituyen por fotografía propia antes de producción (D-32).
+inventario de WAMMA**. En producción las fotos las **carga el usuario** desde el backoffice (D-10); estas
+solo existen para la demostración y las pruebas, y se descartan al publicar (D-32, D-79).
 
-Estado según D-58 (2-oct-2026): hay dos grupos.
+Estado según D-58 y D-79 (3-oct-2026): hay dos grupos.
 
 ## A · Fotos con crédito verificado (7)
 
@@ -21,24 +22,23 @@ volvieron a su lugar tras detectar que las sustitutas no mostraban el modelo de 
 | `veh-015` | `veh-015.webp` | EurovisionNim | CC BY-SA 4.0 | [Commons](https://commons.wikimedia.org/wiki/File:2016_Hyundai_Accent_(RB4_MY17)_Active_sedan_(2018-08-20).jpg) |
 | `veh-016` | `veh-016.webp` | MercurySable99 | CC BY-SA 4.0 | [Commons](https://commons.wikimedia.org/wiki/File:12-15_Mitsubishi_Lancer_GT_sedan.jpg) |
 
-## B · Fotos con origen por confirmar (9)
+## B · Imágenes de prueba (9)
 
-Se conservan porque muestran el modelo de su ficha (D-58), pero **no se sabe de dónde salieron**
-(fotógrafo, prensa del fabricante o imagen generada). Los créditos de Wikimedia que antes figuraban
-aquí **no les corresponden** y se retiraron. **Pendiente del PO:** confirmar el origen y la licencia,
-o reemplazarlas por fotografía propia antes de publicar.
+Muestran el modelo de su ficha (D-58), pero no tienen un autor ni una licencia que acreditar. El PO confirmó
+que **son imágenes de prueba** y que en producción se usan las que cargue el usuario (D-79). En la ficha se
+rotulan «Imagen de prueba · solo demostración». **No se publican en producción.**
 
-| Vehículo | Archivo | Modelo | Origen |
-|---|---|---|---|
-| `veh-001` | `veh-001.webp` | Toyota Yaris 2018 | Por confirmar |
-| `veh-002` | `veh-002.webp` | Chevrolet Aveo 2017 | Por confirmar |
-| `veh-003` | `veh-003.webp` | Ford Fiesta 2016 | Por confirmar |
-| `veh-004` | `veh-004.webp` | Toyota Corolla 2020 | Por confirmar |
-| `veh-005` | `veh-005.webp` | Toyota Fortuner 2019 | Por confirmar |
-| `veh-006` | `veh-006.webp` | Chevrolet Silverado 2015 | Por confirmar |
-| `veh-007` | `veh-007.webp` | Hyundai Tucson 2018 | Por confirmar |
-| `veh-009` | `veh-009.webp` | Ford Explorer 2016 | Por confirmar |
-| `veh-011` | `veh-011.webp` | Toyota Hilux 2018 | Por confirmar |
+| Vehículo | Archivo | Modelo |
+|---|---|---|
+| `veh-001` | `veh-001.webp` | Toyota Yaris 2018 |
+| `veh-002` | `veh-002.webp` | Chevrolet Aveo 2017 |
+| `veh-003` | `veh-003.webp` | Ford Fiesta 2016 |
+| `veh-004` | `veh-004.webp` | Toyota Corolla 2020 |
+| `veh-005` | `veh-005.webp` | Toyota Fortuner 2019 |
+| `veh-006` | `veh-006.webp` | Chevrolet Silverado 2015 |
+| `veh-007` | `veh-007.webp` | Hyundai Tucson 2018 |
+| `veh-009` | `veh-009.webp` | Ford Explorer 2016 |
+| `veh-011` | `veh-011.webp` | Toyota Hilux 2018 |
 
 ---
-*WAMMA · Confidencial · Sustituir por fotografía propia antes de producción.*
+*WAMMA · Confidencial · Las fotos de producción las carga el usuario.*

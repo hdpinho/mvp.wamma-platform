@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import type { Etapa, MotivoPerdida, Oportunidad } from '../../types/crm';
 import {
   ETAPAS,
@@ -38,6 +38,9 @@ export const MoverEtapa: React.FC<MoverEtapaProps> = ({ oportunidad, onHecho }) 
   const [motivo, setMotivo] = useState<MotivoPerdida>('dejo_de_responder');
   const [motivoTexto, setMotivoTexto] = useState('');
   const [nota, setNota] = useState('');
+  // Un identificador por tarjeta: el embudo muestra varias a la vez y las etiquetas no pueden apuntar a otra.
+  const idMotivo = useId();
+  const idNota = useId();
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -111,10 +114,11 @@ export const MoverEtapa: React.FC<MoverEtapaProps> = ({ oportunidad, onHecho }) 
 
           {evaluacion?.exigeMotivo && (
             <>
-              <label>
+              <label htmlFor={idMotivo}>
                 Motivo de pérdida <span className="req">*</span>
               </label>
               <select
+                id={idMotivo}
                 aria-label="Motivo de pérdida"
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value as MotivoPerdida)}
@@ -138,10 +142,11 @@ export const MoverEtapa: React.FC<MoverEtapaProps> = ({ oportunidad, onHecho }) 
 
           {evaluacion?.exigeNota && (
             <>
-              <label>
+              <label htmlFor={idNota}>
                 ¿Por qué retrocede? <span className="req">*</span>
               </label>
               <input
+                id={idNota}
                 type="text"
                 aria-label="Nota del retroceso"
                 placeholder="Ej. Se enfrió: pospone la compra al mes próximo"

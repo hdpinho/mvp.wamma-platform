@@ -284,8 +284,9 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
             <div className="campo-item">
-              <label>Tasa Mensual Oficial (%)</label>
+              <label htmlFor="o6-cfg-tasa">Tasa Mensual Oficial (%)</label>
               <input
+                id="o6-cfg-tasa"
                 type="number"
                 step="0.01"
                 min="0.1"
@@ -296,13 +297,14 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
               />
             </div>
             <div className="campo-item">
-              <label>Plazo Oficial (meses)</label>
+              <label htmlFor="o6-cfg-plazo">Plazo Oficial (meses)</label>
               {/* D-55: 24 meses, como mínimo y como máximo; el servidor no admite otro plazo. */}
-              <input type="number" value={24} readOnly aria-readonly="true" title="Fijo por decisión del PO (D-55)" />
+              <input id="o6-cfg-plazo" type="number" value={24} readOnly aria-readonly="true" title="Fijo por decisión del PO (D-55)" />
             </div>
             <div className="campo-item">
-              <label>Ratio Cuota / Ingreso (%)</label>
+              <label htmlFor="o6-cfg-ratio">Ratio Cuota / Ingreso (%)</label>
               <input
+                id="o6-cfg-ratio"
                 type="number"
                 step="1"
                 min="5"
@@ -313,8 +315,9 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
               />
             </div>
             <div className="campo-item">
-              <label>Inicial Mínima Oficial (%)</label>
+              <label htmlFor="o6-cfg-inicial">Inicial Mínima Oficial (%)</label>
               <input
+                id="o6-cfg-inicial"
                 type="number"
                 step="1"
                 min="5"
@@ -356,8 +359,9 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
             <h2 className="panel-titulo">1. Selección de Vehículo y Cliente</h2>
 
             <div className="campo-item">
-              <label>Vehículo del Inventario</label>
+              <label htmlFor="o6-vehiculo">Vehículo del Inventario</label>
               <select
+                id="o6-vehiculo"
                 value={vehiculoSeleccionadoId}
                 onChange={(e) => {
                   setVehiculoSeleccionadoId(e.target.value);
@@ -381,8 +385,9 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
 
             {vehiculoSeleccionadoId === 'personalizado' && (
               <div className="campo-item">
-                <label>Precio del Vehículo (EUR)</label>
+                <label htmlFor="o6-precio">Precio del Vehículo (EUR)</label>
                 <input
+                  id="o6-precio"
                   type="number"
                   min="500"
                   step="100"
@@ -394,8 +399,9 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
 
             <div className="grid-2-col">
               <div className="campo-item">
-                <label>Nombre del Solicitante</label>
+                <label htmlFor="o6-nombre">Nombre del Solicitante</label>
                 <input
+                  id="o6-nombre"
                   type="text"
                   placeholder="Ej. Juan Pérez"
                   value={nombreCliente}
@@ -403,8 +409,9 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
                 />
               </div>
               <div className="campo-item">
-                <label>Teléfono WhatsApp</label>
+                <label htmlFor="o6-telefono">Teléfono WhatsApp</label>
                 <input
+                  id="o6-telefono"
                   type="tel"
                   placeholder="04141234567"
                   value={telefonoCliente}
@@ -419,12 +426,13 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
 
             <div className="campo-item">
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <label>Inicial Aportada ({porcentajeInicial}%)</label>
+                <label htmlFor="o6-inicial">Inicial Aportada ({porcentajeInicial}%)</label>
                 <span style={{ fontWeight: 700, color: 'var(--naranja-600)' }}>
                   {formatoEUR(inicialEUR)}
                 </span>
               </div>
               <input
+                id="o6-inicial"
                 type="range"
                 min="20"
                 max="60"
@@ -437,8 +445,9 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
 
             <div className="grid-2-col">
               <div className="campo-item">
-                <label>Plazo a Financiar</label>
+                <label htmlFor="o6-plazo">Plazo a Financiar</label>
                 <select
+                  id="o6-plazo"
                   value={plazoMeses}
                   onChange={(e) => setPlazoMeses(Number(e.target.value))}
                 >
@@ -451,8 +460,9 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
               </div>
 
               <div className="campo-item">
-                <label>Tasa Mensual (%)</label>
+                <label htmlFor="o6-tasa">Tasa Mensual (%)</label>
                 <input
+                  id="o6-tasa"
                   type="number"
                   step="0.1"
                   min="0"
@@ -489,8 +499,9 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
             <h2 className="panel-titulo">3. Evaluación de Capacidad del Cliente</h2>
             <div className="grid-2-col">
               <div className="campo-item">
-                <label>Ingreso Mensual (EUR)</label>
+                <label htmlFor="o6-ingreso">Ingreso Mensual (EUR)</label>
                 <input
+                  id="o6-ingreso"
                   type="number"
                   step="50"
                   min="0"
@@ -499,8 +510,9 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
                 />
               </div>
               <div className="campo-item">
-                <label>Gastos Fijos (EUR)</label>
+                <label htmlFor="o6-gastos">Gastos Fijos (EUR)</label>
                 <input
+                  id="o6-gastos"
                   type="number"
                   step="50"
                   min="0"
