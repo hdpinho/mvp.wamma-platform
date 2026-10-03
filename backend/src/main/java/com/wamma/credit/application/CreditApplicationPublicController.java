@@ -33,6 +33,13 @@ public class CreditApplicationPublicController {
         return ResponseEntity.ok(creditApplicationService.uploadDocument(token, tipoDocumento, file));
     }
 
+    /** El cliente completa los recaudos de su solicitud condicionada con el enlace del analista (D-70). */
+    @PostMapping("/v1/solicitudes-credito/complemento")
+    public ResponseEntity<CreditApplicationDtos.SubmitCreditApplicationResponse> submitComplement(
+            @RequestBody CreditApplicationDtos.ComplementSubmitRequest request) {
+        return ResponseEntity.ok(creditApplicationService.submitComplement(request));
+    }
+
     @PostMapping("/v1/solicitudes-credito")
     public ResponseEntity<CreditApplicationDtos.SubmitCreditApplicationResponse> submitApplication(
             @RequestBody CreditApplicationDtos.SubmitCreditApplicationRequest request,

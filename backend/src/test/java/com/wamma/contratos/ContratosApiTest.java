@@ -148,6 +148,25 @@ class ContratosApiTest extends ApiIntegrationTest {
         ContractShape.assertMatches("credito-solicitud-resumen", list.list().stream()
                 .filter(s -> applicationId.equals(((Map<String, Object>) s).get("id"))).findFirst().orElseThrow());
 
+        // ── Recaudos al condicionar (D-70): el analista emite un enlace y el cliente completa la misma solicitud ──
+        assertThat(api.post("/v1/solicitudes-credito/" + applicationId + "/evaluacion", analyst, Map.of(
+                "resultado", "condicionado",
+                "justificacion", "Falta una copia legible de la cédula.")).status()).isEqualTo(200);
+        TestApi.Response documentsLink = api.post("/v1/solicitudes-credito/" + applicationId + "/enlace-recaudos", analyst, null);
+        assertThat(documentsLink.status()).isEqualTo(200);
+        ContractShape.assertMatches("credito-enlace-recaudos", documentsLink.body());
+        String complementToken = documentsLink.str("token");
+        TestApi.Response complementLink = api.get("/v1/solicitudes-credito/enlace/" + complementToken, null);
+        assertThat(complementLink.status()).isEqualTo(200);
+        ContractShape.assertMatches("credito-enlace-complemento", complementLink.body());
+        TestApi.Response replacement = api.upload("/v1/solicitudes-credito/recaudos", null, "cedula-nueva.jpg",
+                "image/jpeg", JPEG, Map.of("token", complementToken, "tipoDocumento", "cedula"));
+        assertThat(replacement.status()).isEqualTo(200);
+        TestApi.Response completed = api.post("/v1/solicitudes-credito/complemento", null,
+                Map.of("token", complementToken, "recaudos", List.of(replacement.body())));
+        assertThat(completed.status()).isEqualTo(200);
+        ContractShape.assertMatches("credito-solicitud-enviada", completed.body());
+
         assertThat(api.post("/v1/solicitudes-credito/" + applicationId + "/evaluacion", analyst, Map.of(
                 "resultado", "aprobado",
                 "justificacion", "Capacidad de pago demostrada y recaudos conformes.",
@@ -185,7 +204,8 @@ class ContratosApiTest extends ApiIntegrationTest {
         for (String name : List.of("crm-oportunidad", "crm-cita", "crm-persona-resumen", "crm-persona-detalle",
                 "crm-cita-publica", "crm-confirmacion", "crm-venta", "credito-enlace", "credito-enlace-invalido",
                 "credito-recaudo-cargado", "credito-solicitud-envio", "credito-solicitud-enviada",
-                "credito-solicitud-resumen", "credito-solicitud-detalle", "parametros-financiamiento")) {
+                "credito-solicitud-resumen", "credito-solicitud-detalle", "parametros-financiamiento",
+                "credito-enlace-complemento", "credito-enlace-recaudos")) {
             assertThat(ContractShape.fixture(name)).as(name).isNotNull();
         }
     }

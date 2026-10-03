@@ -3,6 +3,7 @@ package com.wamma.platform.auth;
 import com.wamma.platform.audit.AuditLog;
 import com.wamma.platform.config.SecurityProperties;
 import com.wamma.platform.crypto.FieldCipher;
+import com.wamma.platform.identity.DisabledPermissions;
 import com.wamma.platform.identity.PasswordPolicy;
 import com.wamma.platform.identity.UserAccount;
 import com.wamma.platform.identity.UserRepository;
@@ -65,13 +66,15 @@ public class AuthService {
     private final AuditLog audit;
     private final LoginRateLimiter rateLimiter;
     private final SecurityProperties properties;
+    private final DisabledPermissions disabledPermissions;
     private final Clock clock;
     /** Hash de referencia: un usuario inexistente tarda lo mismo que una contraseña errónea. */
     private final String referenceHash;
 
     public AuthService(UserRepository users, SessionService sessions, RecoveryCodes recoveryCodes,
                        PasswordEncoder encoder, PasswordPolicy policy, FieldCipher cipher, AuditLog audit,
-                       LoginRateLimiter rateLimiter, SecurityProperties properties, Clock clock) {
+                       LoginRateLimiter rateLimiter, SecurityProperties properties,
+                       DisabledPermissions disabledPermissions, Clock clock) {
         this.users = users;
         this.sessions = sessions;
         this.recoveryCodes = recoveryCodes;
@@ -81,6 +84,7 @@ public class AuthService {
         this.audit = audit;
         this.rateLimiter = rateLimiter;
         this.properties = properties;
+        this.disabledPermissions = disabledPermissions;
         this.clock = clock;
         this.referenceHash = encoder.encode("referencia-para-usuarios-inexistentes");
     }
@@ -209,7 +213,7 @@ public class AuthService {
     public Profile profile(UUID userId) {
         UserAccount user = users.findById(userId).orElseThrow(AuthService::sessionGone);
         return new Profile(user.id(), user.username(), user.firstName(), user.lastName(), user.email(),
-                users.rolesOf(user.id()), users.permissionsOf(user.id()));
+                users.rolesOf(user.id()), disabledPermissions.filter(users.permissionsOf(user.id())));
     }
 
     /** Cambio de contraseña propio: pide la actual y cierra las demás sesiones del usuario. */

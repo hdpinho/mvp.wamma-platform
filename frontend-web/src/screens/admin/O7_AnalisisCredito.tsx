@@ -1,14 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Boton } from '../../components/Boton';
 import { Campo } from '../../components/Campo';
+import {
+  abrirAviso,
+  avisoDictamen,
+  avisoRecaudosPendientes,
+  enlaceCorreo,
+  enlaceWhatsApp,
+  type MensajeAlCliente,
+} from '../../components/crm/avisos';
 import { fechaHora } from '../../components/crm/formato';
 import { ErrorApi, mensajeDeError } from '../../api/cliente';
 import {
   actualizarEstadoRecaudo,
+  emitirEnlaceRecaudos,
   evaluarSolicitudCredito,
   listarSolicitudesCredito,
   obtenerDetalleSolicitudCredito,
   obtenerEnlaceRecaudo,
+  reabrirSolicitudCredito,
   type DetalleSolicitudApi,
   type EstadoRecaudo,
   type ResultadoDictamen,
@@ -27,12 +37,16 @@ import { BANCOS } from '../../mocks/solicitudCredito';
 import { formatoEUR } from '../../services/financiamientoMotor';
 import { useParametros } from '../../state/parametrosContexto';
 import { useSesion } from '../../state/sesionContexto';
+import { rutaSolicitudFinanciamiento } from '../../types/crm';
 
 /**
  * O7 · Análisis y dictamen de crédito (WMA-F-FIN-001).
  *
  * El analista revisa el expediente que la persona envió con su enlace, verifica los recaudos y dictamina a mano
  * (D-17, D-63): aprobar, condicionar o rechazar, siempre con su justificación, que queda con su usuario en la bitácora.
+ * Tras dictaminar se abren solos WhatsApp y el correo del solicitante con el aviso aprobado (D-69, D-72, D-75); al
+ * condicionar, el mensaje lleva el enlace para completar los documentos (D-70). Un expediente aprobado o rechazado se
+ * puede reabrir con justificación (D-71).
  * El scoring, el «AML» y el «Score Buró» están fuera de alcance hasta tener convenios (D-01, D-63); el código del motor
  * se conserva en el servidor y en `api/riesgo.ts`, pero esta pantalla no lo usa.
  *
@@ -138,6 +152,20 @@ export const O7_AnalisisCredito: React.FC = () => {
   const [guardandoDictamen, setGuardandoDictamen] = useState(false);
   const [mensajeDictamen, setMensajeDictamen] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null);
 
+  // Aviso al solicitante tras el dictamen (D-69, D-75): se abren solos WhatsApp y el correo, con el mensaje ya redactado.
+  // Si el navegador bloquea la ventana, el aviso ofrece los mismos botones. `enlace` solo existe al pedir recaudos.
+  const [avisoCliente, setAvisoCliente] = useState<{
+    mensaje: MensajeAlCliente;
+    enlace: string | null;
+    whatsappAbierto: boolean;
+  } | null>(null);
+  const [copiado, setCopiado] = useState(false);
+
+  // Reapertura de un expediente con dictamen final (D-71)
+  const [justificacionReapertura, setJustificacionReapertura] = useState('');
+  const [reabriendo, setReabriendo] = useState(false);
+  const [emitiendoEnlace, setEmitiendoEnlace] = useState(false);
+
   // Cada cambio de filtro, o `recargarLista()`, vuelve a pedir la bandeja al servidor.
   const [recargaLista, setRecargaLista] = useState(0);
   const recargarLista = () => {
@@ -176,7 +204,11 @@ export const O7_AnalisisCredito: React.FC = () => {
     setCargandoDetalle(true);
     setErrorDetalle(null);
     setAvisoRecaudo(null);
-    if (!conservarMensaje) setMensajeDictamen(null);
+    if (!conservarMensaje) {
+      setMensajeDictamen(null);
+      setAvisoCliente(null);
+      setJustificacionReapertura('');
+    }
     try {
       const data = await obtenerDetalleSolicitudCredito(id);
       setDetalle(data);
@@ -278,6 +310,9 @@ export const O7_AnalisisCredito: React.FC = () => {
         tipo: 'exito',
         texto: `Dictamen registrado: solicitud ${ETIQUETA_RESULTADO[resultado].toLowerCase()}.`,
       });
+      setAvisoCliente(null);
+      // El aviso se abre en el mismo flujo del clic, antes de recargar: es lo que el navegador deja pasar.
+      await avisarDictamen(detalle, resultado);
       recargarLista();
       await cargarDetalle(solicitudId, true);
     } catch (err: unknown) {
@@ -285,6 +320,100 @@ export const O7_AnalisisCredito: React.FC = () => {
       setMensajeDictamen({ tipo: 'error', texto: mensajeDeError(err, 'No se pudo registrar el dictamen.') });
     } finally {
       setGuardandoDictamen(false);
+    }
+  };
+
+  /** Datos del solicitante para el aviso: lo que él mismo escribió en su expediente. */
+  const contactoDe = (d: DetalleSolicitudApi) => ({
+    nombre: texto(d.datosPersonales?.primerNombre) || 'cliente',
+    telefono: texto(d.datosContacto?.telefonoCelular),
+    correo: texto(d.datosContacto?.correo),
+    vehiculo: d.vehiculo ? `${d.vehiculo.brand} ${d.vehiculo.model} ${d.vehiculo.year}` : 'vehículo',
+  });
+
+  const avisarAlCliente = (mensaje: MensajeAlCliente, enlace: string | null) => {
+    const abierto = abrirAviso(mensaje);
+    setCopiado(false);
+    setAvisoCliente({ mensaje, enlace, whatsappAbierto: abierto.whatsapp });
+  };
+
+  /**
+   * Emite el enlace para que el cliente complete sus recaudos (D-70) y lo manda por WhatsApp y correo. El servidor solo
+   * guarda su huella: el texto completo existe aquí y ahora.
+   */
+  const avisarRecaudosPendientes = async (d: DetalleSolicitudApi) => {
+    const { nombre, telefono, correo, vehiculo } = contactoDe(d);
+    const emitido = await emitirEnlaceRecaudos(d.id);
+    const url = `${window.location.origin}${rutaSolicitudFinanciamiento(d.vehiculoId ?? '', emitido.token)}`;
+    avisarAlCliente(avisoRecaudosPendientes(nombre, d.numeroSolicitud, vehiculo, url, telefono, correo), url);
+  };
+
+  /** Tras el dictamen, el aviso aprobado (D-72). Condicionar además pide los recaudos con su enlace. */
+  const avisarDictamen = async (d: DetalleSolicitudApi, dictamen: ResultadoDictamen) => {
+    try {
+      if (dictamen === 'condicionado') {
+        await avisarRecaudosPendientes(d);
+        return;
+      }
+      const { nombre, telefono, correo, vehiculo } = contactoDe(d);
+      const estado = dictamen === 'aprobado' ? 'aprobada' : 'rechazada';
+      const mensaje = avisoDictamen(estado, nombre, d.numeroSolicitud, vehiculo, telefono, correo);
+      if (mensaje) avisarAlCliente(mensaje, null);
+    } catch (err: unknown) {
+      // El dictamen ya está guardado: solo falló el aviso, y eso se dice.
+      setMensajeDictamen({
+        tipo: 'error',
+        texto: `El dictamen quedó registrado, pero no se pudo preparar el aviso al cliente: ${mensajeDeError(err, 'error desconocido')}`,
+      });
+    }
+  };
+
+  /** Vuelve a mandar el enlace de recaudos de una solicitud condicionada. El enlace anterior deja de servir. */
+  const reenviarEnlaceRecaudos = async () => {
+    if (!detalle) return;
+    setEmitiendoEnlace(true);
+    try {
+      await avisarRecaudosPendientes(detalle);
+    } catch (err: unknown) {
+      setMensajeDictamen({ tipo: 'error', texto: mensajeDeError(err, 'No se pudo emitir el enlace de recaudos.') });
+    } finally {
+      setEmitiendoEnlace(false);
+    }
+  };
+
+  /** Reabre un expediente aprobado o rechazado para dictaminarlo de nuevo (D-71). Queda en la bitácora. */
+  const reabrirExpediente = async () => {
+    if (!solicitudId) return;
+    const motivo = justificacionReapertura.trim();
+    if (motivo.length < 10) {
+      setMensajeDictamen({ tipo: 'error', texto: 'Escribe por qué se reabre el expediente (al menos 10 caracteres).' });
+      return;
+    }
+    setReabriendo(true);
+    setMensajeDictamen(null);
+    try {
+      await reabrirSolicitudCredito(solicitudId, motivo);
+      setJustificacionReapertura('');
+      setAvisoCliente(null);
+      setMensajeDictamen({
+        tipo: 'exito',
+        texto: 'Expediente reabierto: vuelve a estar en evaluación y ya puedes dictaminarlo de nuevo.',
+      });
+      recargarLista();
+      await cargarDetalle(solicitudId, true);
+    } catch (err: unknown) {
+      setMensajeDictamen({ tipo: 'error', texto: mensajeDeError(err, 'No se pudo reabrir el expediente.') });
+    } finally {
+      setReabriendo(false);
+    }
+  };
+
+  const copiarEnlaceRecaudos = async (enlace: string) => {
+    try {
+      await navigator.clipboard.writeText(enlace);
+      setCopiado(true);
+    } catch {
+      setMensajeDictamen({ tipo: 'error', texto: 'No se pudo copiar: selecciona el enlace y cópialo a mano.' });
     }
   };
 
@@ -313,6 +442,8 @@ export const O7_AnalisisCredito: React.FC = () => {
   const recaudos = detalle?.recaudos ?? [];
   const recaudosSinConforme = recaudos.filter((r) => r.validationStatus !== 'conforme').length;
   const esFinal = detalle ? ESTADOS_FINALES.includes(detalle.estado) : false;
+  // Un crédito desembolsado ya tiene consecuencias de dinero: no se reabre (D-71).
+  const puedeReabrir = detalle ? detalle.estado === 'aprobada' || detalle.estado === 'rechazada' : false;
   const dictamenVigente = detalle?.decisionRiesgo ?? null;
 
   const personales = detalle?.datosPersonales ?? {};
@@ -514,6 +645,49 @@ export const O7_AnalisisCredito: React.FC = () => {
                 {mensajeDictamen && (
                   <div className={`cred-aviso ${mensajeDictamen.tipo === 'exito' ? 'cred-aviso-exito' : 'cred-aviso-error'}`} role={mensajeDictamen.tipo === 'error' ? 'alert' : 'status'}>
                     {mensajeDictamen.texto}
+                  </div>
+                )}
+
+                {avisoCliente && (
+                  <div className="cred-aviso cred-aviso-alerta cred-aviso-cliente" role="status">
+                    <div>
+                      <strong>Aviso al cliente.</strong>{' '}
+                      {avisoCliente.mensaje.telefono
+                        ? avisoCliente.whatsappAbierto
+                          ? 'Se abrió WhatsApp con el mensaje: revísalo y envíalo.'
+                          : 'El navegador no abrió WhatsApp: usa el botón.'
+                        : 'El expediente no trae un teléfono: avísale por otro medio.'}
+                      {avisoCliente.mensaje.correo && ' También se abrió tu programa de correo.'}
+                      {avisoCliente.enlace && (
+                        <>
+                          <br />
+                          Enlace para que complete sus documentos: <code>{avisoCliente.enlace}</code>
+                          <br />
+                          Solo se muestra ahora. Si lo pierdes, usa «Volver a enviar el enlace de recaudos».
+                        </>
+                      )}
+                    </div>
+                    <div className="cred-aviso-botones">
+                      {avisoCliente.mensaje.telefono && (
+                        <a
+                          href={enlaceWhatsApp(avisoCliente.mensaje.telefono, avisoCliente.mensaje.texto)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          💬 WhatsApp
+                        </a>
+                      )}
+                      {avisoCliente.mensaje.correo && (
+                        <a href={enlaceCorreo(avisoCliente.mensaje.correo, avisoCliente.mensaje.asunto, avisoCliente.mensaje.cuerpo)}>
+                          ✉️ Correo
+                        </a>
+                      )}
+                      {avisoCliente.enlace && (
+                        <button type="button" onClick={() => void copiarEnlaceRecaudos(avisoCliente.enlace ?? '')}>
+                          {copiado ? '✓ Copiado' : '📋 Copiar enlace'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -768,6 +942,14 @@ export const O7_AnalisisCredito: React.FC = () => {
                       </p>
                     )}
                     <p>{dictamenVigente.justification || <em className="cred-mudo">Sin justificación registrada.</em>}</p>
+                    {/* Solicitud condicionada: el cliente completa sus documentos con un enlace (D-70). */}
+                    {puedeEvaluar && detalle.estado === 'condicionada' && (
+                      <div className="cred-dictamen-acciones" style={{ justifyContent: 'flex-start', marginTop: '8px' }}>
+                        <Boton variant="secondary" onClick={() => void reenviarEnlaceRecaudos()} disabled={emitiendoEnlace}>
+                          {emitiendoEnlace ? 'Emitiendo enlace…' : 'Volver a enviar el enlace de recaudos'}
+                        </Boton>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -841,9 +1023,34 @@ export const O7_AnalisisCredito: React.FC = () => {
                   </div>
                 )}
 
-                {esFinal && (
+                {esFinal && puedeEvaluar && puedeReabrir && (
+                  <div className="cred-dictamen">
+                    <h3>🔓 Reabrir expediente</h3>
+                    <p className="cred-nota" style={{ marginTop: 0 }}>
+                      Esta solicitud ya tiene un dictamen final. Si hace falta cambiarlo, reábrela: vuelve a «En
+                      evaluación», el dictamen anterior queda en la bitácora y tu justificación también.
+                    </p>
+                    <div>
+                      <label htmlFor="cred-reapertura">Justificación de la reapertura *</label>
+                      <textarea
+                        id="cred-reapertura"
+                        rows={2}
+                        value={justificacionReapertura}
+                        onChange={(e) => setJustificacionReapertura(e.target.value)}
+                        placeholder="Por qué se vuelve a revisar este expediente…"
+                      />
+                    </div>
+                    <div className="cred-dictamen-acciones">
+                      <Boton variant="secondary" onClick={() => void reabrirExpediente()} disabled={reabriendo}>
+                        {reabriendo ? 'Reabriendo…' : 'Reabrir expediente'}
+                      </Boton>
+                    </div>
+                  </div>
+                )}
+                {esFinal && !(puedeEvaluar && puedeReabrir) && (
                   <p className="cred-nota">
-                    Esta solicitud ya tiene un dictamen final. Para cambiarlo hace falta una nueva solicitud.
+                    Esta solicitud ya tiene un dictamen final
+                    {detalle.estado === 'desembolsada' ? ' y el crédito ya se desembolsó: no se reabre.' : '.'}
                   </p>
                 )}
               </>
@@ -866,6 +1073,9 @@ export const O7_AnalisisCredito: React.FC = () => {
         .cred-aviso-error { background-color: var(--peligro-fondo); color: var(--peligro-texto); }
         .cred-aviso-exito { background-color: var(--exito-fondo); color: var(--exito-texto); }
         .cred-aviso-alerta { background-color: #FEF3C7; color: #92400E; margin-bottom: var(--space-md); }
+        .cred-aviso-cliente code { word-break: break-all; font-size: 12px; }
+        .cred-aviso-botones { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+        .cred-aviso-botones a { color: inherit; font-weight: 700; font-size: 13px; }
         .cred-metricas { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-xl); }
         .cred-metrica { background-color: var(--blanco); border: 1px solid var(--borde-claro); border-radius: var(--radius-md); padding: var(--space-md); }
         .cred-metrica span { display: block; font-size: 12px; color: var(--texto-mudo); text-transform: uppercase; font-weight: 700; }

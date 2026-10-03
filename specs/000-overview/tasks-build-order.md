@@ -37,15 +37,19 @@
 | **3 — Evaluación y Dinero** | 006, 007 | Scoring/riesgo (006) y contabilidad inmutable en ledger + pagos C2P (007). |
 | **Transversal** | 009 | Tablero y tesorería para administración de inventario y liquidaciones. |
 
-### Estado de Ejecución en Desarrollo (Septiembre 2026)
+### Estado de Ejecución en Desarrollo (2 de octubre de 2026)
+
+Estado verificado en local. Nada está desplegado (D-56) ni tiene commit en `main`: el resguardo vive en la rama local `resguardo/mvp-2026-10-03`. Alcance de la entrega: hasta la aprobación del crédito (D-65, D-68).
 
 | Módulo / Fase | Componentes Clave | Estado | Verificación |
 |---|---|---|---|
-| **001 — Seguridad y Accesos** | Auth, RBAC, auditoría inmutable, cifrado AES-GCM | **Listo** (servidor) | Tests de seguridad y endpoints `/v1/auth`, `/v1/usuarios`, `/v1/auditoria` |
-| **004 / 005 — Catálogo e Inventario** | Publicación, fotos S3/disco, tasa BCV diaria | **Listo** (servidor + web) | Endpoints `/v1/catalogo`, `/v1/inventario/vehiculos`, `/v1/tasa-bcv` |
-| **010 — CRM Comercial y Citas (Fase 1)** | Citas públicas, bandeja backoffice, embudo Kanban, 360 personas, enlaces seguros 7d, reserva 24h | **Listo** (servidor + web) | Flyway V0017, 102 tests esquema, 120 tests backend, frontend sincronizado |
-| **Fase 3 — Solicitud de Crédito Digital** | Captura WMA-F-FIN-001, enlace seguro CRM, expediente en BD, recaudos digitales, pantallas C9 y O7 | **Listo** (servidor + web) | Flyway V0018 (EUR), `com.wamma.credit.application`, 125 tests Maven, 17 tests npm, build Vite |
-| **Fase 4 — Motor de Riesgo y Scoring (006)** | Motor de scoring (0-1000 pts en 5 factores), buró crediticio, screening AML (OFAC/PEP), resolución de alertas | **Listo** (servidor + web) | Paquete `com.wamma.risk`, endpoints `/v1/riesgo/*`, 133 tests Maven, 17 tests npm, UI `O7_AnalisisCredito` |
+| **001 — Seguridad y Accesos** | Ingreso con 2FA, RBAC por rol, bitácora inmutable, cifrado AES-GCM, límite de ingreso en base (V0021, spec 011) | **Listo en local** | Backend 212 pruebas; API R1 26/26 |
+| **004 / 005 — Catálogo e Inventario** | Publicación, fotos S3/disco, tasa BCV diaria | **Listo en local** (servidor + web). Fotos de demostración: 7 con crédito verificado y 9 con origen por confirmar (D-58) | `/v1/catalogo`, `/v1/inventario`, `/v1/tasa-bcv` |
+| **010 — CRM Comercial y Citas** | Citas públicas, bandeja, embudo, personas, enlace de financiamiento de 7 días, reserva de 24 h, servidor como fuente de verdad | **Listo en local.** «Tomar» y «repartir» quedan fuera del MVP (D-73) | API R2 39/39; navegador 23/23 |
+| **Solicitud de crédito (WMA-F-FIN-001)** | Formulario de 8 pasos, recaudos en contenedor privado con enlace firmado, expediente cifrado, número con contador atómico, cálculo de cuota y capacidad en el servidor | **Listo en local** | API R3 14/14; V0019 y V0020 |
+| **Análisis y dictamen** | Dictamen manual con justificación obligatoria (D-63); reabrir expediente y recaudos (D-70, D-71) | **En trabajo** (Plan Final, F2) | — |
+| **006 — Scoring, AML y Score Buró** | Existe el código, apagado con `WAMMA_RIESGO_MOTOR=false` | **Fuera de alcance** (D-63). No se reactiva sin spec, plan y tareas aprobados | Las pruebas del motor corren con la bandera activa |
+| **007 Fintech/ledger, 009 Tesorería** | — | **No iniciados** (fuera del MVP) | — |
 
 > **Qué se puede construir antes del 001.** El grafo describe dependencias de *módulo terminado*, no de *cada tarea*. Varios módulos tienen un núcleo puro —sin I/O, sin identidad, sin persistencia— que no depende del 001 y se puede escribir hoy: `solicitud-credito` tuvo un núcleo puro en Go (`calc` y `validation`, 100 % de cobertura), archivado en `backend/_legacy-go/` como referencia para la reescritura en Java. El 010 declara sus olas 1 y 2 en la misma condición. Lo que el 001 bloquea es **dar un módulo por terminado**, no empezarlo por donde no toca persistencia.
 

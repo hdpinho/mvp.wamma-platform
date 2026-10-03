@@ -36,30 +36,15 @@ Plataforma propia de **WAMMA by Token Pago POS**: venta, certificación y financ
 - **Migraciones:** Flyway · **Build:** Maven
 - **Infra:** proveedor a elegir por criterio de ingeniería y negocio. Exigidos: respaldo con **pruebas de restauración**, réplica de BD y capacidad de reconstruir el entorno desde cero
 
-## Estado actual del desarrollo (Septiembre 2026)
+## Estado actual del desarrollo (Octubre 2026)
 
-- **Fase 1 — CRM Comercial y Citas (`010-crm-comercial`): COMPLETADA Y VERIFICADA LOCALMENTE (100 %).**
-  - **Base de Datos:** Migración `V0017__crm_moneda_y_reserva.sql` (reserva 24h, multimoneda EUR/VES, citas sin sede inicial). 102 pruebas de esquema aprobadas.
-  - **Backend Spring Boot:** Paquete `com.wamma.crm` completo (Person, Opportunity, Appointment, Interaction, StageHistory, IdentityResolver con deduplicación y cifrado AES-256-GCM + blind index HMAC-SHA-256, CaptureRateLimiter, DemoCrmSeeder). 120 pruebas unitarias y de integración pasando (`mvn test`).
-  - **Frontend Web:** Conectado a API real mediante `src/api/crm.ts` y sincronizado en `src/state/crm.tsx` (con fallback transparente a maqueta/offline si no hay servidor).
-  - **Entorno de pruebas:** Servidor embebido `LocalDevServer.java` (Postgres local en memoria/disco) en `http://localhost:8080` y Vite en `http://localhost:5174`.
-- **Fase 2 — Motor de Parámetros de Financiamiento: COMPLETADA Y VERIFICADA LOCALMENTE (100 %).**
-  - Consumo y actualización dinámica de la tabla `parametros_financiamiento` (`V0015`).
-  - Endpoints REST `GET /v1/parametros-financiamiento` y `PUT /v1/parametros-financiamiento` asegurados para backoffice.
-  - Conexión e integración en `C10_Financiamiento`, `O6_FinanciamientoBackoffice` y el simulador de cuotas de `C2_FichaVehiculo` con fallback transparente.
-  - 123 pruebas unitarias y de integración pasando en backend.
-- **Fase 3 — Solicitud de Crédito Digital (Digitalización WMA-F-FIN-001 y Expediente): COMPLETADA Y VERIFICADA LOCALMENTE (100 %).**
-  - **Base de Datos:** Migración `V0018__solicitud_credito_eur.sql` (soporte multimoneda EUR/VES bajo Constitución v3.0.0, metadatos y tabla `solicitud_recaudo` para documentos digitales).
-  - **Backend Spring Boot:** Paquete `com.wamma.credit.application` completo (expediente de 8 pasos, almacenamiento de recaudos, endpoints públicos `/v1/solicitudes-credito` y backoffice `/v1/solicitudes-credito/{id}/evaluacion`, `/v1/solicitudes-credito/{id}/recaudos/{docId}`, consumo de token de financiamiento de 7 días y transición automática de la oportunidad en CRM a `solicitud_credito`).
-  - **Frontend Web:** Formulario público `C9_SolicitudCredito` conectado a API real con subida de recaudos, y pantalla de backoffice `O7_AnalisisCredito` con métricas, tabla de expedientes y modal de revisión (capacidad de pago regla 30%, recaudos y dictamen de riesgo).
-- **Fase 4 — Motor de Riesgo, Scoring y Cumplimiento AML (`006-scoring-credito`): COMPLETADA Y VERIFICADA LOCALMENTE (100 %).**
-  - **Backend Spring Boot:** Paquete `com.wamma.risk` completo (`CreditScoringEngine`, `AmlScreeningEngine`, `AmlAlertRepository`, `RiskEvaluationService`, `RiskController`).
-  - **Algoritmo de Scoring:** 0–1000 puntos ponderado en 5 factores (Capacidad de pago regla 30% [350 pts], Inicial aportada [200 pts], Estabilidad laboral [150 pts], Solvencia bancaria [150 pts], Perfil demográfico [150 pts]) y homologación a Score Buró (100–800 pts).
-  - **Screening AML:** Cotejo automático contra listas de sanciones internacionales (OFAC, ONU, Interpol) y base de datos PEP (Personas Políticamente Expuestas), con persistencia de alertas en tabla `alerta_aml` y auditoría inmutable.
-  - **Frontend Web:** Conexión e integración en `src/screens/admin/O7_AnalisisCredito.tsx` con ejecución en vivo (`⚡ Ejecutar Scoring y AML en Vivo`), resumen de scores, desglose visual de 5 factores, badges OFAC/PEP y flujo de resolución de alertas AML (`falso_positivo` / `confirmado_bloqueado`).
-  - **Verificación:** 133 tests en Maven (`BUILD SUCCESS`), 17 tests frontend (`npm test`), build de producción Vite verificado y validación visual en navegador.
-- **Regla estricta:** NO hacer `git commit` ni `git push` hasta que el usuario realice todas las pruebas y dé su aprobación explícita.
-
+- **Estado real (verificado en local el 02/10/2026):** el recorrido del MVP funciona de punta a punta contra el servidor: vitrina → cita → asesor → venta → enlace de financiamiento → solicitud de crédito → análisis → dictamen manual → cierre de la venta. Backend 212 pruebas, web 61, API (R1 26, R2 39, R3 14) y navegador 23/23. **Sin commit en `main`**: el resguardo está en la rama local `resguardo/mvp-2026-10-03`. Sin despliegue (D-56).
+- **Alcance de la entrega (D-65, D-68):** hasta la aprobación del crédito. **Fuera de alcance:** OTP (D-57), scoring, AML y Score Buró (D-63; el código se conserva apagado con `WAMMA_RIESGO_MOTOR=false`), «Tomar» y «repartir» oportunidades (D-73), desembolso, pagos y ledger.
+- **Corrección de los registros anteriores («Fases 1–4 al 100 %», D-49 a D-52):** sobreestimaban el estado y los corrigen D-60 a D-63. En concreto: el motor de scoring/AML existe pero está apagado y el analista dictamina a mano con justificación obligatoria; el servidor recalcula cuota, monto y capacidad; los recaudos van a un contenedor privado y se abren con enlace firmado.
+- **Remediación R0–R3 hecha y aprobada (D-64, D-67); R4 hecha en lo que no toca frontend ni textos oficiales (D-68, D-74).** Plan Final: servidor, avisos por WhatsApp/correo (se abren solos, D-75), reapertura de recaudos y de expedientes (D-70, D-71) y «tomar/repartir» apagado (D-73) hechos el 3-oct. Pendiente: R5 (E2E en el repositorio, CI y nueva evaluación QA) y la demostración local. Plan: `docs/qa/plan-final-2026-10-03.md` (no se commitea `docs/qa`: el repositorio es público).
+- **Migraciones:** V0001–V0022 en el repo; Supabase sigue en V0012. El PR #1 (spec 011) no se mezcla: se portó a `main` como V0021 y V0022 (D-66).
+- **Decisiones vigentes:** `specs/000-overview/decisiones-po.md` (hasta D-77).
+- **Regla estricta:** NO hacer `git push` ni desplegar sin aprobación expresa del PO (D-56). El commit local de resguardo está autorizado (D-77).
 ## Cómo debe comportarse el agente
 
 - **Lee la Constitución y el spec del módulo** antes de tocar código. No empieces a programar desde una idea vaga.

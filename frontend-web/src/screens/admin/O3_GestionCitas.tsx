@@ -6,22 +6,23 @@ import { Boton } from '../../components/Boton';
 import { AsesorDeOportunidad } from '../../components/crm/AsesorDeOportunidad';
 import { AvisoCargaCRM } from '../../components/crm/AvisoCargaCRM';
 import { CreditoVinculado } from '../../components/crm/CreditoVinculado';
-import { correoConfirmacionCita } from '../../components/crm/correoCita';
+import {
+  abrirAviso,
+  avisoEnlaceFinanciamiento,
+  enlaceCorreo,
+  enlaceWhatsApp,
+  textoAvisoCredito,
+} from '../../components/crm/avisos';
+import { correoConfirmacionCita, textoWhatsAppConfirmacionCita } from '../../components/crm/correoCita';
 import { ESTILOS_CRM } from '../../components/crm/estilos';
 import { fechaHora } from '../../components/crm/formato';
 import type { Cita, MotivoPerdida, Oportunidad, Persona } from '../../types/crm';
-import {
-  MOTIVOS_PERDIDA,
-  definicionEtapa,
-  estaEstancada,
-  rutaSolicitudFinanciamiento,
-  telefonoParaWhatsApp,
-} from '../../types/crm';
+import { MOTIVOS_PERDIDA, definicionEtapa, estaEstancada, rutaSolicitudFinanciamiento } from '../../types/crm';
 import { validarCedula, validarCorreo } from '../../validacion/venezuela';
 
 /**
- * Lo que el asesor le escribe al cliente cuando el análisis de crédito ya decidió. Es texto de contacto, sin cifras ni
- * datos del expediente (el asesor no los ve). La redacción es de negocio y la ajusta el PO.
+ * Lo que el asesor le escribe al cliente cuando el análisis de crédito ya decidió (D-72). Es texto de contacto, sin
+ * cifras ni datos del expediente (el asesor no los ve).
  */
 const avisoDeCredito = (
   persona: Persona,
@@ -31,26 +32,7 @@ const avisoDeCredito = (
   const credito = oportunidad.solicitudCredito;
   if (!credito?.estado) return null;
   const nombre = persona.nombreApellido.split(' ')[0] || persona.nombreApellido;
-  const solicitud = credito.numero ? ` ${credito.numero}` : '';
-  switch (credito.estado) {
-    case 'aprobada':
-      return {
-        boton: '💬 Avisar que el crédito fue aprobado',
-        texto: `¡Hola ${nombre}! Tu solicitud de financiamiento${solicitud} para el ${vehiculoTitulo} fue aprobada. Te escribimos para coordinar los siguientes pasos de tu compra.`,
-      };
-    case 'rechazada':
-      return {
-        boton: '💬 Avisar que el crédito no fue aprobado',
-        texto: `Hola ${nombre}, revisamos tu solicitud de financiamiento${solicitud} para el ${vehiculoTitulo} y no pudimos aprobarla. Si quieres, conversamos qué opciones tienes.`,
-      };
-    case 'condicionada':
-      return {
-        boton: '💬 Pedir lo que falta para el crédito',
-        texto: `Hola ${nombre}, tu solicitud de financiamiento${solicitud} para el ${vehiculoTitulo} necesita información adicional para continuar. Te escribimos para indicarte qué falta.`,
-      };
-    default:
-      return null;
-  }
+  return textoAvisoCredito(credito.estado, nombre, credito.numero, vehiculoTitulo);
 };
 
 /**
@@ -131,9 +113,6 @@ export const O3_GestionCitas: React.FC = () => {
     setModalidadVenta(modalidad);
   };
 
-  const enlaceWhatsApp = (telefono: string, texto: string) =>
-    `https://wa.me/${telefonoParaWhatsApp(telefono)}?text=${encodeURIComponent(texto)}`;
-
   const urlSolicitud = (vehiculoId: string, token: string) =>
     `${window.location.origin}${rutaSolicitudFinanciamiento(vehiculoId, token)}`;
 
@@ -183,15 +162,29 @@ export const O3_GestionCitas: React.FC = () => {
       : null;
 
     cerrarAccion();
+    // Decisión del PO (D-69, D-75): al confirmar se abren solos WhatsApp y, si hay correo, el programa de correo del
+    // asesor, con la confirmación ya redactada. El asesor revisa y envía.
+    const citaAcordada = { ...cita, diaPreferencia: dia, franjaHoraria: franja };
+    const abierto = abrirAviso({
+      telefono: persona.telefonoWhatsApp,
+      texto: textoWhatsAppConfirmacionCita(persona, oportunidad, citaAcordada, obtenerVehiculo(cita.vehiculoId)?.sede),
+      correo: mensaje?.para ?? '',
+      asunto: mensaje?.asunto ?? '',
+      cuerpo: mensaje?.cuerpo ?? '',
+    });
+    const porWhatsApp = abierto.whatsapp
+      ? ' Se abrió WhatsApp con el mensaje de confirmación.'
+      : ' El navegador no abrió WhatsApp: usa «Contactar por WhatsApp».';
     if (mensaje) {
       setAviso({
-        texto: `${base} Se abrió tu correo con la confirmación para ${mensaje.para}: revísala y envíala.`,
+        texto: `${base}${porWhatsApp} Se abrió tu correo con la confirmación para ${mensaje.para}: revísala y envíala.`,
         mailto: mensaje.mailto,
       });
-      // Decisión del PO: el correo sale del programa de correo del asesor.
-      window.location.assign(mensaje.mailto);
     } else {
-      setAviso({ texto: `${base} El cliente no dejó correo: confírmale la cita por WhatsApp.`, tono: 'alerta' });
+      setAviso({
+        texto: `${base}${porWhatsApp} El cliente no dejó correo: la confirmación va solo por WhatsApp.`,
+        tono: abierto.whatsapp ? undefined : 'alerta',
+      });
     }
   };
 
@@ -248,12 +241,39 @@ export const O3_GestionCitas: React.FC = () => {
       setAviso({ texto: resultado.error ?? 'No se pudo registrar la venta.', tono: 'alerta' });
       return;
     }
-    setAviso({
-      texto:
-        modalidad === 'Contado'
-          ? 'Venta de contado cerrada. El vehículo pasó a Vendido y salió del catálogo.'
-          : 'Venta acordada con financiamiento. Envía al cliente su enlace personal para que solicite el crédito.',
-    });
+    if (modalidad === 'Contado') {
+      setAviso({ texto: 'Venta de contado cerrada. El vehículo pasó a Vendido y salió del catálogo.' });
+      cerrarAccion();
+      return;
+    }
+
+    // Decisión del PO (D-69, D-75): al emitir el enlace se abren solos WhatsApp y, si hay correo, el programa de correo,
+    // con el enlace personal ya en el mensaje. El asesor revisa y envía.
+    const oportunidad = obtenerOportunidad(oportunidadId);
+    const persona = oportunidad ? obtenerPersona(oportunidad.personaId) : undefined;
+    if (resultado.token && oportunidad && persona) {
+      const v = oportunidad.vehiculoResumen;
+      const primerNombre = persona.nombreApellido.split(' ')[0] || persona.nombreApellido;
+      const abierto = abrirAviso(
+        avisoEnlaceFinanciamiento(
+          primerNombre,
+          `${v.marca} ${v.modelo} ${v.version} (${v.anio})`,
+          urlSolicitud(oportunidad.vehiculoId, resultado.token),
+          persona.telefonoWhatsApp,
+          persona.correo ?? '',
+        ),
+      );
+      setAviso({
+        texto: abierto.whatsapp
+          ? `Venta acordada con financiamiento. Se abrió WhatsApp${abierto.correo ? ' y tu correo' : ''} con el enlace personal del cliente: revísalo y envíalo.`
+          : 'Venta acordada con financiamiento. El navegador no abrió WhatsApp: usa «Enviar por WhatsApp» en el enlace de abajo.',
+        tono: abierto.whatsapp ? undefined : 'alerta',
+      });
+    } else {
+      setAviso({
+        texto: 'Venta acordada con financiamiento. Envía al cliente su enlace personal para que solicite el crédito.',
+      });
+    }
     cerrarAccion();
   };
 
@@ -372,6 +392,9 @@ export const O3_GestionCitas: React.FC = () => {
             const puedeReemitir =
               origen === 'servidor' && !!enlaceVigente && !oportunidad.solicitudCredito && !vendida;
             const avisoCredito = avisoDeCredito(persona, oportunidad, vehiculoTitulo);
+            const avisoEnlace = enlace
+              ? avisoEnlaceFinanciamiento(primerNombre, vehiculoTitulo, enlace, persona.telefonoWhatsApp, persona.correo ?? '')
+              : null;
 
             return (
               <div key={cita.id} className={`tarjeta-cita ${cita.estado}`}>
@@ -490,23 +513,16 @@ export const O3_GestionCitas: React.FC = () => {
                           </button>
                           <a
                             className="btn-whatsapp"
-                            href={enlaceWhatsApp(
-                              persona.telefonoWhatsApp,
-                              `¡Hola ${primerNombre}! Gracias por tu visita a WAMMA. Este es tu enlace personal para solicitar el financiamiento del ${vehiculoTitulo}: ${enlace}`,
-                            )}
+                            href={enlaceWhatsApp(persona.telefonoWhatsApp, avisoEnlace?.texto ?? '')}
                             target="_blank"
                             rel="noreferrer"
                           >
                             💬 Enviar por WhatsApp
                           </a>
-                          {persona.correo && (
+                          {persona.correo && avisoEnlace && (
                             <a
                               className="btn-secundario-crm"
-                              href={`mailto:${persona.correo}?subject=${encodeURIComponent(
-                                'WAMMA · Tu enlace para solicitar el financiamiento',
-                              )}&body=${encodeURIComponent(
-                                `Hola, ${primerNombre}:\n\nGracias por tu visita. Con este enlace personal completas desde tu teléfono la solicitud de crédito del ${vehiculoTitulo}:\n\n${enlace}\n\nEl enlace es solo para ti; no lo compartas.\n\nEquipo comercial WAMMA\nby Token Pago POS`,
-                              )}`}
+                              href={enlaceCorreo(persona.correo, avisoEnlace.asunto, avisoEnlace.cuerpo)}
                             >
                               ✉️ Enviar por correo
                             </a>

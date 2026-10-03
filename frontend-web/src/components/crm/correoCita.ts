@@ -36,6 +36,27 @@ export interface CorreoCita {
   mailto: string;
 }
 
+/**
+ * La misma confirmación, en una línea, para WhatsApp (D-69, D-75): al confirmar la cita se abren el correo del asesor y
+ * su WhatsApp con este texto. Usa los mismos datos y las mismas frases que el correo; sirve aunque el cliente no
+ * haya dejado correo.
+ */
+export function textoWhatsAppConfirmacionCita(
+  persona: Persona,
+  oportunidad: Oportunidad,
+  cita: Cita,
+  sede?: string,
+): string {
+  const v = oportunidad.vehiculoResumen;
+  const nombre = persona.nombreApellido.split(' ')[0] || persona.nombreApellido;
+  return (
+    `¡Hola ${nombre}! Tu cita en WAMMA para conocer el ${v.marca} ${v.modelo} ${v.anio} quedó confirmada: ` +
+    `${capitalizar(fechaLarga(cita.diaPreferencia))}, ${HORARIOS[cita.franjaHoraria]}.` +
+    `${sede ? ` Te esperamos en ${sede}.` : ''} Trae tu cédula de identidad. ` +
+    'Si necesitas cambiar la cita, respóndenos por aquí.'
+  );
+}
+
 export function correoConfirmacionCita(
   persona: Persona,
   oportunidad: Oportunidad,

@@ -156,6 +156,9 @@
 | D-72 | Aviso al cliente tras el dictamen | Se aprueban los tres textos del aviso: crédito aprobado, no aprobado y falta información | Resuelve el pendiente del aviso | CRM, Solicitud |
 | D-73 | Tomar y repartir oportunidades | **No entran en el MVP por ahora** | Precisa D-48 | 010 |
 | D-74 | Textos y listas oficiales | Quedan **pendientes** y no se cambian por ahora: lista oficial de recaudos, aviso legal de reserva, afirmaciones de la vitrina, cotizador y texto legal de la solicitud | — | Vitrina, Solicitud |
+| D-75 | Cómo se envían el correo y el WhatsApp | **Se abren solos desde la pantalla, con el mensaje ya redactado**, como en la maqueta: el correo con `mailto:` (abre el programa de correo de la computadora) y WhatsApp con `wa.me` (abre WhatsApp Web o la aplicación de escritorio). No hay proveedor SMTP, cola de envíos ni API de Meta. La confirmación de cita sigue con `mailto:` y suma el WhatsApp. El enlace de financiamiento y el aviso del dictamen se abren igual en el momento de la acción | Precisa D-69; sustituye la cola y la migración V0023 del Plan Final | 010, Solicitud |
+| D-76 | Excepciones de frontend | El PO aprueba tres cambios de frontend dentro de D-68: **E1** ocultar «Tomar esta oportunidad»; **E2** botón «Reabrir expediente»; **E3** la solicitud reabierta pide solo los recaudos. Además, los avisos de D-75 | Precisa D-68 | 010, Solicitud |
+| D-77 | Demostración y resguardo | La demostración es **local**. Se autoriza un **commit local de resguardo** en la rama `resguardo/mvp-2026-10-03`, sin push (D-56) y sin `docs/qa` | Precisa D-56 | Todos |
 
 ## Pendientes derivados
 
@@ -179,6 +182,7 @@
 | Tomar y repartir oportunidades (R2) (resuelto, D-73) | La interfaz ya permite «Tomar» (asesor, oportunidades sin dueño) y repartir (coordinador), según D-48. Confirmar que forma parte del MVP | CRM |
 | Moneda base de la política (resuelto en R3) | La política sembrada decía USD; la Constitución v3.0.0 fija EUR. La migración V0020 la pone en EUR y el servidor rechaza otra moneda base o un plazo distinto de 24 meses (422) | Financiamiento |
 | Reabrir un expediente dictaminado (R3) (resuelto, D-71) | Una solicitud aprobada, rechazada o desembolsada ya no admite un nuevo dictamen (409), para que la decisión humana no se sobrescriba. ¿Se permite reabrirla (con autorización y justificación) si el analista se equivocó? | Solicitud, Backoffice |
+| Origen de las 9 fotos (D-58, 3-oct) | Sus créditos de Wikimedia ya no valen y se reemplazaron por «Origen por confirmar · licencia por confirmar» (visible en la ficha). ¿De dónde salieron? Con el dato se acredita bien o se sustituyen por fotos propias | Vitrina, antes de publicar |
 | Spec 011 · P-4 y P-5 (D-66) | P-4: ¿las variables `WAMMA_S3_*` ya están cargadas en el Dashboard de Render? Desde el port, el servidor no arranca sin ellas (ni sin `FLYWAY_DB_*`, `WAMMA_FOTOS_URL_PUBLICA` y `WAMMA_S3_BUCKET_RECAUDOS`). P-5: rango real de IP del proxy de Render para `WAMMA_PROXIES_CONFIABLES`; se observa en la bitácora tras el primer despliegue | Despliegue |
 | Hash del texto aceptado (R3.8) | La evidencia guarda fecha, IP, agente y versión del texto, pero no su hash: el servidor no tiene tabla de textos legales. ¿Se aprueba el texto legal definitivo para versionarlo (R4)? | Solicitud |
 

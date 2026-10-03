@@ -239,8 +239,8 @@ El formulario pide **nombre, WhatsApp, correo opcional, día y franja**. El rang
 
 | Integración | Decisión |
 |---|---|
-| **WhatsApp** | Enlaces `wa.me` con mensaje prellenado y número venezolano normalizado, como ya hace el backoffice. Gratuito, sin verificación de empresa y sin dependencia de Meta. **Contrapartida asumida:** la conversación ocurre fuera de la plataforma y el registro depende de que el asesor escriba la nota (RF-010.11) |
-| **Correo** | Sin aviso al buzón comercial: las capturas nuevas se ven en la bandeja del backoffice (D-18). Al **confirmar la cita** se abre el correo del propio asesor con la confirmación ya redactada para el cliente: enlace `mailto:`, por decisión del Product Owner, sin proveedor ni dominio. Solo admite texto plano: un correo con diseño y logo exigiría envío desde servidor, fuera de esta etapa. Si el cliente no dejó correo al agendar, el asesor puede anotarlo al confirmar |
+| **WhatsApp** | Enlaces `wa.me` con mensaje prellenado y número venezolano normalizado, como ya hace el backoffice. Gratuito, sin verificación de empresa y sin dependencia de Meta. **Desde la Rev. 3 (D-69, D-75) se abren solos** al confirmar la cita, al emitir el enlace de financiamiento y tras el dictamen de crédito (el analista, con el texto de D-72). **Contrapartida asumida:** la conversación ocurre fuera de la plataforma y el registro depende de que el asesor escriba la nota (RF-010.11) |
+| **Correo** | Sin aviso automático al buzón comercial: las capturas nuevas se ven en la bandeja del backoffice (D-18 sigue vigente; D-69 lo reconsideró y D-75 lo resolvió con `mailto:`, no con servidor de correo). Al **confirmar la cita**, al **emitir el enlace** y tras el **dictamen** se abre el correo de quien actúa con el mensaje ya redactado: enlace `mailto:`, por decisión del Product Owner, sin proveedor ni dominio. Solo admite texto plano: un correo con diseño y logo exigiría envío desde servidor, fuera de esta etapa. Si el cliente no dejó correo al agendar, el asesor puede anotarlo al confirmar |
 | **Módulo 005** | Lectura del vehículo publicado y escritura de su estado de disponibilidad |
 | **solicitud-credito** | Entrega del `lead_id`; lectura del **estado** de la solicitud, nunca de su contenido |
 
@@ -277,7 +277,8 @@ Ninguna tarea de implementación arranca con estas abiertas si la afecta (Princi
 - ~~`C3` **Reparto de oportunidades sin dueño.**~~ **CERRADO** (21/09/2026, D-48): lo hace el coordinador, y el asesor puede tomar para sí una sin dueño. Sin reparto automático. Ver RF-010.7.
 - ~~`C4` **Identidad del asesor mientras el módulo 001 no exista.**~~ **CERRADO** (15/09/2026, D-24): el módulo 001 ya da usuarios reales, con rol y sesión (`CurrentUser`). El CRM los usa como autor de cada interacción y dueño de cada oportunidad cuando pase al servidor (etapa 3).
 - ~~`C5` **Umbral de "estancada"**~~ **CERRADO** (septiembre 2026): umbral **por etapa** — 2 / 3 / 7 / 7 / 14 días. Ver §8.6.
-- `[NEEDS CLARIFICATION: C6]` **¿Se notifica al cliente** algún cambio de etapa, o el embudo es puramente interno? Afecta al alcance de la integración de correo.
+- ~~`C6` **¿Se notifica al cliente** algún cambio de etapa?~~ **CERRADO** (3/10/2026, D-69, D-75): sí, en tres momentos —confirmar la cita, emitir el enlace de financiamiento y el dictamen de crédito—, abriendo WhatsApp y el correo con el mensaje redactado (§10). Los demás cambios de etapa siguen siendo internos.
+- ~~`C3` (reparto) **suspendido**~~ (3/10/2026, D-73): «tomar» y «repartir» **no entran en el MVP por ahora**. El código se conserva apagado con `wamma.crm.asignacion-habilitada=false`; RF-010.7 queda sin efecto hasta reactivarlo.
 - ~~`C7` **Enmienda de la Constitución** que recoja la premisa de §0.~~ **CERRADO** — Constitución **v2.0.0** (septiembre 2026). El texto vigente y este spec ya no discrepan.
 - ~~`C8` **Plazo de la reserva al agendar.**~~ **CERRADO** (D-48): 24 horas sin confirmar. Ver §8.8.
 - ~~`C9` **Vencimiento del enlace de financiamiento.**~~ **CERRADO** (D-48): 7 días; reemitirlo invalida el anterior. Ver §8.8.

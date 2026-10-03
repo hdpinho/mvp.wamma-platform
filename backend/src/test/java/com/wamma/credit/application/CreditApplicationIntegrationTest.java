@@ -1,5 +1,6 @@
 package com.wamma.credit.application;
 
+import com.wamma.credit.application.documents.DocumentStorage;
 import com.wamma.crm.CaptureRateLimiter;
 import com.wamma.support.ApiIntegrationTest;
 import com.wamma.support.TestAccounts;
@@ -32,6 +33,9 @@ class CreditApplicationIntegrationTest extends ApiIntegrationTest {
 
     @Autowired
     private CreditApplicationRepository creditApplications;
+
+    @Autowired
+    private DocumentStorage documents;
 
     private TestAccounts.Account advisor;
     private UUID vehicleId;
@@ -485,6 +489,155 @@ class CreditApplicationIntegrationTest extends ApiIntegrationTest {
         TestApi.Response detalle = api.get("/v1/solicitudes-credito/" + appId, analista);
         assertThat(detalle.obj("datosBancarios").get("numeroCuenta")).isEqualTo("01020000000000000000");
         assertThat(detalle.obj("datosLaborales").get("empresa")).isEqualTo("Empresa C.A.");
+    }
+
+    /**
+     * D-70: al condicionar, el analista emite un enlace y el cliente completa LA MISMA solicitud, con su número. Un
+     * recaudo del mismo tipo reemplaza al anterior, la solicitud vuelve a la bandeja y el enlace queda usado.
+     */
+    @Test
+    void aConditionedApplicationReopensItsDocumentsAndTheClientCompletesTheSameApplication() {
+        TestApi.Response created = api.post("/v1/solicitudes-credito", null, solicitudCompleta());
+        String appId = created.str("id");
+        String number = created.str("numeroSolicitud");
+        String analyst = accounts.createAndLogin("analista_comp", "ANALISTA_CREDITO").token();
+        String linkPath = "/v1/solicitudes-credito/" + appId + "/enlace-recaudos";
+
+        // Solo se piden más recaudos a una solicitud condicionada, y solo lo hace el analista.
+        assertThat(api.post(linkPath, analyst, null).status()).isEqualTo(409);
+        assertThat(api.post("/v1/solicitudes-credito/" + appId + "/evaluacion", analyst,
+                Map.of("resultado", "condicionado", "justificacion", "Falta un estado de cuenta nuevo.")).status())
+                .isEqualTo(200);
+        assertThat(api.post(linkPath, advisor.token(), null).status()).isEqualTo(403);
+        TestApi.Response issued = api.post(linkPath, analyst, null);
+        assertThat(issued.status()).isEqualTo(200);
+        String token = issued.str("token");
+        assertThat(token).isNotBlank().isNotEqualTo(financingToken);
+
+        // El enlace anterior deja de servir; el nuevo se reconoce como complemento de ESA solicitud.
+        assertThat(api.get("/v1/solicitudes-credito/enlace/" + financingToken, null).status()).isEqualTo(404);
+        TestApi.Response link = api.get("/v1/solicitudes-credito/enlace/" + token, null);
+        assertThat(link.map().get("valid")).isEqualTo(true);
+        Map<String, Object> complement = link.obj("complemento");
+        assertThat(complement.get("applicationNumber")).isEqualTo(number);
+        assertThat(complement.keySet()).as("la justificación interna del analista no sale en un enlace público")
+                .containsExactlyInAnyOrder("applicationNumber", "documentTypes");
+        List<Object> pendingTypes = new java.util.ArrayList<>((List<?>) complement.get("documentTypes"));
+        assertThat(pendingTypes).containsExactlyInAnyOrder("cedula", "rif");
+
+        // Un enlace de complemento no abre una solicitud nueva.
+        Map<String, Object> another = new HashMap<>(solicitudCon(List.of()));
+        another.put("token", token);
+        assertThat(api.post("/v1/solicitudes-credito", null, another).status()).isEqualTo(409);
+
+        // Sin recaudos no hay complemento.
+        assertThat(api.post("/v1/solicitudes-credito/complemento", null,
+                Map.of("token", token, "recaudos", List.of())).status()).isEqualTo(422);
+
+        String oldRifKey = jdbc.sql("select archivo_clave from solicitud_recaudo where solicitud_id = :id and tipo_documento = 'rif'")
+                .param("id", UUID.fromString(appId), java.sql.Types.OTHER).query(String.class).single();
+        assertThat(documents.exists(oldRifKey)).isTrue();
+
+        Map<String, Object> newRif = api.upload("/v1/solicitudes-credito/recaudos", null, "rif-nuevo.pdf",
+                "application/pdf", PDF, Map.of("token", token, "tipoDocumento", "rif")).map();
+        Map<String, Object> statement = api.upload("/v1/solicitudes-credito/recaudos", null, "estado-cuenta.jpg",
+                "image/jpeg", JPEG, Map.of("token", token, "tipoDocumento", "bancario")).map();
+        TestApi.Response completed = api.post("/v1/solicitudes-credito/complemento", null,
+                Map.of("token", token, "recaudos", List.of(newRif, statement)));
+        assertThat(completed.status()).as(String.valueOf(completed.body())).isEqualTo(200);
+        assertThat(completed.str("numeroSolicitud")).isEqualTo(number);
+        assertThat(completed.str("estado")).isEqualTo("en_evaluacion");
+
+        // Misma solicitud, con la cédula intacta, el RIF reemplazado y el estado de cuenta sumado.
+        TestApi.Response detail = api.get("/v1/solicitudes-credito/" + appId, analyst);
+        assertThat(detail.str("estado")).isEqualTo("en_evaluacion");
+        List<String> names = jdbc.sql("select nombre_archivo from solicitud_recaudo where solicitud_id = :id order by nombre_archivo")
+                .param("id", UUID.fromString(appId), java.sql.Types.OTHER).query(String.class).list();
+        assertThat(names).containsExactly("cedula.jpg", "estado-cuenta.jpg", "rif-nuevo.pdf");
+        assertThat(documents.exists(oldRifKey)).as("el archivo reemplazado se borra del contenedor").isFalse();
+
+        // El enlace queda usado y la bitácora guarda lo ocurrido.
+        assertThat(api.get("/v1/solicitudes-credito/enlace/" + token, null).str("invalidReason")).isEqualTo("usado");
+        assertThat(api.post("/v1/solicitudes-credito/complemento", null,
+                Map.of("token", token, "recaudos", List.of(newRif))).status()).isEqualTo(422);
+        assertThat(eventos("solicitud_credito.enlace_recaudos_emitido", appId)).isEqualTo(1);
+        assertThat(eventos("solicitud_credito.recaudos_completados", appId)).isEqualTo(1);
+    }
+
+    /** Si el analista ya decidió, el enlace de recaudos no vuelve a mover la solicitud. */
+    @Test
+    void theComplementIsRefusedOnceTheApplicationIsNoLongerConditioned() {
+        String appId = api.post("/v1/solicitudes-credito", null, solicitudCompleta()).str("id");
+        String analyst = accounts.createAndLogin("analista_comp2", "ANALISTA_CREDITO").token();
+        String evaluation = "/v1/solicitudes-credito/" + appId + "/evaluacion";
+        api.post(evaluation, analyst, Map.of("resultado", "condicionado", "justificacion", "Falta el estado de cuenta."));
+        String token = api.post("/v1/solicitudes-credito/" + appId + "/enlace-recaudos", analyst, null).str("token");
+        Map<String, Object> rif = api.upload("/v1/solicitudes-credito/recaudos", null, "rif2.pdf",
+                "application/pdf", PDF, Map.of("token", token, "tipoDocumento", "rif")).map();
+
+        // Mientras tanto el analista aprueba.
+        assertThat(api.post(evaluation, analyst, Map.of("resultado", "aprobado", "justificacion", "Ya cumple todo.",
+                "limiteAprobado", 14400, "cuotaMaximaPermitida", 1000)).status()).isEqualTo(200);
+
+        assertThat(api.post("/v1/solicitudes-credito/complemento", null,
+                Map.of("token", token, "recaudos", List.of(rif))).status()).isEqualTo(409);
+        assertThat(api.get("/v1/solicitudes-credito/" + appId, analyst).str("estado")).isEqualTo("aprobada");
+    }
+
+    /**
+     * D-71: un expediente aprobado o rechazado se puede reabrir con justificación y dictaminar de nuevo. No procede si el
+     * crédito ya se desembolsó ni si la venta se cerró.
+     */
+    @Test
+    void anApprovedOrRejectedFileCanBeReopenedWithAJustificationButNotOnceItHasConsequences() {
+        String appId = api.post("/v1/solicitudes-credito", null, solicitudCon(List.of())).str("id");
+        String analyst = accounts.createAndLogin("analista_reabre", "ANALISTA_CREDITO").token();
+        String evaluation = "/v1/solicitudes-credito/" + appId + "/evaluacion";
+        String reopen = "/v1/solicitudes-credito/" + appId + "/reapertura";
+
+        // Sin dictamen final no hay nada que reabrir.
+        assertThat(api.post(reopen, analyst, Map.of("justificacion", "Quiero revisarlo otra vez.")).status()).isEqualTo(409);
+
+        assertThat(api.post(evaluation, analyst, Map.of("resultado", "aprobado", "justificacion", "Cumple lo exigido.",
+                "limiteAprobado", 14400, "cuotaMaximaPermitida", 1000)).status()).isEqualTo(200);
+
+        // Pide justificación y solo la reabre el analista.
+        assertThat(api.post(reopen, analyst, Map.of("justificacion", "no")).status()).isEqualTo(422);
+        assertThat(api.post(reopen, analyst, Map.of()).status()).isEqualTo(422);
+        assertThat(api.post(reopen, advisor.token(), Map.of("justificacion", "Quiero reabrirlo ya.")).status()).isEqualTo(403);
+        assertThat(api.post(reopen, tokenDe("AUDITOR"), Map.of("justificacion", "Quiero reabrirlo ya.")).status()).isEqualTo(403);
+
+        assertThat(api.post(reopen, analyst, Map.of("justificacion", "Falta verificar el ingreso.")).status()).isEqualTo(200);
+        TestApi.Response reopened = api.get("/v1/solicitudes-credito/" + appId, analyst);
+        assertThat(reopened.str("estado")).isEqualTo("en_evaluacion");
+        assertThat(reopened.obj("decisionRiesgo").get("result")).as("el dictamen anterior sigue visible como contexto")
+                .isEqualTo("aprobado");
+
+        // Se dictamina de nuevo, y un rechazo también se puede reabrir.
+        assertThat(api.post(evaluation, analyst, Map.of("resultado", "rechazado", "justificacion", "El ingreso no alcanza."))
+                .status()).isEqualTo(200);
+        assertThat(api.get("/v1/solicitudes-credito/" + appId, analyst).str("estado")).isEqualTo("rechazada");
+        assertThat(api.post(reopen, analyst, Map.of("justificacion", "El cliente trajo otro comprobante.")).status())
+                .isEqualTo(200);
+        assertThat(eventos("solicitud_credito.reabierta", appId)).isEqualTo(2);
+        String previous = jdbc.sql("""
+                        select despues->>'estado_anterior' from auditoria_evento
+                        where accion = 'solicitud_credito.reabierta' and entidad_id = :id
+                        order by creado_en desc limit 1
+                        """)
+                .param("id", UUID.fromString(appId), java.sql.Types.OTHER).query(String.class).single();
+        assertThat(previous).isEqualTo("rechazada");
+
+        // Con la venta cerrada o el crédito desembolsado ya no.
+        assertThat(api.post(evaluation, analyst, Map.of("resultado", "aprobado", "justificacion", "Ahora sí cumple.",
+                "limiteAprobado", 14400, "cuotaMaximaPermitida", 1000)).status()).isEqualTo(200);
+        jdbc.sql("update oportunidad set etapa = 'cerrado_ganado' where id = :id")
+                .param("id", opportunityId, java.sql.Types.OTHER).update();
+        assertThat(api.post(reopen, analyst, Map.of("justificacion", "Se me ocurrió reabrirlo.")).status()).isEqualTo(409);
+        jdbc.sql("update oportunidad set etapa = 'negociacion' where id = :id")
+                .param("id", opportunityId, java.sql.Types.OTHER).update();
+        creditApplications.updateStatus(UUID.fromString(appId), "desembolsada");
+        assertThat(api.post(reopen, analyst, Map.of("justificacion", "Se me ocurrió reabrirlo.")).status()).isEqualTo(409);
     }
 
     /**

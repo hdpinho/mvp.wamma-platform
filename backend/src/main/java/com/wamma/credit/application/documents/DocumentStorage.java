@@ -24,6 +24,9 @@ public interface DocumentStorage {
 
     boolean exists(String key);
 
+    /** Borra un recaudo que el cliente reemplazó. Si ya no está, no hace nada. */
+    void delete(String key);
+
     /** Clave de un archivo nuevo de la oportunidad: la oportunidad la fija el enlace, no el cliente. */
     static String keyFor(UUID opportunityId, UUID fileId, DocumentFileType type) {
         return prefixFor(opportunityId) + fileId + "." + type.extension();

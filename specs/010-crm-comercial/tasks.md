@@ -240,7 +240,7 @@ Búsqueda (nombre en texto; cédula y teléfono por índice ciego), ficha 360 y 
 > - Pruebas de integración extremo a extremo ejecutadas en local (`LocalDevServer.java` y navegador).
 > - 120 pruebas backend pasando (0 fallos, 0 errores).
 > - Manual de usuario (`docs/manual-usuario/03-seguimiento-comercial.md`) actualizado con el comportamiento real del servidor.
-> - Fase 1 cerrada formalmente en local (Decisión D-49).
+> - Ola cerrada en local el 25/09/2026. El registro D-49 («Fase 1 al 100 %») sobreestimaba el estado y lo corrige D-60. La integración real con el servidor se terminó en la remediación R2 (1-oct-2026).
 
 ### G1 — Recorrido en navegador
 Playwright, contra el backend local:
@@ -277,7 +277,7 @@ Además del criterio general de `../000-overview/tasks-build-order.md` §3:
 4. Pasa el recorrido de G1 y el manual está al día (G2).
 5. **No se despliega:** el paso a Supabase, Render y Vercel es la etapa 5 y se decide con el PO (`plan.md` §11).
 
-**ESTADO FINAL DE LA ETAPA:** **COMPLETADA Y VERIFICADA (25/09/2026)**.
+**ESTADO DE LA ETAPA (02/10/2026):** núcleo, servidor y pantallas **completos y verificados en local**: 39/39 casos de API de R2 y 23/23 en navegador contra el servidor. Quedan fuera del MVP «Tomar» y «repartir» oportunidades (D-73). La etapa 5 (despliegue) sigue suspendida (D-56).
 
 ---
 *WAMMA · Confidencial · Rev. 2 · No constituye asesoría legal ni financiera.*

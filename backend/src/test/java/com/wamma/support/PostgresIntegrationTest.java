@@ -86,6 +86,9 @@ public abstract class PostgresIntegrationTest {
         // El motor de riesgo está apagado por defecto (D-63). Aquí se enciende para que el código que se conserva siga
         // probado; el apagado por defecto lo prueba RiskEngineSwitchTest sin levantar la aplicación.
         registry.add("wamma.riesgo.motor-habilitado", () -> "true");
+        // Tomar y repartir están apagados por defecto (D-73). Aquí se encienden para que el código que se conserva siga
+        // probado; DisabledPermissionsTest prueba el apagado.
+        registry.add("wamma.crm.asignacion-habilitada", () -> "true");
         registry.add("wamma.recaudos.almacen", () -> "disco");
         registry.add("wamma.recaudos.disco.carpeta", DOCUMENTS::toString);
     }

@@ -197,6 +197,24 @@ public class OpportunityRepository {
                 .update();
     }
 
+    /**
+     * Rearma el enlace de una oportunidad que ya tiene solicitud, para que el cliente complete sus recaudos (D-70).
+     * El enlace anterior deja de servir; la solicitud sigue asociada.
+     */
+    public void reopenFinancingLink(UUID id, String tokenHash, Instant issuedAt, Instant expiresAt) {
+        jdbc.sql("""
+                        update oportunidad
+                        set enlace_token_hash = :hash, enlace_emitido_en = :issuedAt, enlace_expira_en = :expiresAt,
+                            enlace_usado_en = null
+                        where id = :id
+                        """)
+                .param("hash", tokenHash)
+                .param("issuedAt", odt(issuedAt), Types.TIMESTAMP_WITH_TIMEZONE)
+                .param("expiresAt", odt(expiresAt), Types.TIMESTAMP_WITH_TIMEZONE)
+                .param("id", id, Types.OTHER)
+                .update();
+    }
+
     public void markFinancingLinkUsed(UUID id, UUID creditApplicationId, Instant usedAt) {
         jdbc.sql("""
                         update oportunidad

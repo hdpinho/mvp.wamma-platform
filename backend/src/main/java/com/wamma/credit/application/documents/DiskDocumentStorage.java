@@ -52,6 +52,15 @@ public class DiskDocumentStorage implements DocumentStorage {
         return Files.isRegularFile(resolve(key));
     }
 
+    @Override
+    public void delete(String key) {
+        try {
+            Files.deleteIfExists(resolve(key));
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo borrar el recaudo", e);
+        }
+    }
+
     private Path resolve(String key) {
         DocumentStorage.requireValidKey(key);
         Path file = root.resolve(key).normalize();

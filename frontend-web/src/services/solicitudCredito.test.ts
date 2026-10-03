@@ -247,6 +247,23 @@ test('un enlace válido trae el vehículo, la política y lo que ya se sabe de l
   assert.equal(contexto.precargado.inicialAportado, '3600', 'la inicial arranca en el mínimo vigente');
 });
 
+test('un enlace normal no es de recaudos', () => {
+  const contexto = contextoDesdeEnlace(contrato<EnlaceCreditoApi>('credito-enlace'));
+  assert.ok(contexto);
+  assert.equal(contexto.complemento, null);
+});
+
+test('un enlace de recaudos (D-70) trae el número de la solicitud y lo que ya tiene cargado', () => {
+  const dto = contrato<EnlaceCreditoApi>('credito-enlace-complemento');
+  const contexto = contextoDesdeEnlace(dto);
+  assert.ok(contexto);
+  assert.ok(contexto.complemento);
+  assert.equal(contexto.complemento.numero, 'SOL-2026-0001');
+  assert.deepEqual(contexto.complemento.tiposCargados, ['cedula', 'rif']);
+  // Sigue siendo el mismo vehículo: la pantalla lo muestra igual.
+  assert.equal(contexto.vehiculo.codigo, 'WAM-00012');
+});
+
 test('un enlace inválido no da contexto y explica por qué', () => {
   const dto = contrato<EnlaceCreditoApi>('credito-enlace-invalido');
   assert.equal(contextoDesdeEnlace(dto), null);

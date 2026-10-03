@@ -227,6 +227,18 @@ public class CreditApplicationRepository {
         return counts;
     }
 
+    /**
+     * Quita los recaudos de un tipo cuando el cliente sube uno nuevo del mismo tipo (D-70), y devuelve lo que quitó
+     * para borrar sus archivos y dejarlo en la bitácora.
+     */
+    public List<CreditDocumentRecord> deleteDocumentsOfType(UUID applicationId, String type) {
+        return jdbc.sql("DELETE FROM solicitud_recaudo WHERE solicitud_id = :solId AND tipo_documento = :tipo RETURNING *")
+                .param("solId", applicationId)
+                .param("tipo", normalizeDocType(type))
+                .query(this::mapDocRow)
+                .list();
+    }
+
     /** El recaudo, solo si pertenece a esa solicitud. */
     public Optional<CreditDocumentRecord> findDocument(UUID applicationId, UUID documentId) {
         return jdbc.sql("SELECT * FROM solicitud_recaudo WHERE id = :id AND solicitud_id = :solId")

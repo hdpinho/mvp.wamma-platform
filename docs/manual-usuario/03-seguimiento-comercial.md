@@ -32,11 +32,15 @@ Al confirmar la cita, la pantalla final repite la lista como recordatorio: *Docu
 
 | Acción | Qué hace |
 |---|---|
-| **Confirmar** | Pide la cédula del cliente; puede corregir el correo, el día y la franja. Si esa cédula ya existía en otra persona, el sistema realiza la fusión automática sin perder datos ni teléfonos. La reserva del vehículo queda ratificada y abre el correo del asesor (`mailto:`) con la confirmación redactada para el cliente |
+| **Confirmar** | Pide la cédula del cliente; puede corregir el correo, el día y la franja. Si esa cédula ya existía en otra persona, el sistema realiza la fusión automática sin perder datos ni teléfonos. La reserva del vehículo queda ratificada y **se abren solos** WhatsApp y, si hay correo, el programa de correo del asesor, con la confirmación ya redactada (día, horario, vehículo y qué traer). El asesor revisa y envía (D-69, D-75) |
 | **Descartar** | Cierra la cita y exige un motivo justificado. El vehículo reservado se libera inmediatamente de vuelta al catálogo |
 | **WhatsApp** | Abre la conversación con el mensaje prellenado. Al volver, el sistema ofrece registrar la interacción en la bitácora inmutable |
 | **Asistió** | En una cita confirmada, marca la visita y lleva automáticamente la oportunidad a la etapa **Visitó** |
-| **Vender Vehículo** | Aparece tras la asistencia confirmada. Permite seleccionar:<ul><li>**Contado (D-48):** cierra la venta (`cerrado_ganado`) y el vehículo pasa a `vendido`.</li><li>**Financiamiento:** la oportunidad pasa a *En negociación*, el vehículo se mantiene reservado y el sistema genera un token seguro de 7 días (`/solicitud?token=...`) para que el asesor se lo envíe al cliente.</li></ul> |
+| **Vender Vehículo** | Aparece tras la asistencia confirmada. Permite seleccionar:<ul><li>**Contado (D-48):** cierra la venta (`cerrado_ganado`) y el vehículo pasa a `vendido`.</li><li>**Financiamiento:** la oportunidad pasa a *En negociación*, el vehículo se mantiene reservado y el servidor emite un **enlace personal de 7 días** para esa persona y ese vehículo. Al emitirlo **se abren solos** WhatsApp (y el correo, si el cliente dejó uno) con el enlace ya en el mensaje.</li></ul> |
+
+**El enlace personal.** El servidor guarda solo su huella: el texto completo se muestra una vez, en la pestaña donde se emitió. Si se recarga la pantalla, no se vuelve a mostrar y se puede **emitir uno nuevo** (el anterior deja de servir). Si el navegador bloquea la ventana de WhatsApp, la tarjeta ofrece los botones **Enviar por WhatsApp**, **Enviar por correo** y **Copiar enlace**.
+
+**Crédito de la oportunidad.** Cuando el cliente envía su solicitud, la tarjeta muestra el **número y el estado** del crédito (nada más: el asesor no ve ingresos, cuentas ni recaudos). Según el resultado aparece un botón para avisar al cliente por WhatsApp con el texto aprobado por el PO (D-72): crédito aprobado, no aprobado, o falta información.
 
 ## Embudo comercial (backoffice)
 
@@ -57,7 +61,7 @@ Al confirmar la cita, la pantalla final repite la lista como recordatorio: *Docu
 - Marcar una oportunidad como **perdida** exige un **motivo** del catálogo (`precio`, `sin_capacidad`, `desistio`, `compro_otro`, `no_contactable`, `rechazo_financiamiento`, `otro`). "Otro motivo" exige además una explicación textual.
 - Retomar contacto con alguien cuya oportunidad está cerrada crea una nueva oportunidad sin sobreescribir la histórica.
 - Las notas e interacciones son inmutables (append-only); una corrección se registra como una nueva entrada.
-- El coordinador comercial ve todo el embudo y puede asignar asesores. Los asesores ven sus oportunidades y pueden "Tomar" oportunidades sin dueño.
+- **«Tomar» y «repartir» no están disponibles en esta versión (D-73).** Las oportunidades nuevas quedan **sin asesor asignado** y todos los asesores las ven y operan. El coordinador ve todo el embudo. El servidor rechaza la asignación (`wamma.crm.asignacion-habilitada`, apagada por defecto), así que no hay forma de hacerla por otra vía.
 
 ## Personas (backoffice)
 
@@ -71,5 +75,21 @@ La **Ficha 360** (`O7_FichaPersona`) reúne:
 ## Operación con el servidor (Spring Boot API)
 
 - **Endpoints REST:** `/v1/citas` (público), `/v1/crm/citas`, `/v1/crm/oportunidades`, `/v1/crm/personas`, `/v1/crm/metricas/embudo`, `/v1/crm/catalogos` y `/v1/enlaces-financiamiento/{token}`.
-- **Bitácora de auditoría:** Cada cambio de etapa, asignación, confirmación, descarte y fusión genera un registro de auditoría inmutable en `auditoria_evento` con el ID del usuario y la IP de origen.
-- **Resiliencia:** Si el servidor no está disponible o se opera sin conexión, el frontend conmuta automáticamente a modo local garantizando que la navegación nunca se bloquee.
+- **Bitácora de auditoría:** Cada cambio de etapa, confirmación, descarte, fusión y emisión de enlace genera un registro de auditoría inmutable en `auditoria_evento` con el ID del usuario y la IP de origen.
+- **Si el servidor no responde:** la pantalla lo dice y ofrece **Reintentar**. No se muestran datos de relleno ni se da por hecha una acción que el servidor no confirmó.
+- **Qué ve cada rol:** el asesor ve las oportunidades sin dueño y, en lo ajeno, recibe «no encontrado» (queda en la bitácora). El coordinador y el auditor ven todo el embudo.
+
+## Avisos al cliente por WhatsApp y correo (D-69, D-75)
+
+La plataforma **no envía mensajes por su cuenta**: al ocurrir el hecho, **abre solos** WhatsApp Web o la aplicación de escritorio (`wa.me`) y el programa de correo de la computadora (`mailto:`), con el mensaje ya redactado. La persona de WAMMA lo revisa y lo envía desde su propia cuenta.
+
+| Momento | Quién lo dispara | Qué se abre |
+|---|---|---|
+| Confirmar la cita | Asesor | WhatsApp y, si hay correo, el correo, con la confirmación |
+| Emitir el enlace de financiamiento | Asesor | WhatsApp y, si hay correo, el correo, con el enlace personal |
+| Dictamen de crédito (aprobada, rechazada) | Analista (capítulo 05) | WhatsApp y correo del solicitante, con el texto aprobado |
+| Condicionar el crédito | Analista (capítulo 05) | WhatsApp y correo con el enlace para completar los documentos |
+
+Si el navegador bloquea la ventana, la misma pantalla ofrece los botones para abrirlos con un clic. Un mensaje abierto y no enviado no queda registrado en ninguna parte: abrir un chat no prueba que hubo conversación (spec 010, RF-010.11).
+
+> **Límite conocido:** al agendar una cita, el equipo se entera por la bandeja del backoffice. No hay correo automático al buzón de WAMMA, porque exigiría un servidor de correo (D-18).

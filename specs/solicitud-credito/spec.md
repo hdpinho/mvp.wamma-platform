@@ -8,6 +8,19 @@
 
 > Spec del QUÉ y el POR QUÉ. El CÓMO va en `plan.md`. Principios en `../../.specify/memory/constitution.md`.
 > Este documento **no resuelve** ninguna decisión de política comercial ni legal. Ver §13.
+>
+> **Enmienda del 3 de octubre de 2026 (MVP, D-63 a D-76).** Lo construido para el MVP se aparta de este borrador en lo siguiente; el resto del texto sigue como referencia:
+>
+> | Tema | En el MVP |
+> |---|---|
+> | Verificación por código (OTP) | **Sin OTP** (D-57). La aceptación guarda fecha, IP, agente y versión del texto |
+> | Scoring, AML y Score Buró | **Fuera de alcance** (D-63). El analista dictamina a mano, con justificación de 10 caracteres como mínimo |
+> | Cifras | **Las calcula el servidor** (monto, cuota francesa, capacidad del 30 %); plazo fijo de 24 meses (D-55), en euros |
+> | Recaudos | Contenedor privado y enlace firmado de 5 minutos (D-59); el expediente se guarda cifrado |
+> | Condicionar (D-70) | El analista emite un **enlace de recaudos**; el cliente completa **la misma solicitud** (mismo número); un recaudo del mismo tipo reemplaza al anterior; vuelve a *En evaluación* |
+> | Reabrir (D-71) | Un expediente **aprobado o rechazado** se reabre con justificación y vuelve a *En evaluación*. No procede si está desembolsado ni si la venta se cerró |
+> | Aviso al cliente (D-72, D-75) | Tras el dictamen se abren WhatsApp y correo con el texto aprobado, sin cifras. Sin envío desde servidor |
+> | Pendientes (D-74) | Lista oficial de recaudos, texto legal definitivo de las declaraciones (y con él la huella del texto aceptado) |
 
 ---
 

@@ -98,6 +98,11 @@ wamma:
     s3:
       bucket: ${WAMMA_S3_BUCKET_RECAUDOS:recaudos}
 
+  # «Tomar» y «repartir» oportunidades: fuera del MVP (D-73). Apagado, el coordinador no recibe crm.asignar y el
+  # servidor rechaza la asignación. Encenderlo no toca la base.
+  crm:
+    asignacion-habilitada: ${WAMMA_CRM_ASIGNACION:false}
+
   # Motor de riesgo (scoring, «AML», Score Buró): FUERA DE ALCANCE (D-01, D-63). Apagado: sus endpoints
   # /v1/riesgo/** no existen. No encenderlo sin spec, plan y tareas aprobados (P5, D4 y D5 del spec 006).
   riesgo:

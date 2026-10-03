@@ -28,12 +28,15 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +52,9 @@ public class CreditApplicationService {
 
     /** Estados con dictamen final: ya no se vuelve a dictaminar la solicitud. */
     private static final Set<String> FINAL_STATUSES = Set.of("aprobada", "rechazada", "desembolsada");
+
+    /** Estados con dictamen que se pueden reabrir (D-71). «Desembolsada» no: ya tiene consecuencias de dinero. */
+    private static final Set<String> REOPENABLE_STATUSES = Set.of("aprobada", "rechazada");
 
     /** Única puerta de salida de un recaudo: pública, pero solo abre con una firma vigente (D-59). */
     public static final String SIGNED_DOCUMENT_PATH = "/v1/recaudos/archivo";
@@ -108,7 +114,7 @@ public class CreditApplicationService {
         FinancingLinkService.LinkDetails details = financingLinkService.validate(token);
         if (!details.valid()) {
             return new CreditApplicationDtos.CreditLinkDetailsDto(
-                    false, details.invalidReason(), details.opportunityId(), null, null, null, null, null);
+                    false, details.invalidReason(), details.opportunityId(), null, null, null, null, null, null);
         }
 
         UUID oppId = details.opportunityId();
@@ -152,8 +158,19 @@ public class CreditApplicationService {
             );
         }
 
+        // Un enlace vigente de una oportunidad que ya tiene solicitud es un enlace para completar recaudos (D-70).
+        CreditApplicationDtos.ComplementDto complement = null;
+        if (opp.creditApplicationId() != null) {
+            complement = creditApplications.findById(opp.creditApplicationId())
+                    .map(app -> new CreditApplicationDtos.ComplementDto(
+                            app.applicationNumber(),
+                            creditApplications.listDocuments(app.id()).stream()
+                                    .map(CreditDocumentRecord::documentType).distinct().toList()))
+                    .orElse(null);
+        }
+
         return new CreditApplicationDtos.CreditLinkDetailsDto(
-                true, null, oppId, vehicleDto, applicantDto, paramsDto, bcvValue, bcvDate
+                true, null, oppId, vehicleDto, applicantDto, paramsDto, bcvValue, bcvDate, complement
         );
     }
 
@@ -228,6 +245,21 @@ public class CreditApplicationService {
         return opp;
     }
 
+    /**
+     * Cada recaudo tiene que haberse cargado con este mismo enlace: la clave empieza por la oportunidad del enlace y el
+     * archivo existe en el contenedor privado.
+     */
+    private void requireOwnDocuments(OpportunityRecord opp, List<CreditApplicationDtos.DocumentSubmissionDto> docs) {
+        String ownPrefix = DocumentStorage.prefixFor(opp.id());
+        for (CreditApplicationDtos.DocumentSubmissionDto doc : docs) {
+            String key = doc.fileKey();
+            if (!DocumentStorage.isValidKey(key) || !key.startsWith(ownPrefix) || !documents.exists(key)) {
+                throw ApiException.unprocessable("Recaudo no válido",
+                        "Uno de los recaudos no se cargó con este enlace. Vuelve a adjuntarlo.");
+            }
+        }
+    }
+
     /** Nombre para mostrar: sin rutas ni caracteres de control, y con la extensión del tipo real. */
     private static String displayName(String original, DocumentFileType type) {
         String name = original == null ? "" : original.replaceAll(".*[/\\\\]", "").replaceAll("\\p{Cntrl}", "").trim();
@@ -243,20 +275,15 @@ public class CreditApplicationService {
             String ipAddress,
             String userAgent) {
         OpportunityRecord opp = requireOpenLink(req.token());
+        if (opp.creditApplicationId() != null) {
+            throw ApiException.conflict("Solicitud ya enviada",
+                    "Este enlace sirve para completar los recaudos de la solicitud que ya enviaste, no para enviar otra.");
+        }
         Instant now = clock.instant();
 
-        // Cada recaudo tiene que haberse cargado con este mismo enlace: la clave empieza por la
-        // oportunidad del enlace y el archivo existe en el contenedor privado.
-        String ownPrefix = DocumentStorage.prefixFor(opp.id());
         List<CreditApplicationDtos.DocumentSubmissionDto> submittedDocs =
                 req.recaudos() != null ? req.recaudos() : List.of();
-        for (CreditApplicationDtos.DocumentSubmissionDto doc : submittedDocs) {
-            String key = doc.fileKey();
-            if (!DocumentStorage.isValidKey(key) || !key.startsWith(ownPrefix) || !documents.exists(key)) {
-                throw ApiException.unprocessable("Recaudo no válido",
-                        "Uno de los recaudos no se cargó con este enlace. Vuelve a adjuntarlo.");
-            }
-        }
+        requireOwnDocuments(opp, submittedDocs);
 
         // La tasa BCV de la operación es la vigente; si no hay, la que ya tenía la oportunidad (real, del día de la
         // publicación). Sin ninguna de las dos no se inventa un valor: el envío se rechaza (Principio V).
@@ -522,12 +549,12 @@ public class CreditApplicationService {
         CreditApplicationRecord app = creditApplications.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Solicitud no encontrada", "No existe solicitud con ID " + id));
 
-        // Un dictamen final no se cambia desde aquí: aprobar o rechazar es una decisión con consecuencias (la venta, el
-        // desembolso) y revertirla pide una nueva solicitud, no un nuevo clic.
+        // Un dictamen final no se cambia con un nuevo dictamen: aprobar o rechazar es una decisión con consecuencias (la
+        // venta, el desembolso). Cambiarlo exige reabrir el expediente, con justificación y en la bitácora (D-71).
         if (FINAL_STATUSES.contains(app.status())) {
             throw ApiException.conflict("Dictamen final",
                     "La solicitud " + app.applicationNumber() + " ya fue " + app.status()
-                            + ". Para cambiarlo hace falta una solicitud nueva.");
+                            + ". Para cambiarlo, primero reabre el expediente con su justificación.");
         }
 
         String outcome = req.normalizedOutcome();
@@ -598,6 +625,148 @@ public class CreditApplicationService {
         auditDetails.put("justificacion", justification);
         auditDetails.put("evaluado_por", evaluatorUserId != null ? evaluatorUserId.toString() : "sistema");
         audit.record("solicitud_credito.evaluada", "solicitud_credito", id, auditDetails);
+    }
+
+    /**
+     * Reabre un expediente con dictamen para que el analista lo vuelva a dictaminar (D-71). Pide justificación y deja
+     * en la bitácora de dónde se vuelve. No procede si el crédito ya se desembolsó ni si la venta se cerró: eso ya
+     * tiene consecuencias fuera de la solicitud.
+     */
+    @Transactional
+    public void reopenApplication(UUID id, CreditApplicationDtos.ReopenApplicationRequest req, UUID userId) {
+        CreditApplicationRecord app = creditApplications.findById(id)
+                .orElseThrow(() -> ApiException.notFound("Solicitud no encontrada", "No existe solicitud con ID " + id));
+        if (!REOPENABLE_STATUSES.contains(app.status())) {
+            throw ApiException.conflict("Solicitud no reabrible",
+                    "Solo se reabre un expediente aprobado o rechazado. La solicitud " + app.applicationNumber()
+                            + " está " + app.status() + ".");
+        }
+        String justification = req.trimmedJustification();
+        if (justification.length() < CreditApplicationDtos.EvaluateCreditApplicationRequest.MIN_JUSTIFICATION) {
+            throw ApiException.unprocessable("Justificación obligatoria",
+                    "Escribe por qué se reabre el expediente (al menos "
+                            + CreditApplicationDtos.EvaluateCreditApplicationRequest.MIN_JUSTIFICATION + " caracteres).");
+        }
+        OpportunityRecord opp = opportunities.findById(app.opportunityId()).orElse(null);
+        if (opp != null && opp.stage() != null && opp.stage().startsWith("cerrado")) {
+            throw ApiException.conflict("Venta cerrada",
+                    "La venta de este vehículo ya se cerró: el expediente no se puede reabrir.");
+        }
+
+        creditApplications.updateStatus(id, "en_evaluacion");
+
+        Map<String, Object> details = new HashMap<>();
+        details.put("numero_solicitud", app.applicationNumber());
+        details.put("estado_anterior", app.status());
+        details.put("estado_nuevo", "en_evaluacion");
+        details.put("resultado_anterior", creditApplications.findRiskDecision(id)
+                .map(CreditApplicationRepository.RiskDecisionRecord::result).orElse("ninguno"));
+        details.put("justificacion", justification);
+        details.put("reabierto_por", userId != null ? userId.toString() : "sistema");
+        audit.record("solicitud_credito.reabierta", "solicitud_credito", id, details);
+    }
+
+    /**
+     * Emite el enlace con el que el cliente completa los recaudos de una solicitud condicionada (D-70). El enlace
+     * anterior deja de servir. El texto completo solo existe en esta respuesta: el servidor guarda su huella.
+     */
+    @Transactional
+    public CreditApplicationDtos.DocumentsLinkDto issueDocumentsLink(UUID applicationId, UUID userId) {
+        CreditApplicationRecord app = creditApplications.findById(applicationId)
+                .orElseThrow(() -> ApiException.notFound("Solicitud no encontrada", "No existe solicitud con ID " + applicationId));
+        if (!"condicionada".equals(app.status())) {
+            throw ApiException.conflict("Solicitud no condicionada",
+                    "Solo se piden más recaudos en una solicitud condicionada. La solicitud "
+                            + app.applicationNumber() + " está " + app.status() + ".");
+        }
+        OpportunityRecord opp = opportunities.findById(app.opportunityId())
+                .orElseThrow(() -> ApiException.notFound("Oportunidad no encontrada", "La solicitud no tiene oportunidad."));
+
+        FinancingLinkToken.Issued issued = FinancingLinkToken.issue(new SecureRandom());
+        Instant now = clock.instant();
+        Instant expiresAt = now.plus(Duration.ofDays(7));
+        opportunities.reopenFinancingLink(opp.id(), issued.hash(), now, expiresAt);
+
+        audit.record("solicitud_credito.enlace_recaudos_emitido", "solicitud_credito", applicationId,
+                Map.of("numero_solicitud", app.applicationNumber(),
+                        "expira_en", expiresAt.toString(),
+                        "emitido_por", userId != null ? userId.toString() : "sistema"));
+        return new CreditApplicationDtos.DocumentsLinkDto(issued.token(), expiresAt);
+    }
+
+    /**
+     * El cliente completa los recaudos de su solicitud condicionada con el enlace del analista (D-70). Es la misma
+     * solicitud, con el mismo número: los recaudos nuevos se suman y uno del mismo tipo reemplaza al anterior. La
+     * solicitud vuelve a la bandeja del analista y el enlace queda usado.
+     */
+    @Transactional
+    public CreditApplicationDtos.SubmitCreditApplicationResponse submitComplement(
+            CreditApplicationDtos.ComplementSubmitRequest req) {
+        OpportunityRecord opp = requireOpenLink(req.token());
+        if (opp.creditApplicationId() == null) {
+            throw ApiException.conflict("Enlace sin solicitud",
+                    "Este enlace es para enviar una solicitud nueva, no para completar recaudos.");
+        }
+        CreditApplicationRecord app = creditApplications.findById(opp.creditApplicationId())
+                .orElseThrow(() -> ApiException.notFound("Solicitud no encontrada", "La solicitud del enlace no existe."));
+        if (!"condicionada".equals(app.status())) {
+            throw ApiException.conflict("Solicitud no condicionada",
+                    "La solicitud " + app.applicationNumber() + " ya no espera recaudos.");
+        }
+        List<CreditApplicationDtos.DocumentSubmissionDto> docs = req.recaudos() != null ? req.recaudos() : List.of();
+        if (docs.isEmpty()) {
+            throw ApiException.unprocessable("Faltan recaudos", "Adjunta al menos un documento para completar la solicitud.");
+        }
+        requireOwnDocuments(opp, docs);
+
+        Instant now = clock.instant();
+        Set<String> replacedTypes = new HashSet<>();
+        List<String> replacedFiles = new ArrayList<>();
+        List<String> keysToDelete = new ArrayList<>();
+        List<String> newTypes = new ArrayList<>();
+        for (CreditApplicationDtos.DocumentSubmissionDto doc : docs) {
+            String type = CreditApplicationRepository.normalizeDocType(doc.documentType());
+            // «otro» suma; los demás tipos se reemplazan, una sola vez por envío (no se borra lo recién subido).
+            if (!"otro".equals(type) && replacedTypes.add(type)) {
+                for (CreditDocumentRecord old : creditApplications.deleteDocumentsOfType(app.id(), type)) {
+                    keysToDelete.add(old.fileKey());
+                    replacedFiles.add(old.documentType() + ": " + old.fileName());
+                }
+            }
+            creditApplications.insertDocument(new CreditDocumentRecord(
+                    UUID.randomUUID(), app.id(), type, doc.fileKey(), doc.fileName(), doc.fileSizeBytes(),
+                    doc.mimeType(), "pendiente", null, now));
+            newTypes.add(type);
+        }
+
+        opportunities.markFinancingLinkUsed(opp.id(), app.id(), now);
+        creditApplications.updateStatus(app.id(), "en_evaluacion");
+
+        // Los archivos reemplazados se borran al final y sin tumbar el envío: si alguno no se puede borrar, queda
+        // anotado en la bitácora para limpiarlo, en lugar de perder el recaudo nuevo.
+        List<String> notDeleted = new ArrayList<>();
+        for (String key : keysToDelete) {
+            try {
+                documents.delete(key);
+            } catch (RuntimeException e) {
+                notDeleted.add(key);
+            }
+        }
+
+        Map<String, Object> details = new HashMap<>();
+        details.put("numero_solicitud", app.applicationNumber());
+        details.put("estado_anterior", app.status());
+        details.put("estado_nuevo", "en_evaluacion");
+        details.put("recaudos_nuevos", newTypes);
+        details.put("recaudos_reemplazados", replacedFiles);
+        if (!notDeleted.isEmpty()) {
+            details.put("archivos_sin_borrar", notDeleted);
+        }
+        audit.record("solicitud_credito.recaudos_completados", "solicitud_credito", app.id(), details);
+
+        return new CreditApplicationDtos.SubmitCreditApplicationResponse(
+                app.id(), app.applicationNumber(), "en_evaluacion", now,
+                "Recibimos tus documentos. Tu solicitud " + app.applicationNumber() + " vuelve a análisis.");
     }
 
     @Transactional

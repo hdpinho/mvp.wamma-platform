@@ -30,8 +30,12 @@ Plataforma propia de **WAMMA by Token Pago POS**: venta, certificación y financ
 ## Stack
 React + Vite + TypeScript (web) · Flutter (móvil) · Spring Boot 4.1 (Java 21, monolito modular) · Supabase Cloud (PostgreSQL administrado) · Flyway · Maven · Almacenamiento compatible S3.
 
-## Estado actual
-- **Fase 1 (CRM y Citas, `010-crm-comercial`):** 100% completada y verificada en local (migración V0017, repositorios JDBC, servicios, API REST, `api/crm.ts`, `state/crm.tsx` y 120 tests pasando).
-- **Fase 2 (Motor de Parámetros de Financiamiento):** 100% completada y verificada (tabla `parametros_financiamiento` `V0015`, endpoints `/v1/parametros-financiamiento`, conexión en `C10`, `O6` y simuladores con 123 tests pasando).
-- **Fase 3 (Solicitud de Crédito Digital - Digitalización WMA-F-FIN-001):** 100% completada y verificada en local (migración `V0018__solicitud_credito_eur.sql`, paquete `com.wamma.credit.application`, expediente y recaudos en storage, transición CRM a `solicitud_credito`, pantallas `C9_SolicitudCredito` y `O7_AnalisisCredito` con dictamen de riesgo, 125 tests backend y 17 tests frontend).
-- **Fase 4 (Motor de Riesgo, Scoring de 5 Factores y AML - módulo 006):** 100% completada y verificada en local (paquete `com.wamma.risk`, scoring 0–1000 pts en 5 factores, homologación a Buró 100–800 pts, screening OFAC/PEP con gestión de alertas `alerta_aml`, integración backoffice `O7_AnalisisCredito.tsx` con ejecución en vivo y 133 tests backend pasando).
+## Estado actual (02/10/2026)
+
+- **Estado real (verificado en local el 02/10/2026):** el recorrido del MVP funciona de punta a punta contra el servidor: vitrina → cita → asesor → venta → enlace de financiamiento → solicitud de crédito → análisis → dictamen manual → cierre de la venta. Backend 212 pruebas, web 61, API (R1 26, R2 39, R3 14) y navegador 23/23. **Sin commit en `main`**: el resguardo está en la rama local `resguardo/mvp-2026-10-03`. Sin despliegue (D-56).
+- **Alcance de la entrega (D-65, D-68):** hasta la aprobación del crédito. **Fuera de alcance:** OTP (D-57), scoring, AML y Score Buró (D-63; el código se conserva apagado con `WAMMA_RIESGO_MOTOR=false`), «Tomar» y «repartir» oportunidades (D-73), desembolso, pagos y ledger.
+- **Corrección de los registros anteriores («Fases 1–4 al 100 %», D-49 a D-52):** sobreestimaban el estado y los corrigen D-60 a D-63. En concreto: el motor de scoring/AML existe pero está apagado y el analista dictamina a mano con justificación obligatoria; el servidor recalcula cuota, monto y capacidad; los recaudos van a un contenedor privado y se abren con enlace firmado.
+- **Remediación R0–R3 hecha y aprobada (D-64, D-67); R4 hecha en lo que no toca frontend ni textos oficiales (D-68, D-74).** Plan Final: servidor, avisos por WhatsApp/correo (se abren solos, D-75), reapertura de recaudos y de expedientes (D-70, D-71) y «tomar/repartir» apagado (D-73) hechos el 3-oct. Pendiente: R5 (E2E en el repositorio, CI y nueva evaluación QA) y la demostración local. Plan: `docs/qa/plan-final-2026-10-03.md` (no se commitea `docs/qa`: el repositorio es público).
+- **Migraciones:** V0001–V0022 en el repo; Supabase sigue en V0012. El PR #1 (spec 011) no se mezcla: se portó a `main` como V0021 y V0022 (D-66).
+- **Decisiones vigentes:** `specs/000-overview/decisiones-po.md` (hasta D-77).
+- **Regla estricta:** NO hacer `git push` ni desplegar sin aprobación expresa del PO (D-56). El commit local de resguardo está autorizado (D-77).

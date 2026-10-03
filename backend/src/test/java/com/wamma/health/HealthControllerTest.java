@@ -3,6 +3,7 @@ package com.wamma.health;
 import com.wamma.platform.audit.AccessDeniedRecorder;
 import com.wamma.platform.auth.SessionService;
 import com.wamma.platform.config.SecurityConfig;
+import com.wamma.platform.identity.DisabledPermissions;
 import com.wamma.platform.identity.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(HealthController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, DisabledPermissions.class})
 class HealthControllerTest {
 
     @Autowired

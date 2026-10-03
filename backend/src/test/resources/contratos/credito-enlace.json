@@ -28,5 +28,6 @@
     "paymentCapacityPercentage": 0.30
   },
   "bcvRate": 54.25,
-  "bcvDate": "2026-09-30"
+  "bcvDate": "2026-09-30",
+  "complemento": null
 }

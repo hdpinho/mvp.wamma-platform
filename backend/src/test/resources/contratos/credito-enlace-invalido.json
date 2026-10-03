@@ -6,5 +6,6 @@
   "applicant": null,
   "financingParams": null,
   "bcvRate": null,
-  "bcvDate": null
+  "bcvDate": null,
+  "complemento": null
 }

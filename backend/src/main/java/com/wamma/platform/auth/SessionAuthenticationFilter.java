@@ -1,5 +1,6 @@
 package com.wamma.platform.auth;
 
+import com.wamma.platform.identity.DisabledPermissions;
 import com.wamma.platform.identity.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -30,10 +31,13 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
 
     private final SessionService sessions;
     private final UserRepository users;
+    private final DisabledPermissions disabledPermissions;
 
-    public SessionAuthenticationFilter(SessionService sessions, UserRepository users) {
+    public SessionAuthenticationFilter(SessionService sessions, UserRepository users,
+                                       DisabledPermissions disabledPermissions) {
         this.sessions = sessions;
         this.users = users;
+        this.disabledPermissions = disabledPermissions;
     }
 
     @Override
@@ -45,7 +49,7 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
                 List<GrantedAuthority> authorities = new ArrayList<>();
                 if (active.level() == SessionService.Level.COMPLETA) {
                     authorities.add(new SimpleGrantedAuthority(COMPLETE));
-                    users.permissionsOf(active.userId())
+                    disabledPermissions.filter(users.permissionsOf(active.userId()))
                             .forEach(permission -> authorities.add(new SimpleGrantedAuthority(permission)));
                 } else {
                     authorities.add(new SimpleGrantedAuthority(PARTIAL));

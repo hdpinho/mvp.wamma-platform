@@ -1,6 +1,6 @@
 # 04 · Financiamiento
 
-**Quién lo usa:** visitantes (simulador y solicitud), asesores (cotizador) y el analista de crédito (bandeja). **Estado:** flujos de la maqueta. En la etapa 4 el cálculo pasa al servidor y se construyen la pantalla de parámetros y la bandeja de crédito.
+**Quién lo usa:** visitantes (simulador y solicitud), asesores (cotizador) y el analista de crédito (bandeja). **Estado:** la política (tasa, plazo, inicial, capacidad) sale del servidor y la solicitud se guarda en el servidor. El análisis y el dictamen están en el capítulo 05.
 
 ## Calculadora de capacidad y financiamiento (sitio público)
 
@@ -24,17 +24,21 @@ Es una estimación informativa orientada a la capacidad de pago; la aprobación 
 **Menú:** Cotizador Crédito. Herramienta del asesor para estructurar una propuesta:
 1. Elegir un vehículo del inventario, o indicar un precio manual.
 2. Anotar nombre y WhatsApp del cliente.
-3. Ajustar la inicial (del 20 % al 60 %), el plazo (6, 12, 18, 24 o 36 meses; arranca en 18) y la tasa mensual (arranca en 4 %).
+3. Ajustar la inicial (del 20 % al 60 %), el plazo (**fijo en 24 meses**, D-55) y la tasa mensual (arranca en 4 %, el valor de la política).
 4. Revisar la tabla de amortización (sistema francés: cuota fija) y la evaluación de capacidad de pago.
 5. **Copiar propuesta para WhatsApp**: copia al portapapeles un resumen listo para enviar.
 
 Todas las cifras van en euros. La tasa mensual ya entra en el cálculo: el fallo de la maqueta se corrigió el 16/09/2026.
 
-> **Pendiente del PO:** el cotizador permite condiciones fuera de la política aprobada en D-26: plazos distintos de 24 meses, inicial de hasta 60 % y cualquier tasa. Hay que confirmar si el asesor puede cotizar fuera de política.
+> **Pendiente del PO:** el cotizador sigue permitiendo una inicial de hasta 60 % y cualquier tasa. Hay que confirmar si el asesor puede cotizar fuera de la política aprobada en D-26 (24 meses, 4 % mensual).
+
+**Quién cambia la política:** solo quien tiene el permiso de parámetros (administrador). El servidor acepta únicamente **plazo de 24 meses y moneda base euro**; cualquier otro valor se rechaza. Cada cambio queda en la bitácora con el valor anterior y el nuevo.
 
 ## Solicitud de crédito (sitio público)
 
-Solo se accede con el **enlace personal** que envía el asesor al vender con financiamiento. Sin enlace válido, la página explica cómo obtenerlo.
+Solo se accede con el **enlace personal** que envía el asesor al vender con financiamiento. Sin enlace válido, la página explica cómo obtenerlo. El enlace vale 7 días y **sirve una sola vez**: al enviar la solicitud queda usado.
+
+Cuando el enlace se abre, el servidor entrega el vehículo (aunque ya esté reservado para esta venta), la política vigente y lo que el asesor ya sabía de la persona (nombre, cédula, teléfono y correo), para no pedírselo de nuevo.
 
 El formulario tiene ocho pasos, y cada uno explica por qué pide esos datos:
 1. Vehículo y condiciones
@@ -43,16 +47,35 @@ El formulario tiene ocho pasos, y cada uno explica por qué pide esos datos:
 4. Información laboral
 5. Balance financiero
 6. Referencias y banco
-7. Recaudos: cédula o pasaporte, RIF, constancia de ingresos, estado de cuenta de seis meses, recibo de servicio o contrato de arrendamiento, y dos referencias personales. Pueden enviarse después. *La lista que se informa al agendar la cita (capítulo 03, D-45) difiere en los meses y en las referencias: pendiente de unificar por el PO*
+7. Recaudos: cédula o pasaporte, RIF, constancia de ingresos, estado de cuenta de seis meses, recibo de servicio o contrato de arrendamiento, y dos referencias personales. Pueden enviarse después. *La lista que se informa al agendar la cita (capítulo 03, D-45) difiere en los meses y en las referencias: pendiente de unificar por el PO (D-74)*
 8. Declaraciones y envío: cuatro declaraciones con texto literal del formato WMA-F-FIN-001 (veracidad, consulta a centrales de riesgo, origen de fondos y compromiso de pago), cada una con su casilla obligatoria
 
-Al enviar, el cliente recibe un número de solicitud con el formato `WMA-SC-AAAA-NNNNNN`.
+Al enviar, el cliente recibe su **número de solicitud** (por ejemplo `SOL-2026-0002`). El número sale de un contador del servidor: dos solicitudes simultáneas nunca comparten número.
 
-## Cambios previstos en la etapa 4
+### Lo que decide el servidor
 
-- El cálculo de cuotas lo hace el servidor, con los parámetros vigentes.
-- **Parámetros de financiamiento:** los valores aprobados en D-26, que cerró D-14, se leen del servidor. D-14 preveía además una pantalla del backoffice para editarlos. D-26 no la menciona: se confirma al planificar la etapa 4.
-- La solicitud se guarda en el servidor, cifrada, con sus recaudos en almacenamiento privado (D-09).
-- Sin verificación por código OTP: en la maqueta el código aparecía en pantalla. El acceso se controla con el enlace personal, que sirve una sola vez y vence (D-16).
-- **Bandeja de crédito** (pantalla nueva del backoffice): listado y detalle de las solicitudes recibidas, con sus recaudos, para el analista de crédito (D-17).
-- El crédito va en euros, como el resto de la plataforma (D-21, que cerró el alcance que D-15 dejaba abierto).
+- **Las cifras las calcula el servidor**, no el navegador: el monto financiado (precio menos inicial), la cuota (sistema francés, política vigente, redondeada a centavos) y la capacidad de pago (30 % del ingreso declarado). Lo que el navegador mande en esos campos se ignora.
+- **Inicial:** al menos el mínimo de la política (20 %) y menor que el precio. Si no, el servidor responde con el motivo y el enlace **no se gasta**.
+- **Ingreso mensual:** obligatorio y mayor que cero.
+- **Plazo:** 24 meses, fijo; el formulario lo muestra sin selector.
+- **Tasa BCV:** si no hay una tasa registrada, el envío se rechaza con un aviso claro; no se inventa un valor.
+- **Sin código OTP:** el acceso se controla con el enlace personal (D-16, D-57). La aceptación queda registrada con fecha, IP, agente y versión del texto.
+- **Privacidad:** el expediente se guarda cifrado y los recaudos van a un contenedor privado, sin dirección pública (D-09, D-59).
+
+## Si el analista pide más documentos (D-70)
+
+Cuando el analista **condiciona** la solicitud, el cliente recibe por WhatsApp y correo un **enlace nuevo** (el anterior ya no sirve). Ese enlace **no abre el formulario**: abre la pantalla *«Completa los documentos de tu solicitud»*, con el número de su solicitud y la lista de recaudos.
+
+1. Los documentos ya enviados aparecen como **Ya enviado**; los demás, como **Pendiente**.
+2. El cliente adjunta lo que le pidieron. Si vuelve a cargar un tipo que ya había enviado (por ejemplo la cédula), **reemplaza** al anterior.
+3. Pulsa **Enviar documentos**. Aparece *«Documentos recibidos»* con el **mismo número de solicitud**.
+4. La solicitud vuelve a la bandeja del analista, **En evaluación**, y el enlace queda usado.
+
+Por seguridad, esa pantalla pública **no muestra** lo que el analista escribió al condicionar: eso se lo dice el analista o el asesor.
+
+| Mensaje | Cuándo |
+|---|---|
+| Enlace no disponible · «Este enlace ya se usó para enviar una solicitud…» | El cliente ya envió sus documentos con ese enlace |
+| Enlace no disponible · «Este enlace no es válido…» | El analista emitió un enlace nuevo y este dejó de servir |
+| Adjunta al menos un documento para completar tu solicitud. | Se pulsó Enviar sin archivos |
+| La solicitud … ya no espera recaudos. | El analista decidió mientras tanto |

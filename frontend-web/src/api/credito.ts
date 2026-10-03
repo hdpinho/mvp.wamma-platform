@@ -117,7 +117,19 @@ export interface PoliticaEnlaceApi {
   paymentCapacityPercentage: number;
 }
 
-/** Resultado de validar un enlace (`CreditLinkDetailsDto`). Con `valid: false` solo trae el motivo. */
+/**
+ * Solicitud condicionada que espera recaudos (`ComplementDto`, D-70). Sin la justificación del analista: es un texto
+ * interno. `documentTypes` son los tipos que la solicitud ya tiene cargados.
+ */
+export interface ComplementoEnlaceApi {
+  applicationNumber: string;
+  documentTypes: string[];
+}
+
+/**
+ * Resultado de validar un enlace (`CreditLinkDetailsDto`). Con `valid: false` solo trae el motivo. Con `complemento`, el
+ * enlace no abre una solicitud nueva: completa los recaudos de esa.
+ */
 export interface EnlaceCreditoApi {
   valid: boolean;
   invalidReason: string | null;
@@ -127,6 +139,7 @@ export interface EnlaceCreditoApi {
   financingParams: PoliticaEnlaceApi | null;
   bcvRate: number | null;
   bcvDate: string | null;
+  complemento: ComplementoEnlaceApi | null;
 }
 
 /** Recaudo tal como lo devuelve la carga y como se vuelve a enviar con la solicitud (`DocumentSubmissionDto`). */
@@ -190,6 +203,13 @@ export const subirRecaudoDigital = (file: File, tipoDocumento: string, tokenEnla
 
 export const enviarSolicitudCredito = (solicitud: SolicitudEnvioApi): Promise<SolicitudEnviadaApi> =>
   pedirJson<SolicitudEnviadaApi>('/v1/solicitudes-credito', { cuerpo: solicitud, token: null });
+
+/**
+ * El cliente completa los recaudos de su solicitud condicionada con el enlace del analista (D-70): la misma solicitud,
+ * con el mismo número. Un recaudo del mismo tipo reemplaza al anterior.
+ */
+export const completarRecaudos = (token: string, recaudos: RecaudoEnvioApi[]): Promise<SolicitudEnviadaApi> =>
+  pedirJson<SolicitudEnviadaApi>('/v1/solicitudes-credito/complemento', { cuerpo: { token, recaudos }, token: null });
 
 // ── Bandeja y expediente (requieren sesión con permiso de crédito) ────────────────────────
 
@@ -296,6 +316,24 @@ export const obtenerDetalleSolicitudCredito = (id: string): Promise<DetalleSolic
 
 export const evaluarSolicitudCredito = (id: string, dictamen: DictamenEnvioApi): Promise<void> =>
   pedirJson<void>(`/v1/solicitudes-credito/${encodeURIComponent(id)}/evaluacion`, { cuerpo: dictamen });
+
+/** Enlace de recaudos recién emitido (`DocumentsLinkDto`): el texto completo existe solo en esta respuesta. */
+export interface EnlaceRecaudosApi {
+  token: string;
+  venceEn: string;
+}
+
+/** El analista emite el enlace con el que el cliente completa los recaudos de una solicitud condicionada (D-70). */
+export const emitirEnlaceRecaudos = (solicitudId: string): Promise<EnlaceRecaudosApi> =>
+  pedirJson<EnlaceRecaudosApi>(`/v1/solicitudes-credito/${encodeURIComponent(solicitudId)}/enlace-recaudos`, {
+    method: 'POST',
+  });
+
+/** Reabre un expediente aprobado o rechazado para dictaminarlo de nuevo, con justificación (D-71). */
+export const reabrirSolicitudCredito = (solicitudId: string, justificacion: string): Promise<void> =>
+  pedirJson<void>(`/v1/solicitudes-credito/${encodeURIComponent(solicitudId)}/reapertura`, {
+    cuerpo: { justificacion },
+  });
 
 /** Enlace firmado tal como lo envía el servidor (`DocumentLinkDto`). */
 interface EnlaceRecaudoServidor {

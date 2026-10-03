@@ -140,11 +140,23 @@ export interface VehiculoSolicitud {
   fotoUrl: string | null;
 }
 
+/**
+ * Un enlace de recaudos (D-70): la solicitud ya existe y el analista pidió más documentos. No abre una solicitud nueva:
+ * la persona solo vuelve a cargar recaudos de esa.
+ */
+export interface ComplementoSolicitud {
+  numero: string;
+  /** Tipos de recaudo que la solicitud ya tiene cargados. */
+  tiposCargados: string[];
+}
+
 /** Lo que trae un enlace válido: el vehículo, la política que rige y lo que ya se sabe de la persona. */
 export interface ContextoSolicitud {
   vehiculo: VehiculoSolicitud;
   politica: ParametrosFinanciamiento;
   precargado: Partial<DatosSolicitud>;
+  /** Solo en un enlace de recaudos; en uno normal es nulo. */
+  complemento: ComplementoSolicitud | null;
 }
 
 /** La política del servidor, en el modelo del motor de cálculo. */
@@ -222,6 +234,9 @@ export function contextoDesdeEnlace(dto: EnlaceCreditoApi): ContextoSolicitud | 
     },
     politica,
     precargado: precargarSolicitante(dto.applicant, precio, politica),
+    complemento: dto.complemento
+      ? { numero: dto.complemento.applicationNumber, tiposCargados: dto.complemento.documentTypes ?? [] }
+      : null,
   };
 }
 

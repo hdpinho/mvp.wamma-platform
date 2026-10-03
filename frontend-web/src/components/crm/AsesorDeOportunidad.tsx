@@ -3,6 +3,8 @@ import type { Oportunidad } from '../../types/crm';
 import { useCRM } from '../../state/crmContexto';
 import { useSesion } from '../../state/sesionContexto';
 
+const TOMAR_HABILITADO = false;
+
 /**
  * Quién atiende la oportunidad (D-48). El asesor ve las suyas y las que nadie ha tomado; «Tomar» se la queda. El
  * coordinador ve todas y puede repartirlas. Solo existe con servidor: en la demostración no hay identidades de asesor.
@@ -18,7 +20,9 @@ export const AsesorDeOportunidad: React.FC<{ oportunidad: Oportunidad }> = ({ op
   if (origen !== 'servidor') return null;
 
   const puedeAsignar = puede('crm.asignar') && asesores.length > 0;
-  const puedeTomar = puede('crm.operar') && !oportunidad.asesorId;
+  // «Tomar» no entra en el MVP (D-73, D-76): el servidor ya lo rechaza (`wamma.crm.asignacion-habilitada`). Para devolverlo,
+  // cambiar esta constante a `true` junto con esa bandera.
+  const puedeTomar = TOMAR_HABILITADO && puede('crm.operar') && !oportunidad.asesorId;
   const cerrada = oportunidad.etapa === 'cerrado_ganado' || oportunidad.etapa === 'cerrado_perdido';
 
   const ejecutar = async (accion: () => Promise<{ ok: boolean; error?: string }>) => {

@@ -47,6 +47,10 @@ public final class CreditApplicationDtos {
     ) {
     }
 
+    /**
+     * Lo que el cliente necesita al abrir su enlace. {@code complemento} solo viene cuando la solicitud ya existe y el
+     * analista pidió más recaudos (D-70): entonces el enlace no abre una solicitud nueva, sino que completa esa.
+     */
     public record CreditLinkDetailsDto(
             boolean valid,
             String invalidReason,
@@ -55,8 +59,47 @@ public final class CreditApplicationDtos {
             ApplicantPrefillDto applicant,
             FinancingParamsSummaryDto financingParams,
             BigDecimal bcvRate,
-            LocalDate bcvDate
+            LocalDate bcvDate,
+            ComplementDto complemento
     ) {
+    }
+
+    /**
+     * Solicitud condicionada que espera recaudos.
+     *
+     * <p>No lleva la justificación del analista: es un texto interno que puede mencionar cifras o criterios que el
+     * cliente no tiene por qué leer en un enlace público. Qué falta se lo dice el analista o el asesor.
+     *
+     * @param applicationNumber número de la solicitud que se completa
+     * @param documentTypes     tipos de recaudo que la solicitud ya tiene cargados
+     */
+    public record ComplementDto(
+            String applicationNumber,
+            List<String> documentTypes
+    ) {
+    }
+
+    /** Recaudos nuevos para una solicitud condicionada, con el enlace que emitió el analista (D-70). */
+    public record ComplementSubmitRequest(
+            String token,
+            List<DocumentSubmissionDto> recaudos
+    ) {
+    }
+
+    /** Enlace de recaudos recién emitido: el texto completo existe solo en esta respuesta. */
+    public record DocumentsLinkDto(
+            String token,
+            Instant venceEn
+    ) {
+    }
+
+    /** Reapertura de un expediente con dictamen (D-71). */
+    public record ReopenApplicationRequest(
+            String justificacion
+    ) {
+        public String trimmedJustification() {
+            return justificacion == null ? "" : justificacion.trim();
+        }
     }
 
     /**

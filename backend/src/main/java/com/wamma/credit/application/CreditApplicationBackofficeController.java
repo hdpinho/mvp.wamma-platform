@@ -56,6 +56,23 @@ public class CreditApplicationBackofficeController {
         return ResponseEntity.ok(Map.of("mensaje", "Evaluación registrada exitosamente"));
     }
 
+    /** Reabre un expediente aprobado o rechazado para dictaminarlo de nuevo, con justificación (D-71). */
+    @PostMapping("/v1/solicitudes-credito/{id}/reapertura")
+    @PreAuthorize("hasAuthority('credito.revisar')")
+    public ResponseEntity<Map<String, String>> reopenApplication(
+            @PathVariable UUID id,
+            @RequestBody CreditApplicationDtos.ReopenApplicationRequest request) {
+        creditApplicationService.reopenApplication(id, request, CurrentUser.id().orElse(null));
+        return ResponseEntity.ok(Map.of("mensaje", "Expediente reabierto"));
+    }
+
+    /** Emite el enlace para que el cliente complete los recaudos de una solicitud condicionada (D-70). */
+    @PostMapping("/v1/solicitudes-credito/{id}/enlace-recaudos")
+    @PreAuthorize("hasAuthority('credito.revisar')")
+    public ResponseEntity<CreditApplicationDtos.DocumentsLinkDto> documentsLink(@PathVariable UUID id) {
+        return ResponseEntity.ok(creditApplicationService.issueDocumentsLink(id, CurrentUser.id().orElse(null)));
+    }
+
     /** Enlace firmado de corta duración para abrir un recaudo del contenedor privado (D-59). */
     @GetMapping("/v1/solicitudes-credito/{id}/recaudos/{docId}/enlace")
     @PreAuthorize("hasAnyAuthority('credito.revisar', 'credito.ver')")

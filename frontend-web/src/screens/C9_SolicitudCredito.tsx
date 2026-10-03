@@ -28,6 +28,7 @@ import {
   validarEnlaceFinanciamiento,
   subirRecaudoDigital,
   enviarSolicitudCredito,
+  completarRecaudos,
   type RecaudoEnvioApi,
 } from '../api/credito';
 import {
@@ -257,6 +258,30 @@ interface ResultadoValidacion {
   estado: Exclude<EstadoEnlace, { tipo: 'sin_enlace' } | { tipo: 'validando' }>;
 }
 
+/** El vehículo del enlace, con su foto y su precio: el paso 0 y la pantalla de recaudos pendientes lo muestran igual. */
+const resumenDelVehiculo = (contexto: ContextoSolicitud) => (
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: '110px 1fr',
+      gap: 'var(--space-lg)',
+      alignItems: 'center',
+      backgroundColor: 'var(--superficie)',
+      border: '1px solid var(--borde-claro)',
+      borderRadius: 'var(--radius-md)',
+      padding: 'var(--space-md)',
+      marginBottom: 'var(--space-lg)',
+    }}
+  >
+    <FotoDelEnlace url={contexto.vehiculo.fotoUrl} descripcion={contexto.vehiculo.titulo} />
+    <div style={{ display: 'grid', gap: '2px', fontSize: '13px' }}>
+      <strong style={{ fontSize: '15px' }}>{contexto.vehiculo.titulo}</strong>
+      <span style={{ color: 'var(--texto-secundario)' }}>{contexto.vehiculo.version}</span>
+      <span style={{ color: 'var(--texto-secundario)' }}>Precio {formatoEUR(contexto.vehiculo.precio)}</span>
+    </div>
+  </div>
+);
+
 // ── Pantalla ─────────────────────────────────────────────────────────
 
 export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _rateBCV }) => {
@@ -283,6 +308,8 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
     numero: string;
     mensaje?: string;
     origen: 'servidor' | 'local';
+    /** Se completaron los recaudos de una solicitud que ya existía (D-70), no se envió una nueva. */
+    complemento?: boolean;
   } | null>(null);
 
   const [paso, setPaso] = useState(0);
@@ -344,6 +371,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
       },
       politica: PARAMETROS_APROBADOS,
       precargado: precargarSolicitante(null, v.precio, PARAMETROS_APROBADOS),
+      complemento: null,
     };
   }, [tokenUrl, vehiculos, params]);
 
@@ -608,6 +636,116 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
 
   const recaudosCargados = RECAUDOS.filter((r) => adjuntos.some((a) => a.recaudoId === r.id)).length;
 
+  /**
+   * El cliente completa los recaudos de su solicitud condicionada (D-70): el servidor la reabre con el mismo número y
+   * un recaudo del mismo tipo reemplaza al anterior. Solo viaja lo que el servidor guardó en el contenedor privado.
+   */
+  const enviarComplemento = async () => {
+    if (!tokenUrl) return;
+    const recaudos = adjuntos.flatMap((a) => (a.cargado ? [a.cargado] : []));
+    if (recaudos.length === 0) {
+      setErrorEnvio('Adjunta al menos un documento para completar tu solicitud.');
+      return;
+    }
+    setEnviandoSolicitud(true);
+    setErrorEnvio(null);
+    try {
+      const res = await completarRecaudos(tokenUrl, recaudos);
+      setNumeroSolicitud(res.numeroSolicitud);
+      setSolicitudExitosa({ numero: res.numeroSolicitud, mensaje: res.mensaje, origen: 'servidor', complemento: true });
+    } catch (err: unknown) {
+      setErrorEnvio(mensajeDeError(err, 'No se pudo contactar al servidor. Revisa tu conexión e inténtalo de nuevo.'));
+    } finally {
+      setEnviandoSolicitud(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  /** Las tarjetas de los recaudos: las mismas en el paso 6 y en la pantalla de recaudos pendientes. */
+  const tarjetasDeRecaudos = () => (
+    <div style={{ display: 'grid', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+      {RECAUDOS.map((r) => {
+        const cargados = adjuntos.filter((a) => a.recaudoId === r.id);
+        // Solo en un enlace de recaudos: lo que la solicitud ya tiene. Cargarlo de nuevo lo reemplaza.
+        const yaEnviado = contexto?.complemento?.tiposCargados.includes(r.id) ?? false;
+        return (
+          <div
+            key={r.id}
+            style={{
+              border: '1px solid var(--borde-claro)',
+              borderRadius: 'var(--radius-md)',
+              padding: 'var(--space-lg)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-md)', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 240px' }}>
+                <strong style={{ fontSize: '14px' }}>{r.titulo}</strong>
+                <p style={{ fontSize: '12px', color: 'var(--texto-mudo)', marginTop: '2px' }}>{r.detalle}</p>
+              </div>
+              <span className={`badge ${cargados.length || yaEnviado ? 'badge-exito' : 'badge-aviso'}`}>
+                {cargados.length ? 'Recibido' : yaEnviado ? 'Ya enviado' : 'Pendiente'}
+              </span>
+            </div>
+
+            <label
+              style={{
+                display: 'inline-block',
+                marginTop: 'var(--space-md)',
+                padding: '9px 16px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--naranja-500)',
+                color: 'var(--naranja-500)',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                opacity: subiendoRecaudo[r.id] ? 0.6 : 1,
+              }}
+            >
+              {subiendoRecaudo[r.id] ? 'Subiendo…' : yaEnviado ? 'Reemplazar archivo' : 'Adjuntar archivo'}
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                multiple
+                disabled={subiendoRecaudo[r.id]}
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  manejarSubidaArchivo(r.id, e.target.files);
+                }}
+              />
+            </label>
+
+            {errorRecaudo[r.id] && (
+              <p role="alert" style={{ fontSize: '12px', color: 'var(--peligro-texto)', marginTop: 'var(--space-sm)' }}>
+                {errorRecaudo[r.id]}
+              </p>
+            )}
+
+            {cargados.length > 0 && (
+              <ul style={{ listStyle: 'none', marginTop: 'var(--space-md)', display: 'grid', gap: '4px' }}>
+                {cargados.map((a) => (
+                  <li
+                    key={a.id}
+                    style={{ fontSize: '12px', color: 'var(--texto-secundario)', display: 'flex', justifyContent: 'space-between', gap: 'var(--space-sm)' }}
+                  >
+                    <span>📎 {a.nombre}</span>
+                    {/* Quitar lo saca de la solicitud: lo que no está en la lista no se envía. */}
+                    <button
+                      type="button"
+                      onClick={() => setAdjuntos((prev) => prev.filter((x) => x.id !== a.id))}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--peligro-texto)', fontSize: '12px' }}
+                    >
+                      Quitar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
   // ── Validación de enlace en progreso ──────────────────────────────
   if (estadoEnlace.tipo === 'validando') {
     return (
@@ -708,7 +846,9 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
             </svg>
           </div>
 
-          <h1 style={{ fontSize: '22px', marginBottom: 'var(--space-sm)' }}>Solicitud recibida</h1>
+          <h1 style={{ fontSize: '22px', marginBottom: 'var(--space-sm)' }}>
+            {solicitudExitosa?.complemento ? 'Documentos recibidos' : 'Solicitud recibida'}
+          </h1>
           <p style={{ fontSize: '14px', color: 'var(--texto-secundario)', marginBottom: 'var(--space-lg)' }}>
             {solicitudExitosa?.mensaje || 'Guarda este número: con él puedes consultar el estado de tu solicitud.'}
           </p>
@@ -729,7 +869,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
             {numeroSolicitud}
           </div>
 
-          {recaudosCargados < RECAUDOS.length && (
+          {!solicitudExitosa?.complemento && recaudosCargados < RECAUDOS.length && (
             <div style={{ marginBottom: 'var(--space-lg)' }}>
               <span className="badge badge-aviso">Recaudos incompletos</span>
               <p style={{ fontSize: '13px', color: 'var(--texto-secundario)', marginTop: 'var(--space-sm)' }}>
@@ -739,7 +879,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
             </div>
           )}
 
-          {(datos.esPEP || datos.vinculoPEP) && (
+          {!solicitudExitosa?.complemento && (datos.esPEP || datos.vinculoPEP) && (
             <div style={{ marginBottom: 'var(--space-lg)' }}>
               <span className="badge badge-info">Debida diligencia ampliada</span>
             </div>
@@ -763,6 +903,56 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
             </NotaSimulada>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // ── Recaudos pendientes (D-70, E3) ────────────────────────────────
+  // El analista condicionó la solicitud y mandó este enlace: no se vuelve a llenar el formulario, solo se completan los
+  // documentos de la misma solicitud.
+  if (contexto.complemento) {
+    const porEnviar = adjuntos.filter((a) => a.cargado).length;
+    return (
+      <div style={{ maxWidth: '720px', margin: '0 auto' }}>
+        <header style={{ marginBottom: 'var(--space-lg)' }}>
+          <h1 style={{ fontSize: '24px' }}>Completa los documentos de tu solicitud</h1>
+          <p style={{ fontSize: '14px', color: 'var(--texto-secundario)' }}>
+            Solicitud <strong>{contexto.complemento.numero}</strong>. Tu analista de crédito necesita documentos
+            adicionales para continuar. Adjunta los que te indicó; si vuelves a cargar uno que ya enviaste, reemplaza
+            al anterior.
+          </p>
+        </header>
+
+        <div
+          style={{
+            backgroundColor: 'var(--blanco)',
+            border: '1px solid var(--borde-claro)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-xl)',
+          }}
+        >
+          {resumenDelVehiculo(contexto)}
+          {tarjetasDeRecaudos()}
+
+          {errorEnvio && (
+            <p role="alert" style={{ fontSize: '13px', color: 'var(--peligro-texto)', marginBottom: 'var(--space-md)' }}>
+              {errorEnvio}
+            </p>
+          )}
+
+          <p style={{ fontSize: '12px', lineHeight: 1.5, color: 'var(--texto-mudo)', margin: '0 0 var(--space-lg)' }}>
+            Solo PDF, JPG o PNG, de hasta 10 MB cada uno. Se guardan en un contenedor privado: solo el área de crédito
+            los abre, con un enlace que vence en minutos. Al enviarlos, este enlace deja de admitir archivos.
+          </p>
+
+          <Boton variant="primary" fullWidth onClick={() => void enviarComplemento()} disabled={enviandoSolicitud}>
+            {enviandoSolicitud
+              ? 'Enviando documentos…'
+              : porEnviar > 0
+                ? `Enviar ${porEnviar} documento${porEnviar === 1 ? '' : 's'}`
+                : 'Enviar documentos'}
+          </Boton>
+        </div>
       </div>
     );
   }
@@ -792,28 +982,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
         {paso === 0 && (
           <>
             {/* El vehículo es el del enlace: no se elige otro ni se cambia su precio. */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '110px 1fr',
-                gap: 'var(--space-lg)',
-                alignItems: 'center',
-                backgroundColor: 'var(--superficie)',
-                border: '1px solid var(--borde-claro)',
-                borderRadius: 'var(--radius-md)',
-                padding: 'var(--space-md)',
-                marginBottom: 'var(--space-lg)',
-              }}
-            >
-              <FotoDelEnlace url={contexto.vehiculo.fotoUrl} descripcion={contexto.vehiculo.titulo} />
-              <div style={{ display: 'grid', gap: '2px', fontSize: '13px' }}>
-                <strong style={{ fontSize: '15px' }}>{contexto.vehiculo.titulo}</strong>
-                <span style={{ color: 'var(--texto-secundario)' }}>{contexto.vehiculo.version}</span>
-                <span style={{ color: 'var(--texto-secundario)' }}>
-                  Precio {formatoEUR(contexto.vehiculo.precio)}
-                </span>
-              </div>
-            </div>
+            {resumenDelVehiculo(contexto)}
 
             <Rejilla>
               <Campo
@@ -1180,87 +1349,7 @@ export const C9_SolicitudCredito: React.FC<{ rateBCV: number }> = ({ rateBCV: _r
         {/* ── Paso 6 · Recaudos ── */}
         {paso === 6 && (
           <>
-            <div style={{ display: 'grid', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
-              {RECAUDOS.map((r) => {
-                const cargados = adjuntos.filter((a) => a.recaudoId === r.id);
-                return (
-                  <div
-                    key={r.id}
-                    style={{
-                      border: '1px solid var(--borde-claro)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: 'var(--space-lg)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-md)', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                      <div style={{ flex: '1 1 240px' }}>
-                        <strong style={{ fontSize: '14px' }}>{r.titulo}</strong>
-                        <p style={{ fontSize: '12px', color: 'var(--texto-mudo)', marginTop: '2px' }}>
-                          {r.detalle}
-                        </p>
-                      </div>
-                      <span className={`badge ${cargados.length ? 'badge-exito' : 'badge-aviso'}`}>
-                        {cargados.length ? 'Recibido' : 'Pendiente'}
-                      </span>
-                    </div>
-
-                    <label
-                      style={{
-                        display: 'inline-block',
-                        marginTop: 'var(--space-md)',
-                        padding: '9px 16px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--naranja-500)',
-                        color: 'var(--naranja-500)',
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        opacity: subiendoRecaudo[r.id] ? 0.6 : 1,
-                      }}
-                    >
-                      {subiendoRecaudo[r.id] ? 'Subiendo…' : 'Adjuntar archivo'}
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        multiple
-                        disabled={subiendoRecaudo[r.id]}
-                        style={{ display: 'none' }}
-                        onChange={(e) => {
-                          manejarSubidaArchivo(r.id, e.target.files);
-                        }}
-                      />
-                    </label>
-
-                    {errorRecaudo[r.id] && (
-                      <p role="alert" style={{ fontSize: '12px', color: 'var(--peligro-texto)', marginTop: 'var(--space-sm)' }}>
-                        {errorRecaudo[r.id]}
-                      </p>
-                    )}
-
-                    {cargados.length > 0 && (
-                      <ul style={{ listStyle: 'none', marginTop: 'var(--space-md)', display: 'grid', gap: '4px' }}>
-                        {cargados.map((a) => (
-                          <li
-                            key={a.id}
-                            style={{ fontSize: '12px', color: 'var(--texto-secundario)', display: 'flex', justifyContent: 'space-between', gap: 'var(--space-sm)' }}
-                          >
-                            <span>📎 {a.nombre}</span>
-                            {/* Quitar lo saca de la solicitud: lo que no está en la lista no se envía. */}
-                            <button
-                              type="button"
-                              onClick={() => setAdjuntos((prev) => prev.filter((x) => x.id !== a.id))}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--peligro-texto)', fontSize: '12px' }}
-                            >
-                              Quitar
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            {tarjetasDeRecaudos()}
 
             <div
               style={{

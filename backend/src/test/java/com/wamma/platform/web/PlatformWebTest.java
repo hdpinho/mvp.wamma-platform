@@ -4,6 +4,7 @@ import com.wamma.platform.audit.AccessDeniedRecorder;
 import com.wamma.platform.auth.SessionAuthenticationFilter;
 import com.wamma.platform.auth.SessionService;
 import com.wamma.platform.config.SecurityConfig;
+import com.wamma.platform.identity.DisabledPermissions;
 import com.wamma.platform.identity.UserRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -37,7 +38,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = PlatformWebTest.ProbeController.class,
         properties = "wamma.cors.allowed-origins=https://permitido.example, http://localhost:5173")
-@Import({SecurityConfig.class, GlobalExceptionHandler.class, PlatformWebTest.ProbeController.class})
+@Import({SecurityConfig.class, DisabledPermissions.class, GlobalExceptionHandler.class,
+        PlatformWebTest.ProbeController.class})
 class PlatformWebTest {
 
     @Autowired

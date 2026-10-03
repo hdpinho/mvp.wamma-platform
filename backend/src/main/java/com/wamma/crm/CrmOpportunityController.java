@@ -3,6 +3,7 @@ package com.wamma.crm;
 import com.wamma.crm.CrmDtos.AdvisorDto;
 import com.wamma.crm.CrmDtos.OpportunityDto;
 import com.wamma.platform.auth.CurrentUser;
+import com.wamma.platform.identity.DisabledPermissions;
 import com.wamma.platform.identity.UserRepository;
 import com.wamma.platform.web.ApiException;
 import org.springframework.http.ResponseEntity;
@@ -61,14 +62,17 @@ public class CrmOpportunityController {
     private final UserRepository users;
     private final CrmAccess access;
     private final CrmMapper mapper;
+    private final DisabledPermissions disabledPermissions;
 
     public CrmOpportunityController(OpportunityService opportunityService, OpportunityRepository opportunities,
-                                    UserRepository users, CrmAccess access, CrmMapper mapper) {
+                                    UserRepository users, CrmAccess access, CrmMapper mapper,
+                                    DisabledPermissions disabledPermissions) {
         this.opportunityService = opportunityService;
         this.opportunities = opportunities;
         this.users = users;
         this.access = access;
         this.mapper = mapper;
+        this.disabledPermissions = disabledPermissions;
     }
 
     /**
@@ -138,6 +142,11 @@ public class CrmOpportunityController {
     public ResponseEntity<OpportunityDto> assignAdvisor(
             @PathVariable UUID id,
             @RequestBody AssignAdvisorRequest request) {
+        // «Tomar» y «repartir» no entran en el MVP (D-73): la bandera wamma.crm.asignacion-habilitada las devuelve.
+        if (!disabledPermissions.crmAssignmentEnabled()) {
+            throw ApiException.forbidden("Función no disponible",
+                    "Tomar y repartir oportunidades no está habilitado en esta versión.");
+        }
         boolean canAssignAny = CurrentUser.hasAuthority("crm.asignar");
         UUID currentUser = CurrentUser.id().orElseThrow();
         UUID targetAdvisor = request.asesorId() != null ? request.asesorId() : currentUser;
