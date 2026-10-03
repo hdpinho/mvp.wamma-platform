@@ -133,6 +133,8 @@ export const O6_FinanciamientoBackoffice: React.FC<O6FinanciamientoBackofficePro
   const capacidadPagoDisponible = (ingresoMensualEUR || 0) * ratioCapacidad;
   const ratioCuotaIngreso =
     ingresoMensualEUR > 0 ? (cuotaMensualEUR / ingresoMensualEUR) * 100 : 0;
+  // Tope de la política (D-26/D-83): por encima la cuota excede la capacidad de pago.
+  const topeRatioPct = Math.round(ratioCapacidad * 100);
 
   const guardarParametrosBd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -534,19 +536,11 @@ _Propuesta emitida por WAMMA by Token Pago POS._`;
                 <strong
                   style={{
                     color:
-                      ratioCuotaIngreso <= 30
-                        ? '#0F6E56'
-                        : ratioCuotaIngreso <= 40
-                          ? 'var(--naranja-600)'
-                          : '#C0392B',
+                      ratioCuotaIngreso <= topeRatioPct ? '#0F6E56' : '#C0392B',
                   }}
                 >
                   {Number.isFinite(ratioCuotaIngreso) ? ratioCuotaIngreso.toFixed(1) : '0.0'}%{' '}
-                  {ratioCuotaIngreso <= 30
-                    ? '(Óptimo)'
-                    : ratioCuotaIngreso <= 40
-                      ? '(Aceptable)'
-                      : '(Riesgo Elevado)'}
+                  {ratioCuotaIngreso <= topeRatioPct ? '(Óptimo)' : `(Excede la política · máx. ${topeRatioPct} %)`}
                 </strong>
               </div>
               <div style={{ fontSize: '11px', color: 'var(--texto-mudo)', marginTop: '6px', lineHeight: 1.4 }}>

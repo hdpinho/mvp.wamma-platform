@@ -44,7 +44,6 @@ export interface ImperfeccionApi {
 
 export interface VehiculoVitrina {
   codigo: string;
-  vin: string;
   marca: string;
   modelo: string;
   version: string | null;

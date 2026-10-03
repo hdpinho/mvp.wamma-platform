@@ -117,7 +117,8 @@ const precioDeMaqueta = (id: string, precioOriginal: unknown): number => {
 
 const comun = (v: VehiculoVitrina | VehiculoInventario) => ({
   id: v.codigo,
-  vin: v.vin,
+  // La vitrina pública no trae VIN (D-82): solo el inventario del backoffice lo conoce.
+  vin: 'vin' in v ? v.vin : '',
   marca: v.marca,
   modelo: v.modelo,
   version: v.version ?? '',

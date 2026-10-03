@@ -88,7 +88,6 @@ export const C2_FichaVehiculo: React.FC<C2FichaVehiculoProps> = ({ rateBCV }) =>
     ['Tracción', vehiculo.traccion],
     ['Puestos', String(vehiculo.puestos)],
     ['Cantidad de dueños', String(vehiculo.duenos ?? 1)],
-    ['VIN', vehiculo.vin],
   ];
 
   return (

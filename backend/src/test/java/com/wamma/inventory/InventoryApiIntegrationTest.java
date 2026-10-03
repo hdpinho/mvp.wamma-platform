@@ -74,7 +74,8 @@ class InventoryApiIntegrationTest extends ApiIntegrationTest {
         assertThat(catalog.status()).isEqualTo(200);
         Map<String, Object> item = findVehicle(catalog, code);
         assertThat(new BigDecimal(item.get("precioVes").toString())).isEqualByComparingTo("636020.00");
-        assertThat(item).doesNotContainKeys("placa", "adquisicion");
+        assertThat(item).doesNotContainKeys("placa", "adquisicion", "vin");
+        assertThat(api.get("/v1/catalogo/" + code, null).map()).doesNotContainKeys("placa", "adquisicion", "vin");
         assertThat(item.get("certificado")).isEqualTo(true);
         assertThat((List<?>) item.get("imperfecciones")).hasSize(1);
         List<?> photos = (List<?>) item.get("fotos");

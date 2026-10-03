@@ -52,8 +52,11 @@ public final class InventoryViews {
                                    Instant creadoEn, Instant actualizadoEn) {
     }
 
-    /** Vehículo en la vitrina pública. {@code precioVes} es nulo si no hay tasa del euro registrada. */
-    public record CatalogVehicle(UUID id, String codigo, String vin, String marca, String modelo, String version, int anio,
+    /**
+     * Vehículo en la vitrina pública. {@code precioVes} es nulo si no hay tasa del euro registrada. No lleva VIN ni placa:
+     * son datos internos que identifican la unidad (D-82).
+     */
+    public record CatalogVehicle(UUID id, String codigo, String marca, String modelo, String version, int anio,
                                  int kilometraje, String transmision, String combustible, String carroceria,
                                  int puestos, String traccion, String color, String sede, String disponibilidad,
                                  boolean certificado, BigDecimal precio, String moneda, BigDecimal precioVes,
@@ -85,7 +88,7 @@ public final class InventoryViews {
         BigDecimal priceVes = rate
                 .map(r -> Money.of(a.publication().price(), CurrencyCode.EUR).convertTo(CurrencyCode.VES, r.vesPerUnit()).amount())
                 .orElse(null);
-        return new CatalogVehicle(v.id(), v.code(), v.vin(), v.brand(), v.model(), v.version(), v.year(), v.mileage(),
+        return new CatalogVehicle(v.id(), v.code(), v.brand(), v.model(), v.version(), v.year(), v.mileage(),
                 v.transmission(), v.fuel(), v.bodyType(), v.seats(), v.traction(), v.color(), v.site(),
                 a.availability().code(), a.certified(), a.publication().price(), a.publication().currency(), priceVes,
                 a.publication().label(), photos(a.photos(), storage), imperfections(a.imperfections()));
