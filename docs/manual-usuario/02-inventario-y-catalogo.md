@@ -108,7 +108,8 @@ Desde el inventario la cambia el rol Inventario; en el día a día la mueve el C
 | Inicio | Video de portada de borde a borde (D-37, D-38), titular, subtítulo y buscador por marca o modelo. Dos botones: **Encuéntralo**, que lleva a la vitrina, y **Fináncialo**, que lleva a financiamiento (D-46). Al pie del video, la franja de pilares WAMMA: *Inspección · Certificación · Financiamiento · Seguro · Acompañamiento*; en el teléfono se desliza de lado. Debajo, solo el pie de página corporativo (D-34, D-36) |
 | Vitrina (catálogo) | Solo los vehículos **publicados** y no vendidos. Filtros específicos por **Cuota mensual**, **Rango de ingresos**, **Marca** (Ford, Chevrolet, Chery, Hyundai, Toyota), **Transmisión** y **Año** (D-28) |
 | Ficha del vehículo | Galería estandarizada de fotos de estudio (D-32), especificaciones técnicas, sello de **Inspección 240 puntos**, registro de imperfecciones sobre el diagrama, plan de financiamiento detallado y botón principal **Agendar cita** (D-29, D-30) |
-| Favoritos | Los que el visitante marcó con el corazón. Se guardan en su navegador: no requieren cuenta |
+| Mi Favorito | Los que el visitante marcó con el corazón. Se guardan en su navegador: no requieren cuenta. Se abre desde el corazón de la barra superior o desde el pie de página |
+| Pie de página | Tres columnas: **Comprar auto**, **Financiamiento** y **Atención y Sede** (WhatsApp, correo, sede y horario). En la franja inferior, los derechos, los enlaces legales (privacidad, transparencia) y el enlace **Acceso Backoffice** para el personal (D-88) |
 
 ![Vitrina publicada](capturas/02-inventario/10-vitrina-publicada.png)
 ![Ficha pública con su galería](capturas/02-inventario/11-ficha-publica.png)

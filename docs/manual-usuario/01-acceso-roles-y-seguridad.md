@@ -51,7 +51,7 @@ Matriz completa de permisos:
 ## Primer ingreso
 
 1. Un administrador te da de alta y te entrega tu **usuario** y una **contraseña temporal**, en persona o por teléfono.
-2. Abre el backoffice (`/admin`). Aparece **Ingresa al backoffice**: escribe tu usuario y la contraseña temporal, y pulsa **Ingresar**.
+2. Abre el backoffice (`/admin`, o el enlace **Acceso Backoffice** al pie de la página pública). Aparece **Ingresa al backoffice**: escribe tu usuario y la contraseña temporal, y pulsa **Ingresar**.
 
    ![Pantalla de ingreso](capturas/01-acceso/02-ingreso.png)
 

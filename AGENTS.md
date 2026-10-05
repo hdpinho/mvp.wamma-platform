@@ -44,7 +44,7 @@ Plataforma propia de **WAMMA by Token Pago POS**: venta, certificación y financ
 - **Corrección de los registros anteriores («Fases 1–4 al 100 %», D-49 a D-52):** sobreestimaban el estado y los corrigen D-60 a D-63. En concreto: el motor de scoring/AML existe pero está apagado y el analista dictamina a mano con justificación obligatoria; el servidor recalcula cuota, monto y capacidad; los recaudos van a un contenedor privado y se abren con enlace firmado.
 - **Remediación R0–R3 hecha y aprobada (D-64, D-67); R4 hecha en lo que no toca frontend ni textos oficiales (D-68, D-74).** Plan Final: servidor, avisos por WhatsApp/correo (se abren solos, D-75), reapertura de recaudos y de expedientes (D-70, D-71) y «tomar/repartir» apagado (D-73) hechos el 3-oct. El kit `scripts/demo-local/` ya no es el entorno de trabajo (D-85). R5 hecha en lo técnico: `e2e/` (103 casos, `node ejecutar.mjs`), CI con pruebas de la web y trabajo `e2e`, y reevaluación QA (51 hallazgos: ninguno crítico abierto; queda G-05, los textos de la vitrina, que espera al PO). Pendiente: recorrido final del PO (R5.4) y el push, que se deja para el final (D-80). Plan: `docs/qa/plan-final-2026-10-03.md` (no se commitea `docs/qa`: el repositorio es público).
 - **Migraciones:** V0001–V0022 en el repo; Supabase sigue en V0012. El PR #1 (spec 011) no se mezcla: se portó a `main` como V0021 y V0022 (D-66).
-- **Decisiones vigentes:** `specs/000-overview/decisiones-po.md` (hasta D-87).
+- **Decisiones vigentes:** `specs/000-overview/decisiones-po.md` (hasta D-88).
 - **Regla estricta:** NO hacer `git push` ni desplegar sin aprobación expresa del PO (D-56). El commit local de resguardo está autorizado (D-77).
 ## Cómo debe comportarse el agente
 

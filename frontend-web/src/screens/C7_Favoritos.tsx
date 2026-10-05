@@ -7,7 +7,7 @@ import { useFavoritos } from '../state/favoritosContexto';
 import { useVehiculos } from '../state/vehiculosContexto';
 
 /**
- * C7 · Guardados — Fase 2 (módulo 12 · Marketplace).
+ * C7 · Mi Favorito (D-88) — Fase 2 (módulo 12 · Marketplace).
  *
  * Las alertas de baja de precio se retiraron por decisión del Product Owner
  * (septiembre 2026).

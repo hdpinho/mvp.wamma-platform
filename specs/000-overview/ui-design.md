@@ -127,7 +127,7 @@ En la maqueta la tasa es un valor **simulado** fijo; la conversión real llega c
 | C0 | `/` | Home: hero, vitrina destacados, 3 pilares, pasos, simulador | 005 |
 | C1 | `/catalogo` | Catálogo / vitrina con filtros y ordenamiento | 005 |
 | C2 | `/vehiculo/:id` | Ficha del vehículo + simulador de cuota + inspección 240 pts + imperfecciones | 005 · 004 |
-| C7 | `/favoritos` | Guardados y alertas de precio | 005 |
+| C7 | `/favoritos` | Mi Favorito: los vehículos marcados con el corazón (D-88). Las alertas de precio se retiraron | 005 |
 | C9 | `/solicitud-credito` | Asistente de 8 pasos solicitud de crédito digital WMA-F-FIN-001 | solicitud-credito |
 
 **Operación / interno (Roadmap):**
@@ -145,8 +145,8 @@ En la maqueta la tasa es un valor **simulado** fijo; la conversión real llega c
 
 ```
                       ┌──► Catálogo (C1) ──► Ficha (C2) ──► Solicitud de Crédito (C9)
-                      │         ▲                │
-  Home (C0) ──────────┤         └─ Guardados (C7)◄┘
+                      │         ▲                  │
+  Home (C0) ──────────┤         └─ Mi Favorito (C7)◄┘
                       │
                       └──► Solicitud de Crédito directa (C9)
 ```
