@@ -29,7 +29,7 @@ export const C7_Favoritos: React.FC<C7FavoritosProps> = ({ rateBCV }) => {
   return (
     <div>
       <header style={{ marginBottom: 'var(--space-xl)' }}>
-        <h1 style={{ fontSize: '26px' }}>Mis guardados</h1>
+        <h1 style={{ fontSize: '26px' }}>Mi Favorito</h1>
         <p style={{ fontSize: '14px', color: 'var(--texto-secundario)' }}>
           Los vehículos que marcaste para tenerlos a mano.
         </p>
@@ -63,7 +63,7 @@ export const C7_Favoritos: React.FC<C7FavoritosProps> = ({ rateBCV }) => {
             </svg>
           </div>
           <h2 style={{ fontSize: '18px', marginBottom: 'var(--space-sm)' }}>
-            Todavía no has guardado ningún vehículo
+            Todavía no tienes ningún vehículo en tus favoritos
           </h2>
           <p
             style={{

@@ -73,6 +73,31 @@ while ((Get-Date) -lt $limite) {
 }
 if (-not $listo) { throw "El backend no terminó de arrancar en 3 minutos. Revisa $logBackend" }
 
+# Asegurar tasa BCV y publicación de los 9 vehículos autorizados en PostgreSQL
+try {
+  $env:PGPASSWORD = $env:SPRING_DATASOURCE_PASSWORD
+  $psql = "C:\Program Files\PostgreSQL\18\bin\psql.exe"
+  if (Test-Path $psql) {
+    & $psql -U $env:SPRING_DATASOURCE_USERNAME -d wamma -q -c "
+      INSERT INTO tasa_cambio_bcv (fecha, tasa_ves, fuente, capturado_en, moneda)
+      VALUES (CURRENT_DATE, 54.25000000, 'BCV', NOW(), 'EUR')
+      ON CONFLICT (fecha, moneda) DO NOTHING;
+
+      UPDATE publicacion p
+      SET estado = 'publicado',
+          tasa_bcv = 54.25000000,
+          fecha_tasa = CURRENT_DATE,
+          publicado_en = COALESCE(publicado_en, NOW())
+      FROM vehiculo v
+      WHERE p.vehiculo_id = v.id
+        AND p.estado = 'borrador'
+        AND v.codigo IN ('veh-001', 'veh-002', 'veh-003', 'veh-004', 'veh-005', 'veh-006', 'veh-007', 'veh-009', 'veh-011');
+    " 2>$null
+  }
+} catch {
+  # Continuar normalmente
+}
+
 "Arrancando frontend web…"
 $env:VITE_API_URL = 'http://localhost:8080'
 Start-Process -FilePath 'node' -WorkingDirectory (Join-Path $raiz 'frontend-web') -WindowStyle Hidden `
