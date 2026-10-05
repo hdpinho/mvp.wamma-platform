@@ -52,3 +52,7 @@ scratch/
 # Pruebas de punta a punta (e2e/): dependencias y resultados de cada corrida
 e2e/node_modules/
 e2e/resultados/
+
+# Documentos internos de QA (no se publican en repo público)
+docs/qa/
+

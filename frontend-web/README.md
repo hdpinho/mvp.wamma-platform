@@ -8,7 +8,7 @@ De acuerdo con las especificaciones de diseño (`ui-design.md`), el código est�
 
 ```
 frontend-web/src/
-├── tokens/        # Colores de marca (#D17438), rampa extendida, semánticos y espaciado
+├── tokens/        # Colores de marca (#EC7630), rampa extendida, semánticos y espaciado
 ├── components/    # Componentes base presentacionales reutilizables (PrecioMoneda, Boton, etc.)
 ├── mocks/         # Datos de simulación locales (vehículos, usuario y amortizaciones de crédito)
 ├── screens/       # Las 6 pantallas cliente C1...C6 del MVP

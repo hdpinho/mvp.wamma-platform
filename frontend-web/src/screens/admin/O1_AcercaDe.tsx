@@ -11,6 +11,8 @@ Release: ${WAMMA_VERSION.release}
 Fecha de Build: ${WAMMA_VERSION.fecha}
 Moneda Base: EUR / Tasa BCV Dinámica
 Constitución de Ingeniería: ${WAMMA_VERSION.componentes.constitucion.version}
+Desarrollado por: ${WAMMA_VERSION.desarrollador.nombre}
+Empresa: ${WAMMA_VERSION.desarrollador.empresa}
 Copyright: (c) 2026 WAMMA by Token Pago POS`;
 
   const copiarAlPortapapeles = async () => {
@@ -59,6 +61,16 @@ Copyright: (c) 2026 WAMMA by Token Pago POS`;
           <div className="acerca-dato-fila">
             <span className="dato-clave">Constitución de Ingeniería</span>
             <span className="dato-valor">{WAMMA_VERSION.componentes.constitucion.version} (Septiembre 2026)</span>
+          </div>
+
+          <div className="acerca-dato-fila">
+            <span className="dato-clave">Desarrollado por</span>
+            <span className="dato-valor">{WAMMA_VERSION.desarrollador.nombre}</span>
+          </div>
+
+          <div className="acerca-dato-fila">
+            <span className="dato-clave">Empresa</span>
+            <span className="dato-valor">{WAMMA_VERSION.desarrollador.empresa}</span>
           </div>
         </div>
 

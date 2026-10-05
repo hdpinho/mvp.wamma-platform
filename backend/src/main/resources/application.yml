@@ -43,7 +43,7 @@ wamma:
   cors:
     # Orígenes del frontend autorizados a llamar a la API, separados por coma.
     # Nunca un comodín. En Render: WAMMA_CORS_ORIGINS=https://wamma-mvp.vercel.app
-    allowed-origins: ${WAMMA_CORS_ORIGINS:http://localhost:5173}
+    allowed-origins: ${WAMMA_CORS_ORIGINS:http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174}
 
   security:
     # Claves de 32 bytes en Base64 (plan 001 §7). Sin ellas el servidor no arranca.
@@ -120,15 +120,17 @@ logging:
 
 ---
 # ── Perfil local (el de por defecto) ──────────────────────────────────────────
-# Desarrollo y pruebas sobre un PostgreSQL embebido y desechable. No define datasource:
-# lo aportan `LocalDevServer` o las pruebas de integración. Sin esos valores el arranque
-# falla, que es justo lo que debe pasar si alguien activa este perfil sin base propia.
+# Desarrollo y pruebas sobre PostgreSQL persistente o embebido.
 spring:
   config:
     activate:
       on-profile: local
 
-  # La base nace vacía en cada arranque: sin migraciones no habría esquema.
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/wamma}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+
   flyway:
     enabled: true
 

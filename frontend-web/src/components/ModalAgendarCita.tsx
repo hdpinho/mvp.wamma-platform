@@ -524,7 +524,7 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
         }
         .seccion-requisitos-financiamiento {
           background-color: #FCFAF8;
-          border: 1px solid rgba(209, 116, 56, 0.2);
+          border: 1px solid rgba(236, 118, 48, 0.2);
           border-radius: var(--radius-md);
           padding: 14px 16px;
           margin-top: 4px;
@@ -588,7 +588,7 @@ export const ModalAgendarCita: React.FC<ModalAgendarCitaProps> = ({
         .tab-requisito.activo {
           background: #FFF5EE;
           border-color: var(--naranja-500);
-          box-shadow: 0 2px 6px rgba(209, 116, 56, 0.15);
+          box-shadow: 0 2px 6px rgba(236, 118, 48, 0.15);
         }
         .tab-icono {
           font-size: 18px;

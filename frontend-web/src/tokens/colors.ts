@@ -2,12 +2,13 @@
 
 export const colors = {
   naranja: {
-    50: '#FBF1EA',
-    100: '#F4D9C5',
-    200: '#E9B187',
-    500: '#D17438', // Color de marca principal
-    600: '#B45F28', // Hover
-    700: '#8F4A1D', // Texto sobre fondos claros
+    50: '#FDF4ED',
+    100: '#FAE4D3',
+    200: '#F5C7A5',
+    300: '#EFA776',
+    500: '#EC7630', // Color de marca principal
+    600: '#D9621C', // Hover
+    700: '#B34B0F', // Texto sobre fondos claros
   },
   negro: '#000000',
   blanco: '#FFFFFF',

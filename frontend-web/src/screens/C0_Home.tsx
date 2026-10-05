@@ -251,23 +251,23 @@ export const C0_Home: React.FC<C0HomeProps> = () => {
             font-size: 18px;
             font-weight: 700;
             color: #FFFFFF;
-            background: #D17438;
+            background: #EC7630;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             min-width: 210px;
             border: 1px solid rgba(255, 255, 255, 0.25);
-            box-shadow: 0 8px 24px rgba(209, 116, 56, 0.45), 0 2px 4px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 24px rgba(236, 118, 48, 0.45), 0 2px 4px rgba(0, 0, 0, 0.2);
           }
           .boton-wamma-accion:hover {
-            background: #BA5F28;
+            background: #D9621C;
             transform: translateY(-2px);
-            box-shadow: 0 12px 28px rgba(209, 116, 56, 0.6);
+            box-shadow: 0 12px 28px rgba(236, 118, 48, 0.6);
           }
           .barra-pilares-hero {
             width: 100%;
-            background: linear-gradient(180deg, #D97A3B 0%, #C66526 100%);
+            background: linear-gradient(180deg, #EC7630 0%, #D9621C 100%);
             border-top: 1px solid rgba(255, 255, 255, 0.35);
             padding: 16px var(--space-xl);
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 4px 18px rgba(0, 0, 0, 0.22);

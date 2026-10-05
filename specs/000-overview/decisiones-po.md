@@ -165,6 +165,7 @@
 | D-81 | Textos de la vitrina (PO-3, G-05) | Los textos actuales de la vitrina **se mantienen tal cual**: «Certificado con Estándar WAMMA», «Validación legal de documentos», «Fotografías reales de estudio», «Garantía WAMMA», «garantizados» y «más de 200 puntos». Así queda para la demostración y **no queda pendiente**. Los textos oficiales siguen sujetos a D-74 | Precisa D-54 (para esta entrega no se retiran) | 005, Vitrina, PiePagina, TarjetaVehiculo, FichaVehiculo |
 | D-82 | VIN en la vitrina (S-14) | El VIN **no sale en la vitrina pública**: ni en `GET /v1/catalogo` ni en la ficha del vehículo. El backoffice lo sigue viendo y editando | Precisa D-12 | 004, 005 |
 | D-83 | Cotizador del asesor (G-12) | La relación cuota/ingreso solo es «Óptimo» hasta el **30 %** (D-26); por encima dice «Excede la política (máx. 30 %)». Se elimina el tramo «Aceptable» (30–40 %) | Precisa D-26 | Financiamiento (O6) |
+| D-84 | Color naranja de marca | El color naranja oficial a utilizar en toda la web es **`#EC7630`** (RGB 236/118/48). Se actualiza la rampa de tokens CSS y TypeScript en toda la aplicación. Resuelve el conflicto entre el manual anterior y el arte digital | Resuelve conflicto de color | Tokens, UI, Diseño |
 
 ## Pendientes derivados
 

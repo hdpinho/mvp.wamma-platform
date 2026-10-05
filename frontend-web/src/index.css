@@ -2,12 +2,13 @@
 
 :root {
   /* Brand Colors */
-  --naranja-50: #FBF1EA;
-  --naranja-100: #F4D9C5;
-  --naranja-200: #E9B187;
-  --naranja-500: #D17438;
-  --naranja-600: #B45F28;
-  --naranja-700: #8F4A1D;
+  --naranja-50: #FDF4ED;
+  --naranja-100: #FAE4D3;
+  --naranja-200: #F5C7A5;
+  --naranja-300: #EFA776;
+  --naranja-500: #EC7630;
+  --naranja-600: #D9621C;
+  --naranja-700: #B34B0F;
 
   --negro: #000000;
   --blanco: #ffffff;

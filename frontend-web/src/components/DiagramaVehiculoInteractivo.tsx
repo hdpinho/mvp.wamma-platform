@@ -161,7 +161,7 @@ export const DiagramaVehiculoInteractivo: React.FC<DiagramaVehiculoInteractivoPr
             {/* Marcador temporal recién cliqueado */}
             {puntoSeleccionado && (
               <g transform={`translate(${puntoSeleccionado.x}, ${puntoSeleccionado.y})`}>
-                <circle r="6" fill="rgba(209, 116, 56, 0.3)" />
+                <circle r="6" fill="rgba(236, 118, 48, 0.3)" />
                 <circle r="3.5" fill="var(--naranja-500)" stroke="white" strokeWidth="1" />
               </g>
             )}

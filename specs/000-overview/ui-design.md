@@ -30,17 +30,17 @@ Construir una **maqueta navegable de alta fidelidad** en React, con **datos simu
 
 **Marca (oficial — `docs/marca/WAMMA-manual-de-marca.pdf`, lámina "Código cromático"):**
 
-| Token | Hex | Equivalencias del manual | Uso |
+| Token | Hex | Equivalencias | Uso |
 |---|---|---|---|
-| `naranja-500` (principal) | `#D17438` | RGB 209/116/56 · CMYK 8/71/86/0 | Acciones primarias, acentos, sello de marca |
+| `naranja-500` (principal) | `#EC7630` | RGB 236/118/48 (Decisión D-84) | Acciones primarias, acentos, sello de marca |
 | `negro` (secundario) | `#000000` | RGB 0/0/0 · CMYK 84/83/7/80 | Texto fuerte, contraste |
 
-> `[NEEDS CLARIFICATION: el manual documenta el naranja como #D17438, pero los archivos de logo entregados (docs/marca + frontend-web/public/marca/) tienen píxeles #EB7530, sin perfil ICC embebido. Son dos naranjas distintos. Confirmar cuál es el oficial: si es #EB7530, se actualiza este token y toda la rampa derivada.]`
+> *Nota: Según la decisión D-84 del PO, el naranja oficial en toda la plataforma es `#EC7630`, resolviendo la discrepancia entre el manual previo y los recursos visuales.*
 
 **Escala de grises (oficial — lámina "Escala de grises"):** el logo admite tres niveles monocromo: negro `#000000`, gris medio `#8A8A8A` y gris claro. Uso: documentos, fax, impresión a una tinta.
 
-**Rampa de naranja (propuesta para estados — ajustable):**
-`naranja-50 #FBF1EA` · `100 #F4D9C5` · `200 #E9B187` · `500 #D17438` (base) · `600 #B45F28` (hover) · `700 #8F4A1D` (texto sobre claro).
+**Rampa de naranja (derivada de #EC7630 — D-84):**
+`naranja-50 #FDF4ED` · `100 #FAE4D3` · `200 #F5C7A5` · `300 #EFA776` · `500 #EC7630` (base) · `600 #D9621C` (hover) · `700 #B34B0F` (texto sobre claro).
 
 **Neutros (propuesta):**
 `blanco #FFFFFF` · `superficie #F7F6F4` · `borde-claro #ECEAE6` · `borde #D9D6D0` · `texto-mudo #9A958C` · `texto-secundario #4A4843` · `texto-primario #1A1A18`.
@@ -231,7 +231,7 @@ Para cada pantalla con datos: **vacío** (sin resultados), **carga** (skeleton),
 
 ## 14. Preguntas abiertas
 
-- `[NEEDS CLARIFICATION: conflicto de naranja — manual dice #D17438, los PNG del logo tienen #EB7530]` **(prioritario: afecta todos los tokens)**
+- ~~`[NEEDS CLARIFICATION: conflicto de naranja — manual dice #D17438, los PNG del logo tienen #EB7530]`~~ *(Resuelto por D-84: el color oficial es `#EC7630`)*
 - `[NEEDS CLARIFICATION: confirmar rampa extendida y colores semánticos (el manual solo define #D17438, #000000 y grises)]`
 - `[NEEDS CLARIFICATION: ¿se admite Montserrat Medium 500 en UI? El manual solo lista Bold y Regular]`
 - `[NEEDS CLARIFICATION: falta el logo vectorial (SVG/AI/EPS); solo hay PNG rasterizado]`

@@ -19,6 +19,10 @@ export const WAMMA_VERSION = {
   nombre: 'WAMMA by Token Pago POS',
   descripcion:
     'Plataforma propia de venta, inspección de 240 puntos bajo Estándar WAMMA y financiamiento de vehículos usados en Venezuela.',
+  desarrollador: {
+    nombre: 'Héctor De Pinho',
+    empresa: 'Cerberus Tech 39 C.A.',
+  },
   componentes: {
     frontend: {
       nombre: 'Frontend Web',
