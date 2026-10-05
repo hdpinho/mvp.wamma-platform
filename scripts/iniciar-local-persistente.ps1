@@ -1,9 +1,14 @@
-# Levanta WAMMA con Base de Datos PostgreSQL local PERSISTENTE (localhost:5432 / wamma).
-# Todo queda guardado de verdad en el PostgreSQL de tu máquina: usuarios, claves, códigos 2FA,
-# citas, oportunidades y expedientes de crédito. NADA se borra al reiniciar.
+﻿# Levanta WAMMA sobre la base PostgreSQL local PERSISTENTE (localhost:5432 / wamma), que es el
+# entorno de trabajo desde D-85. Todo queda guardado: usuarios, claves, códigos 2FA, citas,
+# oportunidades, expedientes de crédito, fotos y recaudos. NADA se borra al reiniciar.
+#
+# Requisitos: el servicio 'postgresql-x64-18' en marcha y backend/.env con la contraseña de la base
+# y las claves WAMMA_CLAVE_CIFRADO y WAMMA_CLAVE_INDICE (D-86: nunca en el repositorio).
 #
 # Uso (PowerShell):   .\scripts\iniciar-local-persistente.ps1
 # Para detener:       .\scripts\detener-local-persistente.ps1
+#
+# La tasa BCV y la publicación de vehículos se hacen desde el backoffice (D-87).
 
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $PSScriptRoot
@@ -26,10 +31,10 @@ foreach ($puerto in 8080, 5174) {
   }
 }
 
-# Cargar configuración desde backend/.env si existe
+# Cargar la configuración de backend/.env. Una variable ya definida en la sesión manda sobre el archivo.
 $envFile = Join-Path $raiz 'backend\.env'
 if (Test-Path $envFile) {
-  Get-Content $envFile | Where-Object { $_ -match '^\s*([^#=\s]+)\s*=\s*(.*)$' } | ForEach-Object {
+  Get-Content $envFile -Encoding UTF8 | Where-Object { $_ -match '^\s*([^#=\s]+)\s*=\s*(.*)$' } | ForEach-Object {
     $k = $Matches[1].Trim()
     $v = $Matches[2].Trim()
     if (-not [System.Environment]::GetEnvironmentVariable($k)) {
@@ -38,26 +43,47 @@ if (Test-Path $envFile) {
   }
 }
 
-# Valores por defecto para desarrollo local si no se suministraron en el entorno
-if (-not $env:SPRING_DATASOURCE_URL) { $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/wamma" }
-if (-not $env:SPRING_DATASOURCE_USERNAME) { $env:SPRING_DATASOURCE_USERNAME = "postgres" }
+# Solo la base local (D-85): perfil `local` aunque el .env diga otra cosa, y sin las credenciales de
+# Supabase ni de su almacenamiento, que no se usan hasta el despliegue.
+$env:SPRING_PROFILES_ACTIVE = 'local'
+Get-ChildItem Env: | Where-Object { $_.Name -like 'SUPABASE_*' -or $_.Name -like 'FLYWAY_DB_*' -or $_.Name -like 'WAMMA_S3_*' } |
+  ForEach-Object { Remove-Item "Env:$($_.Name)" }
+$env:WAMMA_FOTOS_ALMACEN = 'disco'
+$env:WAMMA_RECAUDOS_ALMACEN = 'disco'
+
+# Sin datos de demostración (D-85): ni vehículos ni personas ficticias en el CRM.
+$env:WAMMA_DEMO_CARGAR_INVENTARIO = 'false'
+
+# Base de datos y secretos (D-86): la contraseña y las claves no tienen valor por defecto.
+if (-not $env:SPRING_DATASOURCE_URL) { $env:SPRING_DATASOURCE_URL = 'jdbc:postgresql://localhost:5432/wamma' }
+if (-not $env:SPRING_DATASOURCE_USERNAME) { $env:SPRING_DATASOURCE_USERNAME = 'postgres' }
 if (-not $env:SPRING_DATASOURCE_PASSWORD) {
-  $env:SPRING_DATASOURCE_PASSWORD = Read-Host -Prompt "Ingresa la contraseña de PostgreSQL (postgres)" -AsSecureString
-  $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($env:SPRING_DATASOURCE_PASSWORD)
-  $env:SPRING_DATASOURCE_PASSWORD = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+  $segura = Read-Host -Prompt "Contraseña de PostgreSQL ($env:SPRING_DATASOURCE_USERNAME)" -AsSecureString
+  $env:SPRING_DATASOURCE_PASSWORD = [System.Net.NetworkCredential]::new('', $segura).Password
 }
-$env:FLYWAY_ENABLED = "true"
 foreach ($clave in 'WAMMA_CLAVE_CIFRADO', 'WAMMA_CLAVE_INDICE') {
   if (-not [System.Environment]::GetEnvironmentVariable($clave)) { throw "Falta $clave. Defínela en backend/.env." }
 }
-if (-not $env:WAMMA_ADMIN_USUARIO) { $env:WAMMA_ADMIN_USUARIO = "hdpinho" }
-if (-not $env:WAMMA_ADMIN_NOMBRE) { $env:WAMMA_ADMIN_NOMBRE = "Héctor" }
-if (-not $env:WAMMA_ADMIN_APELLIDO) { $env:WAMMA_ADMIN_APELLIDO = "De Pinho" }
-if (-not $env:WAMMA_DEMO_CARGAR_INVENTARIO) { $env:WAMMA_DEMO_CARGAR_INVENTARIO = "true" }
-$env:WAMMA_CORS_ORIGINS = "http://localhost:5173,http://localhost:5174"
+$env:FLYWAY_ENABLED = 'true'
+$env:WAMMA_CORS_ORIGINS = 'http://localhost:5173,http://localhost:5174'
+
+# Fotos y recaudos en una carpeta persistente, fuera del repositorio y de OneDrive. Sin esto el backend
+# usa la carpeta temporal de Windows, que el sistema puede vaciar. Lo que ya hubiera allí se copia
+# (solo los archivos que falten; el origen no se toca).
+$datos = Join-Path $env:LOCALAPPDATA 'WAMMA'
+if (-not $env:WAMMA_FOTOS_CARPETA) { $env:WAMMA_FOTOS_CARPETA = Join-Path $datos 'fotos' }
+if (-not $env:WAMMA_RECAUDOS_CARPETA) { $env:WAMMA_RECAUDOS_CARPETA = Join-Path $datos 'recaudos' }
+foreach ($par in @(@('wamma-fotos', $env:WAMMA_FOTOS_CARPETA), @('wamma-recaudos', $env:WAMMA_RECAUDOS_CARPETA))) {
+  New-Item -ItemType Directory -Force $par[1] | Out-Null
+  $anterior = Join-Path $env:TEMP $par[0]
+  if (Test-Path $anterior) {
+    robocopy $anterior $par[1] /E /XC /XN /XO /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "No se pudieron copiar los archivos de $anterior a $($par[1])." }
+  }
+}
 
 $logBackend = Join-Path $salida 'backend.log'
-"Arrancando backend persistente contra PostgreSQL (localhost:5432/wamma)…"
+"Arrancando el backend contra PostgreSQL (localhost:5432/wamma)…"
 Start-Process -FilePath $mvn -WorkingDirectory (Join-Path $raiz 'backend') -WindowStyle Hidden `
   -RedirectStandardOutput $logBackend -RedirectStandardError "$logBackend.err" `
   -ArgumentList @('-B', '-q', 'spring-boot:run')
@@ -72,30 +98,6 @@ while ((Get-Date) -lt $limite) {
   Start-Sleep -Seconds 2
 }
 if (-not $listo) { throw "El backend no terminó de arrancar en 3 minutos. Revisa $logBackend" }
-
-# Publicación de los 9 vehículos autorizados en PostgreSQL, con la última tasa BCV registrada
-# en la base (la tasa se captura desde el backoffice; este script ya no inventa ninguna).
-# Si todavía no hay tasa registrada, no se publica nada.
-try {
-  $env:PGPASSWORD = $env:SPRING_DATASOURCE_PASSWORD
-  $psql = "C:\Program Files\PostgreSQL\18\bin\psql.exe"
-  if (Test-Path $psql) {
-    & $psql -U $env:SPRING_DATASOURCE_USERNAME -d wamma -q -c "
-      UPDATE publicacion p
-      SET estado = 'publicado',
-          tasa_bcv = r.tasa_ves,
-          fecha_tasa = r.fecha,
-          publicado_en = COALESCE(p.publicado_en, NOW())
-      FROM vehiculo v,
-           (SELECT tasa_ves, fecha FROM tasa_cambio_bcv WHERE moneda = 'EUR' ORDER BY fecha DESC LIMIT 1) r
-      WHERE p.vehiculo_id = v.id
-        AND p.estado = 'borrador'
-        AND v.codigo IN ('veh-001', 'veh-002', 'veh-003', 'veh-004', 'veh-005', 'veh-006', 'veh-007', 'veh-009', 'veh-011');
-    " 2>$null
-  }
-} catch {
-  # Continuar normalmente
-}
 
 "Arrancando frontend web…"
 $env:VITE_API_URL = 'http://localhost:8080'
@@ -114,5 +116,6 @@ while ((Get-Date) -lt $limite) {
 "  Vitrina pública:  http://localhost:5174"
 "  Backoffice:       http://localhost:5174/admin/ingresar"
 "  Base de datos:    PostgreSQL localhost:5432 / wamma"
+"  Fotos/recaudos:   $datos"
 "  Para apagar:      .\scripts\detener-local-persistente.ps1"
 "=================================================================`n"

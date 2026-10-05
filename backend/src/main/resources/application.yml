@@ -16,7 +16,8 @@ spring:
       max-request-size: 11MB
 
   # Migrar no es el comportamiento implícito: cada entorno decide. Render lo pone en true;
-  # el perfil `local` lo habilita porque su base nace vacía en cada arranque.
+  # el perfil `local` lo habilita para aplicar lo pendiente a su base (embebida en las pruebas,
+  # persistente en el entorno de trabajo, D-85).
   flyway:
     enabled: ${FLYWAY_ENABLED:false}
     locations: classpath:db/migration
@@ -120,7 +121,8 @@ logging:
 
 ---
 # ── Perfil local (el de por defecto) ──────────────────────────────────────────
-# Desarrollo y pruebas sobre PostgreSQL persistente o embebido.
+# Desarrollo y pruebas sobre PostgreSQL persistente o embebido. La contraseña no tiene valor por
+# defecto (D-86): viene de backend/.env o del entorno; las pruebas y LocalDevServer ponen la suya.
 spring:
   config:
     activate:
