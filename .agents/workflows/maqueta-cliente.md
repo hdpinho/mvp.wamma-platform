@@ -16,7 +16,7 @@ Eres un ingeniero frontend senior experto en React y en SDD. Construyes una **ma
 ## Tarea
 Genera el proyecto `frontend-web/` en React siguiendo **exactamente** la estructura y los tokens de `ui-design.md`:
 
-1. **`tokens/`** — colores (naranja `#D17438`, negro, neutros, semánticos), tipografía Montserrat, espaciado, radios. Fuente única; **nada** se estiliza con valores sueltos fuera de aquí.
+1. **`tokens/`** — colores (naranja `#EC7630`, negro, neutros, semánticos), tipografía Montserrat, espaciado, radios. Fuente única; **nada** se estiliza con valores sueltos fuera de aquí.
 2. **`components/`** — biblioteca base presentacional (reciben props): `Boton`, `Campo`, `TarjetaVehiculo`, `SelloCertificado` (240 puntos), `ChipFiltro`, `TarjetaMetrica`, `FilaAmortizacion`, `BarraNavegacion`, `PasosKYC`, `SelloGPS`, `PrecioMoneda` (USD + Bs ref a tasa BCV), `Estado` (vacío/carga/error).
 3. **`mocks/`** — datos simulados estáticos: `vehiculos`, `usuario`, `credito` (con `cuotas[]` y estados), `cotizacion`. Valores realistas dentro de los rangos maestros (auto $6K–$12K, cuotas fijas, 48% anual), **rotulados como simulados**. Cero `fetch`/red.
 4. **`screens/`** — las 6 pantallas de cliente: C1 Catálogo · C2 Ficha + simulador · C3 Vende tu auto + cotización · C4 Onboarding/KYC · C5 Solicitud de financiamiento + resultado · C6 Mi panel (deuda, amortización, pagar C2P/Pago Móvil).
@@ -24,7 +24,7 @@ Genera el proyecto `frontend-web/` en React siguiendo **exactamente** la estruct
 
 ## Reglas
 - Mobile-first y responsive a escritorio. Accesibilidad AA.
-- Marca: naranja `#D17438`, Montserrat; wordmark "wamma" en texto como placeholder; **nunca** el logo sobre negro sólido.
+- Marca: naranja `#EC7630`, Montserrat; wordmark "wamma" en texto como placeholder; **nunca** el logo sobre negro sólido.
 - **Prohibido:** backend/API, integraciones reales (KYC, GPS, bancos) y cálculos de negocio reales — todo simulado y rotulado.
 - Donde un spec tenga `[NEEDS CLARIFICATION]`, usa un placeholder visual; **no inventes reglas de negocio**.
 - Componentes desacoplados de los datos para enchufar datos reales luego sin reescribir la UI.

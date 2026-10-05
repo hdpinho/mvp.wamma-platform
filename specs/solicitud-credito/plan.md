@@ -17,7 +17,7 @@ Instrucción recibida: *"los insumos los vemos luego; deja los datos ya manejado
 |---|---|---|---|
 | S1 | **Moneda** | **USD** con equivalencia a tasa BCV (Constitución, Principio V). Se descarta EUR | Cambio en tabla de parámetros + migración de `moneda`. El tipo `Dinero` ya es multi-moneda |
 | S2 | **Tasa de interés** | Se usa como **referencia** la ya manejada: 4 % mensual / 48 % anual (`data-model.md`, `research-dependencies.md` P6). **No se codifica**: vive en `parametros_financieros` | Cambiar una fila. Cero código |
-| S3 | **Tokens de marca** | Los vigentes de `../000-overview/ui-design.md`: `#D17438`, texto `#1A1A18`, Montserrat. Se descartan `#2B2B2B` y `#18072B` | Cambio en `tokens/` |
+| S3 | **Tokens de marca** | Los vigentes de `../000-overview/ui-design.md`: `#EC7630`, texto `#1A1A18`, Montserrat. Se descartan `#2B2B2B` y `#18072B` | Cambio en `tokens/` |
 | S4 | **Logo sobre negro** | **Permitido** en versión blanca, conforme al manual de marca (lámina "Positivo / Negativo") | — |
 | S5 | **Puerta de KYC** | El asistente es **público** y se envía con **OTP verificado**. El **KYC verificado se exige para aprobar**, no para solicitar: la transición `en_analisis → aprobada` lo valida en el módulo 006 | Conserva la regla del módulo 002 sin bloquear la captación |
 | S6 | **Relación con 006** | Este módulo es la **capa de captación** del 006. Produce el expediente; **no decide** | Interfaz explícita, sin duplicar la entidad |

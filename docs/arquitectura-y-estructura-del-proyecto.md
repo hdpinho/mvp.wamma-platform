@@ -71,7 +71,7 @@ Aseguran que las herramientas de asistencia sigan los estándares del proyecto:
 ---
 
 ### 📂 `docs/` — Documentación y Activos de Marca
-* **`marca/`**: Manual de identidad visual de WAMMA, especificación de color (#D17438, escala de grises oscuros y fondos claros), logotipo en versiones para fondos oscuros/claros y tipografía corporativa Montserrat.
+* **`marca/`**: Manual de identidad visual de WAMMA, especificación de color (#EC7630, escala de grises oscuros y fondos claros), logotipo en versiones para fondos oscuros/claros y tipografía corporativa Montserrat.
 
 ---
 

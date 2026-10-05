@@ -105,7 +105,7 @@ El proyecto cuenta con integración y despliegue continuo automatizado conectado
 
 ```
 frontend-web/src/
-├── tokens/        # colores (#D17438, etc.), tipografía Montserrat, espaciado
+├── tokens/        # colores (#EC7630, etc.), tipografía Montserrat, espaciado
 ├── components/    # biblioteca base reusable
 ├── screens/       # pantallas C0…C10
 ├── mocks/         # datos simulados (sin red)
@@ -127,7 +127,7 @@ backend/
 ## Recordatorios
 
 - **No** hay backend conectado a la maqueta: todo simulado y rotulado.
-- Marca: naranja `#D17438`, Montserrat (Regular/Bold). Assets del logo en `frontend-web/public/marca/`; manual en `docs/marca/`. Sobre fondo negro sólido va la versión **blanca** del logo.
+- Marca: naranja `#EC7630`, Montserrat (Regular/Bold). Assets del logo en `frontend-web/public/marca/`; manual en `docs/marca/`. Sobre fondo negro sólido va la versión **blanca** del logo.
 - Secretos fuera del repositorio (ya cubierto por `.gitignore`).
 
 ---

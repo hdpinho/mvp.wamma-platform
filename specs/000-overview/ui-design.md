@@ -18,7 +18,7 @@ Construir una **maqueta navegable de alta fidelidad** en React, con **datos simu
 
 1. **Confianza y transparencia** — es lo que diferencia a WAMMA de un clasificado. El sello "certificado · 240 puntos" y los precios claros son protagonistas.
 2. **Mobile-first** — el cliente venezolano vive en el teléfono. Se diseña primero para móvil y se expande a escritorio.
-3. **Marca consistente** — naranja `#D17438` y Montserrat en todas las pantallas (sección 4).
+3. **Marca consistente** — naranja `#EC7630` y Montserrat en todas las pantallas (sección 4).
 4. **Claridad sobre decoración** — superficies planas, sin gradientes ni sombras pesadas; jerarquía por tipografía y espacio.
 5. **Multi-moneda siempre visible** — todo precio en USD con equivalencia en Bs. a tasa BCV (sección 6).
 
@@ -54,7 +54,7 @@ Construir una **maqueta navegable de alta fidelidad** en React, con **datos simu
 | Peligro / mora | `#C0392B` | `#FCEBEB` | Cuota en mora, errores |
 | Info | `#185FA5` | `#E6F1FB` | Estados informativos |
 
-> `[NEEDS CLARIFICATION: confirmar la rampa extendida y los colores semánticos. El manual de marca solo define #D17438, #000000 y la escala de grises; la rampa y los semánticos son una extensión funcional nuestra, no oficial.]`
+> `[NEEDS CLARIFICATION: confirmar la rampa extendida y los colores semánticos. El manual de marca solo define #EC7630, #000000 y la escala de grises; la rampa y los semánticos son una extensión funcional nuestra, no oficial.]`
 
 ### 3.2 Tipografía
 
@@ -232,7 +232,7 @@ Para cada pantalla con datos: **vacío** (sin resultados), **carga** (skeleton),
 ## 14. Preguntas abiertas
 
 - ~~`[NEEDS CLARIFICATION: conflicto de naranja — manual dice #D17438, los PNG del logo tienen #EB7530]`~~ *(Resuelto por D-84: el color oficial es `#EC7630`)*
-- `[NEEDS CLARIFICATION: confirmar rampa extendida y colores semánticos (el manual solo define #D17438, #000000 y grises)]`
+- `[NEEDS CLARIFICATION: confirmar rampa extendida y colores semánticos (el manual solo define #EC7630, #000000 y grises)]`
 - `[NEEDS CLARIFICATION: ¿se admite Montserrat Medium 500 en UI? El manual solo lista Bold y Regular]`
 - `[NEEDS CLARIFICATION: falta el logo vectorial (SVG/AI/EPS); solo hay PNG rasterizado]`
 - `[NEEDS CLARIFICATION: alcance de la primera maqueta — solo cliente o también interno]`

@@ -19,7 +19,7 @@ WAMMA es la plataforma de venta, certificación y financiamiento de vehículos u
 ## 2. Identidad Visual y Marca
 
 - **Colores de marca:**
-  - Naranja primario: `#D17438` (`var(--naranja-500)`)
+  - Naranja primario: `#EC7630` (`var(--naranja-500)`)
   - Carbón institucional: `#2B2B2B` (`var(--carbon)`)
   - Fondo blanco y superficies neutras cálidas. Prohibido el uso de azules fríos o fondos negros sólidos detrás del logo.
 - **Tipografía:** Montserrat (`var(--font-sans)`) para títulos, cuerpo y cifras numéricas.

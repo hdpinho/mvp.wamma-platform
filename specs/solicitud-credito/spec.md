@@ -279,7 +279,7 @@ Tasa de interés, plazos, montos mínimo y máximo, porcentaje mínimo de inicia
 
 ### 9.4 Marca e interfaz
 
-- Naranja WAMMA **`#D17438`** como color primario de acción; carbón **`#2B2B2B`** para texto; oscuro **`#18072B`** para fondos profundos; blanco para superficies.
+- Naranja WAMMA **`#EC7630`** como color primario de acción; carbón **`#2B2B2B`** para texto; oscuro **`#18072B`** para fondos profundos; blanco para superficies.
 - Tipografía **Montserrat** exclusivamente.
 - **Prohibido el logo sobre fondo negro sólido.** Usar versión sobre transparente, o blanca sobre naranja.
 - Mobile-first, base **360 px**. Áreas táctiles mínimas **44 px**.
