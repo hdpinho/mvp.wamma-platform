@@ -196,7 +196,7 @@ export const TarjetaVehiculo: React.FC<TarjetaVehiculoProps> = ({
           </div>
           <div style={{ fontSize: '20px', fontWeight: 800, lineHeight: 1.2, color: 'var(--naranja-700)' }}>
             {cuota !== null ? (
-              <>Desde {formatoEUR(cuota)} /mes*</>
+              <>Desde {formatoEUR(cuota)} /mes</>
             ) : (
               <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--texto-mudo)' }}>
                 {cargandoParametros ? 'Calculando…' : 'Cuota no disponible'}

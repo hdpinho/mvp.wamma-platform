@@ -91,7 +91,7 @@ Cada componente se construye una vez en `frontend-web/src/components/` y se reut
 |---|---|
 | `Boton` | Variantes: primario (naranja), secundario (outline naranja), texto |
 | `Campo` / `Selector` | Input, select; estados de validación (visual) |
-| `TarjetaVehiculo` | Foto, etiqueta comercial, favorito, versión, precio USD + Bs ref y **cuota "desde $X/mes*"** |
+| `TarjetaVehiculo` | Foto, etiqueta comercial, favorito, versión, precio USD + Bs ref y **cuota "desde X €/mes"** (sin asterisco, D-89) |
 | `SelloCertificado` | "Certificado · 240 puntos" (dato maestro: 240, no 250) |
 | `ChipFiltro` | Filtro conmutable; activo en naranja, removible con equis |
 | `Logo` | Logo oficial: articulación (horizontal/vertical/isotipo) y variante cromática |

@@ -114,7 +114,7 @@ Desde el inventario la cambia el rol Inventario; en el día a día la mueve el C
 ![Vitrina publicada](capturas/02-inventario/10-vitrina-publicada.png)
 ![Ficha pública con su galería](capturas/02-inventario/11-ficha-publica.png)
 
-- **Precios y Cuotas (D-27):** En el sitio público **no se muestra el precio total de contado**. La vitrina y fichas se expresan exclusivamente mediante la **Cuota mensual estimada** en euros (`Desde €... /mes*`). Se eliminaron las referencias en bolívares (`Bs.`) y el ajuste dinámico manual de tasa euro del sitio público.
+- **Precios y Cuotas (D-27):** En el sitio público **no se muestra el precio total de contado**. La vitrina y fichas se expresan exclusivamente mediante la **Cuota mensual estimada** en euros (`Desde €... /mes`, sin asterisco: D-89). Se eliminaron las referencias en bolívares (`Bs.`) y el ajuste dinámico manual de tasa euro del sitio público.
 - **Terminología (D-29):** Se utiliza estrictamente **«Inspección 240 puntos»** o **«Estándar WAMMA»** (todo el inventario en vitrina ha superado la inspección, por lo que no existe filtro de "solo certificados"). La sede física tampoco se expone al cliente en la ficha pública.
 - **Línea fotográfica (D-32):** Fotografías homogéneas de estudio con fondo de ciclorama neutro e iluminación uniforme a 3/4.
 - **Etiquetas (D-44):** *Recién ingresado* (verde), *Reservado para cita* (naranja, con reloj) y *Súper oportunidad* (dorado, con estrella). Las pone el rol Inventario; no dependen de la disponibilidad del vehículo.
